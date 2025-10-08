@@ -2036,7 +2036,7 @@ CHTL(项目文件夹，可以换成src)
 	    -CHTLIOStream(如果需要IO流)
         -CMODSystem
 
-    -CHTL JS
+    -CHTLJS
         -CHTLJSContext
         -CHTLJSGenerator
         -CHTLJSLexer(Lexer，GlobalMap，Token文件)

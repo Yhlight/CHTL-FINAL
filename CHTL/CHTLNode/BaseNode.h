@@ -9,6 +9,8 @@ class RootNode;
 class ElementNode;
 class TextNode;
 class CommentNode;
+class StyleNode;
+class StylePropertyNode;
 
 // Visitor pattern for traversing the AST
 class ASTVisitor {
@@ -18,6 +20,8 @@ public:
     virtual void visit(ElementNode& node) = 0;
     virtual void visit(TextNode& node) = 0;
     virtual void visit(CommentNode& node) = 0;
+    virtual void visit(StyleNode& node) = 0;
+    virtual void visit(StylePropertyNode& node) = 0;
 };
 
 class BaseNode {

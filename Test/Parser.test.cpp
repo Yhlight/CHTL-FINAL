@@ -35,6 +35,44 @@ TEST_CASE("Parser correctly parses simple structures", "[parser]") {
     }
 }
 
+TEST_CASE("Parser correctly handles style blocks", "[parser]") {
+    SECTION("Parse an empty style block") {
+        Lexer lexer("div { style {} }");
+        Parser parser(lexer.tokenize());
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.size() == 1);
+        auto* div = dynamic_cast<ElementNode*>(ast->children[0].get());
+        REQUIRE(div != nullptr);
+        REQUIRE(div->style != nullptr);
+        REQUIRE(div->style->properties.empty());
+    }
+
+    SECTION("Parse a style block with properties") {
+        // This test requires the lexer to handle "16px" as a single value.
+        // For now, we will treat it as two tokens: a numeric literal and an identifier.
+        // The parser will need to be smart enough to combine them.
+        // Let's simplify for now and use unquoted values.
+        Lexer lexer("div { style { color: red; font-size: 16; } }");
+        Parser parser(lexer.tokenize());
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.size() == 1);
+        auto* div = dynamic_cast<ElementNode*>(ast->children[0].get());
+        REQUIRE(div != nullptr);
+        REQUIRE(div->style != nullptr);
+        REQUIRE(div->style->properties.size() == 2);
+
+        auto* prop1 = div->style->properties[0].get();
+        REQUIRE(prop1->key == "color");
+        REQUIRE(prop1->value == "red");
+
+        auto* prop2 = div->style->properties[1].get();
+        REQUIRE(prop2->key == "font-size");
+        REQUIRE(prop2->value == "16");
+    }
+}
+
 TEST_CASE("Parser handles nested structures", "[parser]") {
     SECTION("Parse nested elements") {
         Lexer lexer("html { body { div {} } }");

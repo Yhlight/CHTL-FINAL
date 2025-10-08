@@ -23,6 +23,19 @@ void Generator::visit(ElementNode& node) {
         output << " " << attr.first << "=\"" << attr.second << "\"";
     }
 
+    // Append inline styles
+    if (node.style && !node.style->properties.empty()) {
+        output << " style=\"";
+        for (size_t i = 0; i < node.style->properties.size(); ++i) {
+            auto& prop = node.style->properties[i];
+            output << prop->key << ": " << prop->value << ";";
+            if (i < node.style->properties.size() - 1) {
+                output << " ";
+            }
+        }
+        output << "\"";
+    }
+
     output << ">";
 
     if (!node.children.empty()) {
@@ -59,4 +72,12 @@ void Generator::indent() {
     for (int i = 0; i < indentLevel; ++i) {
         output << "  "; // 2 spaces for indentation
     }
+}
+
+void Generator::visit(StyleNode& node) {
+    // Dummy implementation for now
+}
+
+void Generator::visit(StylePropertyNode& node) {
+    // Dummy implementation for now
 }

@@ -25,6 +25,7 @@ private:
     Token text();
     Token identifier();
     Token stringLiteral(char quoteType);
+    Token number();
     Token singleLineComment();
     Token multiLineComment();
     Token generatorComment();

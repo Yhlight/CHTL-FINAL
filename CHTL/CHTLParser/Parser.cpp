@@ -40,17 +40,17 @@ std::unique_ptr<ElementNode> Parser::parseElement() {
     consume(TokenType::LEFT_BRACE, "Expected '{' after element name.");
 
     while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
-        // Look ahead to differentiate between a child element and an attribute.
-        // A child element is an identifier followed by a '{'.
-        // An attribute is an identifier followed by a ':' or '='.
-        if (peek().type == TokenType::IDENTIFIER || peek().type == TokenType::TEXT_KEYWORD) {
+        if (peek().type == TokenType::STYLE_KEYWORD) {
+            element->style = parseStyle();
+        } else if (peek().type == TokenType::IDENTIFIER || peek().type == TokenType::TEXT_KEYWORD) {
+            // Look ahead to differentiate between a child element and an attribute.
             if (tokens[current + 1].type == TokenType::COLON || tokens[current + 1].type == TokenType::EQUALS) {
                 parseAttribute(element.get());
             } else {
                 element->children.push_back(parseStatement());
             }
         } else {
-            // It's not an identifier, so it must be a statement (e.g., a text {} block)
+            // It's not an attribute or a style block, so it must be a statement (e.g., a text {} block)
             element->children.push_back(parseStatement());
         }
     }
@@ -77,7 +77,7 @@ void Parser::parseAttribute(ElementNode* element) {
     // An attribute value can be a string literal or any identifier-like token
     if (peek().type == TokenType::STRING_LITERAL) {
         valueToken = consume(TokenType::STRING_LITERAL, "Expected attribute value.");
-    } else if (peek().type == TokenType::IDENTIFIER || peek().type == TokenType::TEXT_KEYWORD) { // Allow keywords as values
+    } else if (peek().type == TokenType::IDENTIFIER || peek().type == TokenType::TEXT_KEYWORD || peek().type == TokenType::NUMERIC_LITERAL) {
         valueToken = advance();
     } else {
         throw std::runtime_error("Expected attribute value to be a string or an identifier.");
@@ -98,6 +98,28 @@ void Parser::parseAttribute(ElementNode* element) {
     } else {
         element->attributes[key.value] = value;
     }
+}
+
+std::unique_ptr<StyleNode> Parser::parseStyle() {
+    consume(TokenType::STYLE_KEYWORD, "Expected 'style' keyword.");
+    consume(TokenType::LEFT_BRACE, "Expected '{' after 'style'.");
+
+    auto styleNode = std::make_unique<StyleNode>();
+
+    while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
+        consume(TokenType::COLON, "Expected ':' after style property key.");
+
+        // For now, assume the value is a single token (identifier or number)
+        Token value = advance();
+        consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
+
+        styleNode->properties.push_back(std::make_unique<StylePropertyNode>(key.value, value.value));
+    }
+
+    consume(TokenType::RIGHT_BRACE, "Expected '}' after style block.");
+
+    return styleNode;
 }
 
 std::unique_ptr<TextNode> Parser::parseText() {

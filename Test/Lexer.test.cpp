@@ -69,4 +69,15 @@ TEST_CASE("Lexer correctly tokenizes literals", "[lexer]") {
         REQUIRE(tokens[5].type == TokenType::RIGHT_BRACE);
         REQUIRE(tokens[6].type == TokenType::END_OF_FILE);
     }
+
+    SECTION("Numeric literals") {
+        Lexer lexer("123 45.6");
+        auto tokens = lexer.tokenize();
+        REQUIRE(tokens.size() == 3);
+        REQUIRE(tokens[0].type == TokenType::NUMERIC_LITERAL);
+        REQUIRE(tokens[0].value == "123");
+        REQUIRE(tokens[1].type == TokenType::NUMERIC_LITERAL);
+        REQUIRE(tokens[1].value == "45.6");
+        REQUIRE(tokens[2].type == TokenType::END_OF_FILE);
+    }
 }

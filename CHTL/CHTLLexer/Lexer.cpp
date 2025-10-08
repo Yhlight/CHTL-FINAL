@@ -37,6 +37,11 @@ Token Lexer::nextToken() {
         current--;
         return identifier();
     }
+    if (isdigit(c)) {
+        // Backtrack to include the first character
+        current--;
+        return number();
+    }
 
     switch (c) {
         case '{': return makeToken(TokenType::LEFT_BRACE, "{");
@@ -105,6 +110,9 @@ Token Lexer::identifier() {
     if (value == "text") {
         return makeToken(TokenType::TEXT_KEYWORD, value);
     }
+    if (value == "style") {
+        return makeToken(TokenType::STYLE_KEYWORD, value);
+    }
     return makeToken(TokenType::IDENTIFIER, value);
 }
 
@@ -162,4 +170,23 @@ Token Lexer::generatorComment() {
         advance();
     }
     return makeToken(TokenType::GENERATOR_COMMENT, source.substr(start, current - start));
+}
+
+Token Lexer::number() {
+    size_t start = current;
+    while (isdigit(peek())) {
+        advance();
+    }
+
+    // Look for a fractional part.
+    if (peek() == '.' && isdigit(peekNext())) {
+        // Consume the "."
+        advance();
+
+        while (isdigit(peek())) {
+            advance();
+        }
+    }
+
+    return makeToken(TokenType::NUMERIC_LITERAL, source.substr(start, current - start));
 }

@@ -4,6 +4,8 @@
 #include "CHTL/CHTLNode/ElementNode.h"
 #include "CHTL/CHTLNode/TextNode.h"
 #include "CHTL/CHTLNode/CommentNode.h"
+#include "CHTL/CHTLNode/StyleNode.h"
+#include "CHTL/CHTLNode/StylePropertyNode.h"
 
 TEST_CASE("Generator produces correct HTML", "[generator]") {
     SECTION("Generate a simple element") {
@@ -66,5 +68,22 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
 
         // The order of attributes in a std::map is sorted by key.
         REQUIRE(result == "<div class=\"container\" id=\"main\"></div>\n");
+    }
+
+    SECTION("Generate an element with inline styles") {
+        auto root = std::make_unique<RootNode>();
+        auto element = std::make_unique<ElementNode>("div");
+
+        auto styleNode = std::make_unique<StyleNode>();
+        styleNode->properties.push_back(std::make_unique<StylePropertyNode>("color", "red"));
+        styleNode->properties.push_back(std::make_unique<StylePropertyNode>("font-size", "16px"));
+        element->style = std::move(styleNode);
+
+        root->children.push_back(std::move(element));
+
+        Generator generator;
+        std::string result = generator.generate(*root);
+
+        REQUIRE(result == "<div style=\"color: red; font-size: 16px;\"></div>\n");
     }
 }

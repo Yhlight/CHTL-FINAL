@@ -175,6 +175,12 @@ void Generator::visit(TemplateUsageNode& node) {
                 bodyNode->accept(*this); // Visit the StylePropertyNode
             }
         }
+    } else if (node.templateType == TemplateType::ELEMENT) {
+        if (context->elementTemplates.count(node.name)) {
+            auto* tpl = context->elementTemplates[node.name].get();
+            for (const auto& bodyNode : tpl->body) {
+                bodyNode->accept(*this);
+            }
+        }
     }
-    // Element and Var templates will be handled elsewhere or in future steps.
 }

@@ -28,6 +28,7 @@ enum class TokenType {
     TEXT_KEYWORD,
     STYLE_KEYWORD,
     SCRIPT_KEYWORD,
+    ELEMENT_KEYWORD,
 
     // Literals
     STRING_LITERAL,

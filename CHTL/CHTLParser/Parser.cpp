@@ -250,8 +250,10 @@ std::unique_ptr<TemplateDeclarationNode> Parser::parseTemplateDeclaration() {
     if (peek().type == TokenType::STYLE_KEYWORD) {
         type = TemplateType::STYLE;
         advance();
+    } else if (peek().type == TokenType::ELEMENT_KEYWORD) {
+        type = TemplateType::ELEMENT;
+        advance();
     } else {
-        // This is simplified for now.
         throw std::runtime_error("Unsupported template type in declaration: " + peek().value);
     }
 
@@ -260,28 +262,40 @@ std::unique_ptr<TemplateDeclarationNode> Parser::parseTemplateDeclaration() {
 
     consume(TokenType::LEFT_BRACE, "Expected '{' to start template body.");
 
-    // For a style template, the body contains style properties.
-    while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
-        Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
-        consume(TokenType::COLON, "Expected ':' after style property key.");
+    if (type == TemplateType::STYLE) {
+        while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+            if (peek().type == TokenType::AT) {
+                templateNode->body.push_back(parseTemplateUsage());
+            } else {
+                Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
+                consume(TokenType::COLON, "Expected ':' after style property key.");
 
-        std::vector<Token> valueTokens;
-        while(peek().type != TokenType::SEMICOLON && !isAtEnd()) {
-            valueTokens.push_back(advance());
+                std::vector<Token> valueTokens;
+                while(peek().type != TokenType::SEMICOLON && !isAtEnd()) {
+                    valueTokens.push_back(advance());
+                }
+                valueTokens.push_back(Token{TokenType::END_OF_FILE, "", 0, 0});
+
+                ExpressionParser exprParser(valueTokens);
+                auto value = exprParser.parse();
+
+                consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
+                templateNode->body.push_back(std::make_unique<StylePropertyNode>(key.value, std::move(value)));
+            }
         }
-        valueTokens.push_back(Token{TokenType::END_OF_FILE, "", 0, 0});
-
-        ExpressionParser exprParser(valueTokens);
-        auto value = exprParser.parse();
-
-        consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
-        templateNode->body.push_back(std::make_unique<StylePropertyNode>(key.value, std::move(value)));
+    } else if (type == TemplateType::ELEMENT) {
+        while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+            templateNode->body.push_back(parseStatement());
+        }
     }
+
     consume(TokenType::RIGHT_BRACE, "Expected '}' to end template body.");
 
     // Store the template in the context instead of returning it to the main AST
     if (templateNode->templateType == TemplateType::STYLE) {
         context.styleTemplates[templateNode->name] = std::move(templateNode);
+    } else if (templateNode->templateType == TemplateType::ELEMENT) {
+        context.elementTemplates[templateNode->name] = std::move(templateNode);
     }
 
     // Return a nullptr because the template declaration is not part of the main AST
@@ -295,7 +309,7 @@ std::unique_ptr<TemplateUsageNode> Parser::parseTemplateUsage() {
     if (peek().type == TokenType::STYLE_KEYWORD) {
         type = TemplateType::STYLE;
         advance();
-    } else if (peek().type == TokenType::IDENTIFIER && (peek().value == "Element" || peek().value == "element")) {
+    } else if (peek().type == TokenType::ELEMENT_KEYWORD) {
         type = TemplateType::ELEMENT;
         advance();
     } else {

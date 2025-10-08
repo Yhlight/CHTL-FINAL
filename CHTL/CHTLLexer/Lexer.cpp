@@ -137,6 +137,9 @@ Token Lexer::identifier() {
     if (lowerValue == "style") {
         return makeToken(TokenType::STYLE_KEYWORD, value);
     }
+    if (lowerValue == "element") {
+        return makeToken(TokenType::ELEMENT_KEYWORD, value);
+    }
     return makeToken(TokenType::IDENTIFIER, value);
 }
 

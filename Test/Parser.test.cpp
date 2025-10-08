@@ -189,6 +189,27 @@ TEST_CASE("Parser correctly handles templates", "[parser]") {
         REQUIRE(usage->templateType == TemplateType::ELEMENT);
         REQUIRE(usage->name == "Box");
     }
+
+    SECTION("Parse a top-level element template declaration") {
+        CHTLContext context;
+        Lexer lexer("[Template] @Element Box { div { text: \"hello\"; } }");
+        Parser parser(lexer.tokenize(), context);
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.empty());
+
+        REQUIRE(context.elementTemplates.count("Box") == 1);
+        auto* tpl = context.elementTemplates["Box"].get();
+        REQUIRE(tpl != nullptr);
+        REQUIRE(tpl->templateType == TemplateType::ELEMENT);
+        REQUIRE(tpl->name == "Box");
+        REQUIRE(tpl->body.size() == 1); // The div
+
+        auto* div = dynamic_cast<ElementNode*>(tpl->body[0].get());
+        REQUIRE(div != nullptr);
+        REQUIRE(div->tagName == "div");
+        REQUIRE(div->children.size() == 1);
+    }
 }
 
 TEST_CASE("Parser handles nested structures", "[parser]") {

@@ -140,6 +140,21 @@ Token Lexer::identifier() {
     if (lowerValue == "element") {
         return makeToken(TokenType::ELEMENT_KEYWORD, value);
     }
+    if (lowerValue == "delete") {
+        return makeToken(TokenType::DELETE_KEYWORD, value);
+    }
+    if (lowerValue == "insert") {
+        return makeToken(TokenType::INSERT_KEYWORD, value);
+    }
+    if (lowerValue == "after") {
+        return makeToken(TokenType::AFTER_KEYWORD, value);
+    }
+    if (lowerValue == "before") {
+        return makeToken(TokenType::BEFORE_KEYWORD, value);
+    }
+    if (lowerValue == "replace") {
+        return makeToken(TokenType::REPLACE_KEYWORD, value);
+    }
     return makeToken(TokenType::IDENTIFIER, value);
 }
 

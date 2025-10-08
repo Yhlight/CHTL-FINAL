@@ -12,4 +12,8 @@ public:
     void accept(ExpressionVisitor& visitor) override {
         visitor.visit(*this);
     }
+
+    std::unique_ptr<BaseNode> clone() const override {
+        return std::make_unique<IdentifierExprNode>(name);
+    }
 };

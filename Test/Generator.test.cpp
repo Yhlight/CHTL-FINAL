@@ -12,6 +12,9 @@
 #include "CHTL/CHTLNode/TemplateDeclarationNode.h"
 #include "CHTL/CHTLNode/TemplateUsageNode.h"
 #include "CHTL/CHTLContext/CHTLContext.h"
+#include "CHTL/CHTLNode/CustomDeclarationNode.h"
+#include "CHTL/CHTLNode/DeleteNode.h"
+#include "CHTL/CHTLNode/InsertNode.h"
 #include <string>
 #include <algorithm>
 #include <cctype>
@@ -158,62 +161,80 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         tpl->body.push_back(std::make_unique<StylePropertyNode>("color", std::make_unique<IdentifierExprNode>("blue")));
         tpl->body.push_back(std::make_unique<StylePropertyNode>("font-size", std::make_unique<NumericLiteralExprNode>(12, "pt")));
         context.styleTemplates["DefaultText"] = std::move(tpl);
-
         auto root = std::make_unique<RootNode>();
         auto div = std::make_unique<ElementNode>("div");
         auto styleNode = std::make_unique<StyleNode>();
         styleNode->templateUsages.push_back(std::make_unique<TemplateUsageNode>(TemplateType::STYLE, "DefaultText"));
         div->style = std::move(styleNode);
         root->children.push_back(std::move(div));
-
         Generator generator;
         std::string result = generator.generate(*root, context);
-        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"color: blue; font-size: 12pt;\"></div>"));
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"color:blue;font-size:12pt;\"></div>"));
     }
 
     SECTION("Expand an element template") {
-        // 1. Define the template in the context
         auto tpl = std::make_unique<TemplateDeclarationNode>(TemplateType::ELEMENT, "Box");
         auto tplDiv = std::make_unique<ElementNode>("div");
         tplDiv->children.push_back(std::make_unique<TextNode>("hello from template"));
         tpl->body.push_back(std::move(tplDiv));
         context.elementTemplates["Box"] = std::move(tpl);
-
-        // 2. Create an AST that uses the template
         auto root = std::make_unique<RootNode>();
         auto body = std::make_unique<ElementNode>("body");
         body->children.push_back(std::make_unique<TemplateUsageNode>(TemplateType::ELEMENT, "Box"));
         root->children.push_back(std::move(body));
-
-        // 3. Generate and assert
         Generator generator;
         std::string result = generator.generate(*root, context);
         REQUIRE(normalize_whitespace(result) == normalize_whitespace("<body><div>hello from template</div></body>"));
     }
 
     SECTION("Expand inherited style templates") {
-        // 1. Define the base template
         auto baseTpl = std::make_unique<TemplateDeclarationNode>(TemplateType::STYLE, "BaseStyle");
         baseTpl->body.push_back(std::make_unique<StylePropertyNode>("color", std::make_unique<IdentifierExprNode>("red")));
         context.styleTemplates["BaseStyle"] = std::move(baseTpl);
-
-        // 2. Define the derived template that uses the base template
         auto derivedTpl = std::make_unique<TemplateDeclarationNode>(TemplateType::STYLE, "DerivedStyle");
         derivedTpl->body.push_back(std::make_unique<TemplateUsageNode>(TemplateType::STYLE, "BaseStyle"));
         derivedTpl->body.push_back(std::make_unique<StylePropertyNode>("font-weight", std::make_unique<IdentifierExprNode>("bold")));
         context.styleTemplates["DerivedStyle"] = std::move(derivedTpl);
-
-        // 3. Create an AST that uses the derived template
         auto root = std::make_unique<RootNode>();
         auto div = std::make_unique<ElementNode>("div");
         auto styleNode = std::make_unique<StyleNode>();
         styleNode->templateUsages.push_back(std::make_unique<TemplateUsageNode>(TemplateType::STYLE, "DerivedStyle"));
         div->style = std::move(styleNode);
         root->children.push_back(std::move(div));
-
-        // 4. Generate and assert
         Generator generator;
         std::string result = generator.generate(*root, context);
-        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"color: red; font-weight: bold;\"></div>"));
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"color:red;font-weight:bold;\"></div>"));
+    }
+}
+
+TEST_CASE("Generator correctly expands custom templates", "[generator]") {
+    CHTLContext context;
+    SECTION("Expand a custom element with a delete specialization") {
+        auto customTpl = std::make_unique<CustomDeclarationNode>(TemplateType::ELEMENT, "DeletableBox");
+        customTpl->body.push_back(std::make_unique<ElementNode>("div"));
+        customTpl->body.push_back(std::make_unique<ElementNode>("span"));
+        context.customTemplates["DeletableBox"] = std::move(customTpl);
+        auto root = std::make_unique<RootNode>();
+        auto usage = std::make_unique<TemplateUsageNode>(TemplateType::ELEMENT, "DeletableBox");
+        usage->specializations.push_back(std::make_unique<DeleteNode>(std::vector<std::string>{"span"}));
+        root->children.push_back(std::move(usage));
+        Generator generator;
+        std::string result = generator.generate(*root, context);
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div></div>"));
+    }
+
+    SECTION("Expand a custom element with an insert specialization") {
+        auto customTpl = std::make_unique<CustomDeclarationNode>(TemplateType::ELEMENT, "InsertableBox");
+        customTpl->body.push_back(std::make_unique<ElementNode>("div"));
+        context.customTemplates["InsertableBox"] = std::move(customTpl);
+        auto root = std::make_unique<RootNode>();
+        auto usage = std::make_unique<TemplateUsageNode>(TemplateType::ELEMENT, "InsertableBox");
+        auto insertNode = std::make_unique<InsertNode>(InsertPosition::AFTER, "div");
+        insertNode->nodesToInsert.push_back(std::make_unique<ElementNode>("p"));
+        usage->specializations.push_back(std::move(insertNode));
+        root->children.push_back(std::move(usage));
+        Generator generator;
+        std::string result = generator.generate(*root, context);
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div></div><p></p>"));
     }
 }

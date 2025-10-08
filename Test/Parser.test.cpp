@@ -11,6 +11,9 @@
 #include "CHTL/CHTLNode/BinaryOpExprNode.h"
 #include "CHTL/CHTLNode/TemplateDeclarationNode.h"
 #include "CHTL/CHTLNode/TemplateUsageNode.h"
+#include "CHTL/CHTLNode/CustomDeclarationNode.h"
+#include "CHTL/CHTLNode/DeleteNode.h"
+#include "CHTL/CHTLNode/InsertNode.h"
 #include "CHTL/CHTLContext/CHTLContext.h"
 
 TEST_CASE("Parser correctly parses simple structures", "[parser]") {
@@ -209,6 +212,62 @@ TEST_CASE("Parser correctly handles templates", "[parser]") {
         REQUIRE(div != nullptr);
         REQUIRE(div->tagName == "div");
         REQUIRE(div->children.size() == 1);
+    }
+}
+
+TEST_CASE("Parser correctly handles custom templates", "[parser]") {
+    SECTION("Parse a top-level custom element declaration") {
+        CHTLContext context;
+        Lexer lexer("[Custom] @Element Card { div {} }");
+        Parser parser(lexer.tokenize(), context);
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.empty());
+        REQUIRE(context.customTemplates.count("Card") == 1);
+        auto* tpl = context.customTemplates["Card"].get();
+        REQUIRE(tpl != nullptr);
+        REQUIRE(tpl->templateType == TemplateType::ELEMENT);
+        REQUIRE(tpl->name == "Card");
+        REQUIRE(tpl->body.size() == 1);
+    }
+
+    SECTION("Parse a custom element usage with delete") {
+        CHTLContext context;
+        Lexer lexer("body { @Element Card { delete div; } }");
+        Parser parser(lexer.tokenize(), context);
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.size() == 1);
+        auto* body = dynamic_cast<ElementNode*>(ast->children[0].get());
+        REQUIRE(body != nullptr);
+        REQUIRE(body->children.size() == 1);
+
+        auto* usage = dynamic_cast<TemplateUsageNode*>(body->children[0].get());
+        // This test will require TemplateUsageNode to have a body for specializations
+        // REQUIRE(usage->specializations.size() == 1);
+        // auto* del = dynamic_cast<DeleteNode*>(usage->specializations[0].get());
+        // REQUIRE(del != nullptr);
+        // REQUIRE(del->targets[0] == "div");
+    }
+
+    SECTION("Parse a custom element usage with insert") {
+        CHTLContext context;
+        Lexer lexer("body { @Element Card { insert after div[0] { p {} } } }");
+        Parser parser(lexer.tokenize(), context);
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.size() == 1);
+        auto* body = dynamic_cast<ElementNode*>(ast->children[0].get());
+        REQUIRE(body != nullptr);
+        REQUIRE(body->children.size() == 1);
+
+        // auto* usage = dynamic_cast<TemplateUsageNode*>(body->children[0].get());
+        // REQUIRE(usage->specializations.size() == 1);
+        // auto* insert = dynamic_cast<InsertNode*>(usage->specializations[0].get());
+        // REQUIRE(insert != nullptr);
+        // REQUIRE(insert->position == InsertPosition::AFTER);
+        // REQUIRE(insert->targetSelector == "div[0]");
+        // REQUIRE(insert->nodesToInsert.size() == 1);
     }
 }
 

@@ -26,4 +26,7 @@ private:
     void visit(StyleRuleNode& node) override {}
     void visit(TemplateDeclarationNode& node) override {}
     void visit(TemplateUsageNode& node) override {}
+    void visit(CustomDeclarationNode& node) override {}
+    void visit(DeleteNode& node) override {}
+    void visit(InsertNode& node) override {}
 };

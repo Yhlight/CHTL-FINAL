@@ -2,8 +2,11 @@
 #include "StyleCollector.h"
 #include "AttributeInjector.h"
 #include "ExpressionEvaluator.h"
+#include "../CHTLNode/DeleteNode.h"
+#include "../CHTLNode/InsertNode.h"
 #include <set>
 #include <sstream>
+#include <algorithm>
 
 // Helper to convert an evaluated value to a string for CSS
 static std::string evaluatedValueToString(const EvaluatedValue& val) {
@@ -60,11 +63,9 @@ void Generator::visit(ElementNode& node) {
 
     if (node.style && (!node.style->properties.empty() || !node.style->templateUsages.empty())) {
         output << " style=\"";
-        // Render direct properties
         for (size_t i = 0; i < node.style->properties.size(); ++i) {
             node.style->properties[i]->accept(*this);
         }
-        // Render template usages
         for (size_t i = 0; i < node.style->templateUsages.size(); ++i) {
             node.style->templateUsages[i]->accept(*this);
         }
@@ -151,7 +152,12 @@ void Generator::visit(CommentNode& node) {
 }
 
 void Generator::visit(StyleNode& node) {
-    // This is handled by visit(ElementNode&)
+    for (auto& usage : node.templateUsages) {
+        usage->accept(*this);
+    }
+    for (auto& prop : node.properties) {
+        prop->accept(*this);
+    }
 }
 
 void Generator::visit(StylePropertyNode& node) {
@@ -161,9 +167,10 @@ void Generator::visit(StylePropertyNode& node) {
 }
 
 void Generator::visit(StyleRuleNode& node) {}
-void Generator::visit(TemplateDeclarationNode& node) {
-    // Declarations are not rendered directly.
-}
+void Generator::visit(TemplateDeclarationNode& node) {}
+void Generator::visit(CustomDeclarationNode& node) {}
+void Generator::visit(DeleteNode& node) {}
+void Generator::visit(InsertNode& node) {}
 
 void Generator::visit(TemplateUsageNode& node) {
     if (!context) return;
@@ -172,13 +179,61 @@ void Generator::visit(TemplateUsageNode& node) {
         if (context->styleTemplates.count(node.name)) {
             auto* tpl = context->styleTemplates[node.name].get();
             for (const auto& bodyNode : tpl->body) {
-                bodyNode->accept(*this); // Visit the StylePropertyNode
+                bodyNode->accept(*this);
             }
         }
     } else if (node.templateType == TemplateType::ELEMENT) {
         if (context->elementTemplates.count(node.name)) {
             auto* tpl = context->elementTemplates[node.name].get();
             for (const auto& bodyNode : tpl->body) {
+                bodyNode->accept(*this);
+            }
+        } else if (context->customTemplates.count(node.name)) {
+            auto* tpl = context->customTemplates[node.name].get();
+
+            // 1. Deep copy the template body
+            std::vector<std::unique_ptr<BaseNode>> clonedBody;
+            for(const auto& n : tpl->body) {
+                clonedBody.push_back(n->clone());
+            }
+
+            // 2. Apply specializations to the copy
+            for (const auto& spec : node.specializations) {
+                if (auto* deleteRule = dynamic_cast<DeleteNode*>(spec.get())) {
+                    for (const auto& target : deleteRule->targets) {
+                        clonedBody.erase(std::remove_if(clonedBody.begin(), clonedBody.end(),
+                            [&](const std::unique_ptr<BaseNode>& n) {
+                                if (auto* el = dynamic_cast<ElementNode*>(n.get())) {
+                                    return el->tagName == target;
+                                }
+                                return false;
+                            }), clonedBody.end());
+                    }
+                } else if (auto* insertRule = dynamic_cast<InsertNode*>(spec.get())) {
+                    auto it = std::find_if(clonedBody.begin(), clonedBody.end(),
+                        [&](const std::unique_ptr<BaseNode>& n) {
+                            if (auto* el = dynamic_cast<ElementNode*>(n.get())) {
+                                // Simplified selector matching for now
+                                return el->tagName == insertRule->targetSelector;
+                            }
+                            return false;
+                        });
+
+                    if (it != clonedBody.end()) {
+                        if (insertRule->position == InsertPosition::AFTER) {
+                            it++; // Get iterator to the position *after* the found element
+                        }
+                        // Insert the new nodes
+                        for(const auto& nodeToInsert : insertRule->nodesToInsert) {
+                            it = clonedBody.insert(it, nodeToInsert->clone());
+                            it++; // Move iterator past the inserted element
+                        }
+                    }
+                }
+            }
+
+            // 3. Render the modified body
+            for (const auto& bodyNode : clonedBody) {
                 bodyNode->accept(*this);
             }
         }

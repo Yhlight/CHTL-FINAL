@@ -14,6 +14,9 @@ class StylePropertyNode;
 class StyleRuleNode;
 class TemplateDeclarationNode;
 class TemplateUsageNode;
+class CustomDeclarationNode;
+class DeleteNode;
+class InsertNode;
 
 // Visitor pattern for traversing the AST
 class ASTVisitor {
@@ -28,10 +31,14 @@ public:
     virtual void visit(StyleRuleNode& node) = 0;
     virtual void visit(TemplateDeclarationNode& node) = 0;
     virtual void visit(TemplateUsageNode& node) = 0;
+    virtual void visit(CustomDeclarationNode& node) = 0;
+    virtual void visit(DeleteNode& node) = 0;
+    virtual void visit(InsertNode& node) = 0;
 };
 
 class BaseNode {
 public:
     virtual ~BaseNode() = default;
     virtual void accept(ASTVisitor& visitor) = 0;
+    virtual std::unique_ptr<BaseNode> clone() const = 0;
 };

@@ -16,4 +16,9 @@ public:
     void accept(ASTVisitor& visitor) override {
         visitor.visit(*this);
     }
+
+    std::unique_ptr<BaseNode> clone() const override {
+        auto valueClone = value ? std::unique_ptr<ExprNode>(static_cast<ExprNode*>(value->clone().release())) : nullptr;
+        return std::make_unique<StylePropertyNode>(key, std::move(valueClone));
+    }
 };

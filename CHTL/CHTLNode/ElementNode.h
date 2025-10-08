@@ -17,4 +17,16 @@ public:
     void accept(ASTVisitor& visitor) override {
         visitor.visit(*this);
     }
+
+    std::unique_ptr<BaseNode> clone() const override {
+        auto newNode = std::make_unique<ElementNode>(tagName);
+        newNode->attributes = attributes;
+        if (style) {
+            newNode->style = std::unique_ptr<StyleNode>(static_cast<StyleNode*>(style->clone().release()));
+        }
+        for (const auto& child : children) {
+            newNode->children.push_back(child->clone());
+        }
+        return newNode;
+    }
 };

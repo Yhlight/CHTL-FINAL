@@ -4,6 +4,8 @@
 #include "../CHTLNode/NumericLiteralExprNode.h"
 #include "../CHTLNode/IdentifierExprNode.h"
 #include "ExpressionParser.h"
+#include "../CHTLNode/DeleteNode.h"
+#include "../CHTLNode/InsertNode.h"
 
 #include "../CHTLContext/CHTLContext.h"
 
@@ -32,7 +34,7 @@ std::unique_ptr<RootNode> Parser::parse() {
 
 std::unique_ptr<BaseNode> Parser::parseStatement() {
     if (peek().type == TokenType::LEFT_BRACKET) {
-        return parseTemplateDeclaration();
+        return parseTemplateOrCustomDeclaration();
     }
     if (peek().type == TokenType::TEXT_KEYWORD) {
         return parseText();
@@ -199,6 +201,56 @@ std::unique_ptr<TextNode> Parser::parseText() {
     return std::make_unique<TextNode>(content);
 }
 
+std::unique_ptr<DeleteNode> Parser::parseDeleteStatement() {
+    consume(TokenType::DELETE_KEYWORD, "Expected 'delete' keyword.");
+
+    std::vector<std::string> targets;
+    do {
+        // For now, assume simple identifiers as targets.
+        // The spec allows for more complex selectors like div[1], but this will be handled later.
+        targets.push_back(consume(TokenType::IDENTIFIER, "Expected target for delete.").value);
+    } while (peek().type == TokenType::COMMA && advance().type == TokenType::COMMA);
+
+    consume(TokenType::SEMICOLON, "Expected ';' after delete statement.");
+    return std::make_unique<DeleteNode>(targets);
+}
+
+std::unique_ptr<InsertNode> Parser::parseInsertStatement() {
+    consume(TokenType::INSERT_KEYWORD, "Expected 'insert' keyword.");
+
+    InsertPosition position;
+    if (peek().type == TokenType::AFTER_KEYWORD) {
+        position = InsertPosition::AFTER;
+        advance();
+    } else if (peek().type == TokenType::BEFORE_KEYWORD) {
+        position = InsertPosition::BEFORE;
+        advance();
+    } else if (peek().type == TokenType::REPLACE_KEYWORD) {
+        position = InsertPosition::REPLACE;
+        advance();
+    } else {
+        throw std::runtime_error("Expected position keyword (after, before, replace) after 'insert'.");
+    }
+
+    // Handle the target selector, which can include an index like div[0]
+    std::string target = consume(TokenType::IDENTIFIER, "Expected target selector for insert.").value;
+    if (peek().type == TokenType::LEFT_BRACKET) {
+        target += advance().value; // consume '['
+        target += consume(TokenType::NUMERIC_LITERAL, "Expected index in selector.").value;
+        target += consume(TokenType::RIGHT_BRACKET, "Expected ']' after index.").value;
+    }
+
+    auto insertNode = std::make_unique<InsertNode>(position, target);
+
+    consume(TokenType::LEFT_BRACE, "Expected '{' to start insert body.");
+    while(!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        insertNode->nodesToInsert.push_back(parseStatement());
+    }
+    consume(TokenType::RIGHT_BRACE, "Expected '}' to end insert body.");
+
+    return insertNode;
+}
+
 Token Parser::advance() {
     if (!isAtEnd()) {
         current++;
@@ -236,11 +288,17 @@ Token Parser::consume(TokenType type, const std::string& message) {
     throw std::runtime_error(message + " Got " + peek().value + " instead.");
 }
 
-std::unique_ptr<TemplateDeclarationNode> Parser::parseTemplateDeclaration() {
-    consume(TokenType::LEFT_BRACKET, "Expected '[' at the start of a template declaration.");
-    Token keyword = consume(TokenType::IDENTIFIER, "Expected 'Template' keyword.");
-    if (keyword.value != "Template") {
-        throw std::runtime_error("Expected 'Template' keyword inside brackets, got " + keyword.value);
+std::unique_ptr<BaseNode> Parser::parseTemplateOrCustomDeclaration() {
+    consume(TokenType::LEFT_BRACKET, "Expected '[' at the start of a declaration.");
+    Token keyword = consume(TokenType::IDENTIFIER, "Expected 'Template' or 'Custom' keyword.");
+
+    bool isCustom = false;
+    if (keyword.value == "Template") {
+        isCustom = false;
+    } else if (keyword.value == "Custom") {
+        isCustom = true;
+    } else {
+        throw std::runtime_error("Expected 'Template' or 'Custom' keyword inside brackets, got " + keyword.value);
     }
     consume(TokenType::RIGHT_BRACKET, "Expected ']' after 'Template' keyword.");
 
@@ -258,48 +316,50 @@ std::unique_ptr<TemplateDeclarationNode> Parser::parseTemplateDeclaration() {
     }
 
     Token name = consume(TokenType::IDENTIFIER, "Expected template name.");
-    auto templateNode = std::make_unique<TemplateDeclarationNode>(type, name.value);
 
-    consume(TokenType::LEFT_BRACE, "Expected '{' to start template body.");
-
-    if (type == TemplateType::STYLE) {
+    if (isCustom) {
+        auto customNode = std::make_unique<CustomDeclarationNode>(type, name.value);
+        consume(TokenType::LEFT_BRACE, "Expected '{' to start custom template body.");
         while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
-            if (peek().type == TokenType::AT) {
-                templateNode->body.push_back(parseTemplateUsage());
-            } else {
-                Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
-                consume(TokenType::COLON, "Expected ':' after style property key.");
-
-                std::vector<Token> valueTokens;
-                while(peek().type != TokenType::SEMICOLON && !isAtEnd()) {
-                    valueTokens.push_back(advance());
+            customNode->body.push_back(parseStatement());
+        }
+        consume(TokenType::RIGHT_BRACE, "Expected '}' to end custom template body.");
+        context.customTemplates[name.value] = std::move(customNode);
+    } else {
+        auto templateNode = std::make_unique<TemplateDeclarationNode>(type, name.value);
+        consume(TokenType::LEFT_BRACE, "Expected '{' to start template body.");
+        if (type == TemplateType::STYLE) {
+            while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+                if (peek().type == TokenType::AT) {
+                    templateNode->body.push_back(parseTemplateUsage());
+                } else {
+                    Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
+                    consume(TokenType::COLON, "Expected ':' after style property key.");
+                    std::vector<Token> valueTokens;
+                    while(peek().type != TokenType::SEMICOLON && !isAtEnd()) {
+                        valueTokens.push_back(advance());
+                    }
+                    valueTokens.push_back(Token{TokenType::END_OF_FILE, "", 0, 0});
+                    ExpressionParser exprParser(valueTokens);
+                    auto value = exprParser.parse();
+                    consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
+                    templateNode->body.push_back(std::make_unique<StylePropertyNode>(key.value, std::move(value)));
                 }
-                valueTokens.push_back(Token{TokenType::END_OF_FILE, "", 0, 0});
-
-                ExpressionParser exprParser(valueTokens);
-                auto value = exprParser.parse();
-
-                consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
-                templateNode->body.push_back(std::make_unique<StylePropertyNode>(key.value, std::move(value)));
+            }
+        } else if (type == TemplateType::ELEMENT) {
+            while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+                templateNode->body.push_back(parseStatement());
             }
         }
-    } else if (type == TemplateType::ELEMENT) {
-        while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
-            templateNode->body.push_back(parseStatement());
+        consume(TokenType::RIGHT_BRACE, "Expected '}' to end template body.");
+        if (type == TemplateType::STYLE) {
+            context.styleTemplates[name.value] = std::move(templateNode);
+        } else if (type == TemplateType::ELEMENT) {
+            context.elementTemplates[name.value] = std::move(templateNode);
         }
     }
 
-    consume(TokenType::RIGHT_BRACE, "Expected '}' to end template body.");
-
-    // Store the template in the context instead of returning it to the main AST
-    if (templateNode->templateType == TemplateType::STYLE) {
-        context.styleTemplates[templateNode->name] = std::move(templateNode);
-    } else if (templateNode->templateType == TemplateType::ELEMENT) {
-        context.elementTemplates[templateNode->name] = std::move(templateNode);
-    }
-
-    // Return a nullptr because the template declaration is not part of the main AST
-    return nullptr;
+    return nullptr; // Declarations are not part of the main AST
 }
 
 std::unique_ptr<TemplateUsageNode> Parser::parseTemplateUsage() {
@@ -317,7 +377,25 @@ std::unique_ptr<TemplateUsageNode> Parser::parseTemplateUsage() {
     }
 
     Token name = consume(TokenType::IDENTIFIER, "Expected template name.");
-    consume(TokenType::SEMICOLON, "Expected ';' after template usage.");
+    auto usageNode = std::make_unique<TemplateUsageNode>(type, name.value);
 
-    return std::make_unique<TemplateUsageNode>(type, name.value);
+    // Check for an optional specialization block
+    if (peek().type == TokenType::LEFT_BRACE) {
+        consume(TokenType::LEFT_BRACE, "Expected '{' to start specialization block.");
+        while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+            if (peek().type == TokenType::DELETE_KEYWORD) {
+                usageNode->specializations.push_back(std::move(parseDeleteStatement()));
+            } else if (peek().type == TokenType::INSERT_KEYWORD) {
+                usageNode->specializations.push_back(std::move(parseInsertStatement()));
+            } else {
+                throw std::runtime_error("Unexpected token in specialization block: " + peek().value);
+            }
+        }
+        consume(TokenType::RIGHT_BRACE, "Expected '}' to end specialization block.");
+    } else {
+        // No block, so just a semicolon
+        consume(TokenType::SEMICOLON, "Expected ';' after template usage.");
+    }
+
+    return usageNode;
 }

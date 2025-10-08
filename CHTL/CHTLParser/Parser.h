@@ -32,6 +32,8 @@ private:
     void parseAttribute(ElementNode* element);
     std::unique_ptr<StyleNode> parseStyle();
     std::unique_ptr<StyleRuleNode> parseStyleRule();
-    std::unique_ptr<TemplateDeclarationNode> parseTemplateDeclaration();
+    std::unique_ptr<BaseNode> parseTemplateOrCustomDeclaration();
     std::unique_ptr<TemplateUsageNode> parseTemplateUsage();
+    std::unique_ptr<DeleteNode> parseDeleteStatement();
+    std::unique_ptr<InsertNode> parseInsertStatement();
 };

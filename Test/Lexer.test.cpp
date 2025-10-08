@@ -97,6 +97,24 @@ TEST_CASE("Lexer correctly tokenizes operators", "[lexer]") {
     }
 }
 
+TEST_CASE("Lexer correctly tokenizes custom keywords", "[lexer]") {
+    SECTION("Custom keywords") {
+        Lexer lexer("[Custom] delete insert after before replace");
+        auto tokens = lexer.tokenize();
+        REQUIRE(tokens.size() == 9);
+        REQUIRE(tokens[0].type == TokenType::LEFT_BRACKET);
+        REQUIRE(tokens[1].type == TokenType::IDENTIFIER);
+        REQUIRE(tokens[1].value == "Custom");
+        REQUIRE(tokens[2].type == TokenType::RIGHT_BRACKET);
+        REQUIRE(tokens[3].type == TokenType::DELETE_KEYWORD);
+        REQUIRE(tokens[4].type == TokenType::INSERT_KEYWORD);
+        REQUIRE(tokens[5].type == TokenType::AFTER_KEYWORD);
+        REQUIRE(tokens[6].type == TokenType::BEFORE_KEYWORD);
+        REQUIRE(tokens[7].type == TokenType::REPLACE_KEYWORD);
+        REQUIRE(tokens[8].type == TokenType::END_OF_FILE);
+    }
+}
+
 TEST_CASE("Lexer correctly tokenizes template syntax", "[lexer]") {
     SECTION("Template declaration") {
         Lexer lexer("[Template] @Style DefaultText");

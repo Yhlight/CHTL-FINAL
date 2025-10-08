@@ -5,6 +5,7 @@
 #include "../CHTLNode/BaseNode.h"
 #include "../CHTLNode/ElementNode.h"
 #include "../CHTLNode/TextNode.h"
+#include "../CHTLNode/StyleNode.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -43,6 +44,9 @@ private:
     std::unique_ptr<BaseNode> parseStatement();
     std::unique_ptr<ElementNode> parseElementStatement();
     std::unique_ptr<TextNode> parseTextStatement();
+    std::unique_ptr<StyleNode> parseStyleStatement();
+    std::unique_ptr<StylePropertyNode> parseStylePropertyNode();
+    std::unique_ptr<Attribute> parseAttribute();
 
     Lexer& m_lexer;
     Token m_curToken;

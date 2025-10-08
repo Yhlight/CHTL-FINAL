@@ -78,7 +78,8 @@ void Lexer::skipMultiLineComment() {
 Token Lexer::readIdentifier() {
     size_t startPos = m_position;
     int startCol = m_column;
-    while (isalnum(m_char) || m_char == '_') {
+    // Correctly handle hyphens in identifiers for properties like font-size
+    while (isalnum(m_char) || m_char == '_' || m_char == '-') {
         readChar();
     }
     std::string literal = m_input.substr(startPos, m_position - startPos);
@@ -166,7 +167,16 @@ Token Lexer::nextToken() {
              if (peekChar() == '>') {
                 readChar();
                 tok = {TokenType::ARROW, "->", m_line, startCol};
-            } else {
+            } else if (isdigit(peekChar())) {
+                // This case handles negative numbers.
+                // Let readNumericLiteral handle it.
+                return readNumericLiteral();
+            }
+            else {
+                // Let readIdentifier handle cases like 'font-size'
+                if (isalpha(m_input[m_position-1])) {
+                     return readIdentifier();
+                }
                 tok = {TokenType::MINUS, "-", m_line, startCol};
             }
             break;
@@ -250,9 +260,6 @@ Token Lexer::nextToken() {
             } else if (isdigit(m_char)) {
                 return readNumericLiteral();
             }
-            // Note: Unquoted literals are context-dependent and are tricky to handle
-            // in a context-free lexer. This will likely need to be handled by the parser.
-            // For now, we'll treat them as illegal.
             break;
     }
 

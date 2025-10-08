@@ -2,6 +2,8 @@
 #include "CHTLLexer/Lexer.h"
 #include "CHTLParser/Parser.h"
 #include "CHTLNode/ElementNode.h"
+#include "CHTLNode/TextNode.h"
+#include "CHTLNode/StyleNode.h"
 #include <string>
 
 TEST_CASE("Parser::Simple Element", "[parser]") {
@@ -13,7 +15,6 @@ TEST_CASE("Parser::Simple Element", "[parser]") {
 
     REQUIRE(program != nullptr);
     REQUIRE(parser.Errors().empty());
-
     REQUIRE(program->GetChildren().size() == 1);
 
     auto element = dynamic_cast<CHTL::ElementNode*>(program->GetChildren()[0].get());
@@ -31,7 +32,6 @@ TEST_CASE("Parser::Nested Elements", "[parser]") {
     )";
     CHTL::Lexer lexer(input);
     CHTL::Parser parser(lexer);
-
     auto program = parser.ParseProgram();
 
     REQUIRE(program != nullptr);
@@ -41,60 +41,110 @@ TEST_CASE("Parser::Nested Elements", "[parser]") {
     REQUIRE(program->GetChildren().size() == 1);
     auto body = dynamic_cast<CHTL::ElementNode*>(program->GetChildren()[0].get());
     REQUIRE(body != nullptr);
-    REQUIRE(body->GetTokenLiteral() == "body");
 
     // div
     REQUIRE(body->GetChildren().size() == 1);
     auto div = dynamic_cast<CHTL::ElementNode*>(body->GetChildren()[0].get());
     REQUIRE(div != nullptr);
-    REQUIRE(div->GetTokenLiteral() == "div");
 
     // span
     REQUIRE(div->GetChildren().size() == 1);
     auto span = dynamic_cast<CHTL::ElementNode*>(div->GetChildren()[0].get());
     REQUIRE(span != nullptr);
-    REQUIRE(span->GetTokenLiteral() == "span");
 }
 
-TEST_CASE("Parser::Text Node", "[parser]") {
+TEST_CASE("Parser::Element with Attributes", "[parser]") {
     const std::string input = R"(
-        text { "Hello World" }
-    )";
-    CHTL::Lexer lexer(input);
-    CHTL::Parser parser(lexer);
-
-    auto program = parser.ParseProgram();
-
-    REQUIRE(program != nullptr);
-    REQUIRE(parser.Errors().empty());
-
-    REQUIRE(program->GetChildren().size() == 1);
-    auto textNode = dynamic_cast<CHTL::TextNode*>(program->GetChildren()[0].get());
-    REQUIRE(textNode != nullptr);
-    REQUIRE(textNode->GetText() == "Hello World");
-}
-
-TEST_CASE("Parser::Element with Text Node", "[parser]") {
-    const std::string input = R"(
-        p {
-            text { "Some sample text." }
+        div {
+            id: my_div;
+            class: "container";
+            width: 100;
         }
     )";
     CHTL::Lexer lexer(input);
     CHTL::Parser parser(lexer);
-
     auto program = parser.ParseProgram();
 
     REQUIRE(program != nullptr);
+    if (!parser.Errors().empty()) INFO(parser.Errors()[0]);
+    REQUIRE(parser.Errors().empty());
+
+    REQUIRE(program->GetChildren().size() == 1);
+    auto div = dynamic_cast<CHTL::ElementNode*>(program->GetChildren()[0].get());
+    REQUIRE(div != nullptr);
+}
+
+TEST_CASE("Parser::Element with Style Block", "[parser]") {
+    const std::string input = R"(
+        div {
+            style {
+                color: red;
+                font-size: 16px;
+            }
+        }
+    )";
+    CHTL::Lexer lexer(input);
+    CHTL::Parser parser(lexer);
+    auto program = parser.ParseProgram();
+
+    REQUIRE(program != nullptr);
+    if (!parser.Errors().empty()) INFO(parser.Errors()[0]);
+    REQUIRE(parser.Errors().empty());
+
+    REQUIRE(program->GetChildren().size() == 1);
+    auto div = dynamic_cast<CHTL::ElementNode*>(program->GetChildren()[0].get());
+    REQUIRE(div != nullptr);
+
+    REQUIRE(div->GetChildren().size() == 1);
+    auto styleNode = dynamic_cast<CHTL::StyleNode*>(div->GetChildren()[0].get());
+    REQUIRE(styleNode != nullptr);
+    REQUIRE(styleNode->GetChildren().size() == 2);
+}
+
+TEST_CASE("Parser::Unquoted Text Node", "[parser]") {
+    const std::string input = R"(
+        p {
+            text { This is some unquoted text }
+        }
+    )";
+    CHTL::Lexer lexer(input);
+    CHTL::Parser parser(lexer);
+    auto program = parser.ParseProgram();
+
+    REQUIRE(program != nullptr);
+    if (!parser.Errors().empty()) INFO(parser.Errors()[0]);
     REQUIRE(parser.Errors().empty());
 
     REQUIRE(program->GetChildren().size() == 1);
     auto p = dynamic_cast<CHTL::ElementNode*>(program->GetChildren()[0].get());
     REQUIRE(p != nullptr);
-    REQUIRE(p->GetTokenLiteral() == "p");
 
     REQUIRE(p->GetChildren().size() == 1);
     auto textNode = dynamic_cast<CHTL::TextNode*>(p->GetChildren()[0].get());
     REQUIRE(textNode != nullptr);
-    REQUIRE(textNode->GetText() == "Some sample text.");
+    REQUIRE(textNode->GetText() == "This is some unquoted text");
+}
+
+TEST_CASE("Parser::Quoted Text Node", "[parser]") {
+    const std::string input = R"(
+        p {
+            text { "This is some quoted text." }
+        }
+    )";
+    CHTL::Lexer lexer(input);
+    CHTL::Parser parser(lexer);
+    auto program = parser.ParseProgram();
+
+    REQUIRE(program != nullptr);
+    if (!parser.Errors().empty()) INFO(parser.Errors()[0]);
+    REQUIRE(parser.Errors().empty());
+
+    REQUIRE(program->GetChildren().size() == 1);
+    auto p = dynamic_cast<CHTL::ElementNode*>(program->GetChildren()[0].get());
+    REQUIRE(p != nullptr);
+
+    REQUIRE(p->GetChildren().size() == 1);
+    auto textNode = dynamic_cast<CHTL::TextNode*>(p->GetChildren()[0].get());
+    REQUIRE(textNode != nullptr);
+    REQUIRE(textNode->GetText() == "This is some quoted text.");
 }

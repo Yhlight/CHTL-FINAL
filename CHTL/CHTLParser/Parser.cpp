@@ -1,5 +1,6 @@
 #include "Parser.h"
 #include <memory>
+#include <sstream>
 
 namespace CHTL {
 
@@ -31,9 +32,12 @@ std::unique_ptr<ProgramNode> Parser::ParseProgram() {
 std::unique_ptr<BaseNode> Parser::parseStatement() {
     if (m_curToken.type == TokenType::KEYWORD_TEXT) {
         return parseTextStatement();
+    } else if (m_curToken.type == TokenType::KEYWORD_STYLE) {
+        return parseStyleStatement();
     } else if (m_curToken.type == TokenType::IDENTIFIER) {
-        // This could be an element or an attribute. For now, assume element.
-        return parseElementStatement();
+        if (m_peekToken.type == TokenType::L_BRACE) {
+            return parseElementStatement();
+        }
     }
     return nullptr;
 }
@@ -45,18 +49,30 @@ std::unique_ptr<ElementNode> Parser::parseElementStatement() {
         return nullptr;
     }
 
-    nextToken(); // Consume '{'
+    nextToken(); // Consume '{', move to the first token inside the block
 
     while (m_curToken.type != TokenType::R_BRACE && m_curToken.type != TokenType::END_OF_FILE) {
-        auto stmt = parseStatement();
-        if (stmt) {
-            elementNode->AddChild(std::move(stmt));
+        if (m_curToken.type == TokenType::KEYWORD_STYLE) {
+            auto styleNode = parseStyleStatement();
+            if (styleNode) {
+                elementNode->AddChild(std::move(styleNode));
+            }
+        } else if (m_curToken.type == TokenType::IDENTIFIER && (m_peekToken.type == TokenType::COLON || m_peekToken.type == TokenType::EQUAL)) {
+            auto attr = parseAttribute();
+            if (attr) {
+                elementNode->AddAttribute(*attr);
+            }
+        } else {
+            auto stmt = parseStatement();
+            if (stmt) {
+                elementNode->AddChild(std::move(stmt));
+            }
         }
-        nextToken();
+        nextToken(); // Move to the next statement/attribute
     }
 
     if (m_curToken.type != TokenType::R_BRACE) {
-        // Missing closing brace error
+        peekError(TokenType::R_BRACE);
         return nullptr;
     }
 
@@ -70,26 +86,122 @@ std::unique_ptr<TextNode> Parser::parseTextStatement() {
         return nullptr;
     }
 
-    nextToken(); // Consume '{'
+    nextToken(); // Consume '{', move to the first token of the text content
 
-    if (m_curToken.type != TokenType::STRING_LITERAL && m_curToken.type != TokenType::IDENTIFIER) {
-         // For now, we'll support a single identifier as unquoted text
-        peekError(TokenType::STRING_LITERAL);
+    std::string textContent;
+
+    if (m_curToken.type == TokenType::STRING_LITERAL) {
+        // Case 1: Quoted string literal
+        textContent = m_curToken.literal;
+        nextToken(); // Consume the literal
+    } else {
+        // Case 2: Unquoted literal (sequence of identifiers, numbers, etc.)
+        std::stringstream ss;
+        while (m_curToken.type != TokenType::R_BRACE && m_curToken.type != TokenType::END_OF_FILE) {
+            ss << m_curToken.literal;
+            nextToken();
+            if (m_curToken.type != TokenType::R_BRACE) {
+                ss << " ";
+            }
+        }
+        textContent = ss.str();
+    }
+
+    if (m_curToken.type != TokenType::R_BRACE) {
+        peekError(TokenType::R_BRACE);
         return nullptr;
     }
 
-    // The actual text content
-    std::string textContent = m_curToken.literal;
-
-    auto textNode = std::make_unique<TextNode>(textToken, textContent);
-
-    if (!expectPeek(TokenType::R_BRACE)) {
-        return nullptr;
-    }
-
-    return textNode;
+    return std::make_unique<TextNode>(textToken, textContent);
 }
 
+std::unique_ptr<StyleNode> Parser::parseStyleStatement() {
+    auto styleNode = std::make_unique<StyleNode>(m_curToken);
+
+    if (!expectPeek(TokenType::L_BRACE)) {
+        return nullptr;
+    }
+
+    nextToken(); // Consume '{'
+
+    while (m_curToken.type != TokenType::R_BRACE && m_curToken.type != TokenType::END_OF_FILE) {
+        if (m_curToken.type == TokenType::IDENTIFIER) {
+            auto prop = parseStylePropertyNode();
+            if (prop) {
+                styleNode->AddChild(std::move(prop));
+            }
+        }
+        nextToken();
+    }
+
+    if (m_curToken.type != TokenType::R_BRACE) {
+        peekError(TokenType::R_BRACE);
+        return nullptr;
+    }
+
+    return styleNode;
+}
+
+std::unique_ptr<StylePropertyNode> Parser::parseStylePropertyNode() {
+    Token propToken = m_curToken;
+    std::string key = m_curToken.literal;
+
+    if (m_peekToken.type != TokenType::COLON) {
+        peekError(TokenType::COLON);
+        return nullptr;
+    }
+    nextToken(); // Consume key
+    nextToken(); // Consume ':'
+
+    std::stringstream value_ss;
+    while (m_curToken.type != TokenType::SEMICOLON) {
+        if (m_curToken.type == TokenType::END_OF_FILE || m_curToken.type == TokenType::R_BRACE) {
+            m_errors.push_back("Unterminated style property for key: " + key);
+            return nullptr;
+        }
+        value_ss << m_curToken.literal;
+        if (m_peekToken.type != TokenType::SEMICOLON) {
+            value_ss << " ";
+        }
+        nextToken();
+    }
+
+    std::string value = value_ss.str();
+    if (!value.empty() && value.back() == ' ') {
+        value.pop_back();
+    }
+    return std::make_unique<StylePropertyNode>(propToken, key, value);
+}
+
+std::unique_ptr<Attribute> Parser::parseAttribute() {
+    std::string key = m_curToken.literal;
+
+    if (m_peekToken.type != TokenType::COLON && m_peekToken.type != TokenType::EQUAL) {
+        peekError(TokenType::COLON);
+        return nullptr;
+    }
+    nextToken(); // Consume key
+    nextToken(); // Consume separator
+
+    std::stringstream value_ss;
+    while (m_curToken.type != TokenType::SEMICOLON) {
+        if (m_curToken.type == TokenType::END_OF_FILE || m_curToken.type == TokenType::R_BRACE) {
+            m_errors.push_back("Unterminated attribute for key: " + key);
+            return nullptr;
+        }
+        value_ss << m_curToken.literal;
+        if (m_peekToken.type != TokenType::SEMICOLON) {
+            value_ss << " ";
+        }
+        nextToken();
+    }
+
+    std::string value = value_ss.str();
+    if (!value.empty() && value.back() == ' ') {
+        value.pop_back();
+    }
+    return std::make_unique<Attribute>(key, value);
+}
 
 bool Parser::expectPeek(TokenType t) {
     if (m_peekToken.type == t) {

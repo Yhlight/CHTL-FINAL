@@ -10,7 +10,7 @@ target_include_directories(RunTests PRIVATE
     ${CMAKE_SOURCE_DIR}/third-party
 )
 
-# Link the test executable against our libraries and Catch2
+# Link the test executable against our libraries
 target_link_libraries(RunTests PRIVATE
     UtilLib
     ChtlLib

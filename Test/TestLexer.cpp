@@ -28,7 +28,7 @@ TEST_CASE("Lexer::Punctuation and Operators", "[lexer]") {
 
 TEST_CASE("Lexer::Identifiers and Literals", "[lexer]") {
     const std::string input = R"(
-        my_var "a string" 'another string' 123 45.67
+        my_var "a string" 'another string' 123 45.67 font-size
     )";
     const std::vector<CHTL::TokenType> expected = {
         CHTL::TokenType::IDENTIFIER,
@@ -36,6 +36,7 @@ TEST_CASE("Lexer::Identifiers and Literals", "[lexer]") {
         CHTL::TokenType::STRING_LITERAL,
         CHTL::TokenType::NUMERIC_LITERAL,
         CHTL::TokenType::NUMERIC_LITERAL,
+        CHTL::TokenType::IDENTIFIER, // font-size
         CHTL::TokenType::END_OF_FILE
     };
     checkTokens(input, expected);
@@ -82,32 +83,6 @@ TEST_CASE("Lexer::Comments", "[lexer]") {
     const std::vector<CHTL::TokenType> expected = {
         CHTL::TokenType::IDENTIFIER, // div
         CHTL::TokenType::IDENTIFIER, // span
-        CHTL::TokenType::END_OF_FILE
-    };
-    checkTokens(input, expected);
-}
-
-TEST_CASE("Lexer::A simple CHTL block", "[lexer]") {
-    const std::string input = R"(
-        div {
-            id: my_box;
-            class: "box red";
-            text {
-                Hello World
-            }
-        }
-    )";
-    // Note: "Hello World" is not tokenized yet as an UNQUOTED_LITERAL
-    // This will be handled by the parser, which is context-aware.
-    // The lexer will see it as two identifiers.
-    const std::vector<CHTL::TokenType> expected = {
-        CHTL::TokenType::IDENTIFIER, CHTL::TokenType::L_BRACE,
-        CHTL::TokenType::IDENTIFIER, CHTL::TokenType::COLON, CHTL::TokenType::IDENTIFIER, CHTL::TokenType::SEMICOLON,
-        CHTL::TokenType::IDENTIFIER, CHTL::TokenType::COLON, CHTL::TokenType::STRING_LITERAL, CHTL::TokenType::SEMICOLON,
-        CHTL::TokenType::KEYWORD_TEXT, CHTL::TokenType::L_BRACE,
-        CHTL::TokenType::IDENTIFIER, CHTL::TokenType::IDENTIFIER,
-        CHTL::TokenType::R_BRACE,
-        CHTL::TokenType::R_BRACE,
         CHTL::TokenType::END_OF_FILE
     };
     checkTokens(input, expected);

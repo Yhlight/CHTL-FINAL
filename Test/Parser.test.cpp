@@ -71,6 +71,27 @@ TEST_CASE("Parser correctly handles style blocks", "[parser]") {
         REQUIRE(prop2->key == "font-size");
         REQUIRE(prop2->value == "16");
     }
+
+    SECTION("Parse a style block with a CSS rule") {
+        Lexer lexer("div { style { .box { color: blue; } } }");
+        Parser parser(lexer.tokenize());
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.size() == 1);
+        auto* div = dynamic_cast<ElementNode*>(ast->children[0].get());
+        REQUIRE(div != nullptr);
+        REQUIRE(div->style != nullptr);
+        REQUIRE(div->style->properties.empty()); // No inline properties
+        REQUIRE(div->style->rules.size() == 1);
+
+        auto* rule = div->style->rules[0].get();
+        REQUIRE(rule->selector == ".box");
+        REQUIRE(rule->properties.size() == 1);
+
+        auto* prop = rule->properties[0].get();
+        REQUIRE(prop->key == "color");
+        REQUIRE(prop->value == "blue");
+    }
 }
 
 TEST_CASE("Parser handles nested structures", "[parser]") {

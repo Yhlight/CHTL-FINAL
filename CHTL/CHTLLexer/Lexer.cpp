@@ -27,7 +27,11 @@ Token Lexer::nextToken() {
         return multiLineComment();
     }
     if (c == '#') {
-        return generatorComment();
+        if (peek() == ' ') {
+            return generatorComment();
+        } else {
+            return makeToken(TokenType::HASH, "#");
+        }
     }
     if (c == '"' || c == '\'') {
         return stringLiteral(c);
@@ -49,6 +53,8 @@ Token Lexer::nextToken() {
         case ':': return makeToken(TokenType::COLON, ":");
         case '=': return makeToken(TokenType::EQUALS, "=");
         case ';': return makeToken(TokenType::SEMICOLON, ";");
+        case '.': return makeToken(TokenType::DOT, ".");
+        case '&': return makeToken(TokenType::AMPERSAND, "&");
         // ... other single-character tokens
         default:
             return makeToken(TokenType::UNKNOWN, std::string(1, c));

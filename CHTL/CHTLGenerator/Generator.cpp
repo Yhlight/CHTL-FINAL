@@ -1,11 +1,31 @@
 #include "Generator.h"
+#include "StyleCollector.h"
+#include "AttributeInjector.h"
+#include <set>
+#include <sstream>
 
 std::string Generator::generate(RootNode& root) {
-    output.str(""); // Clear the stream
+    // Pass 1: Collect all style rules and their contexts
+    StyleCollector collector;
+    collector.collect(root);
+    this->collectedRules = collector.collectedRules;
+
+    // Pass 2: Inject attributes into the AST based on style rules
+    AttributeInjector injector;
+    injector.inject(root);
+
+    // Pass 3: Render the final document from the modified AST
+    output.str("");
     output.clear();
     indentLevel = 0;
     root.accept(*this);
     return output.str();
+}
+
+void Generator::indent() {
+    for (int i = 0; i < indentLevel; ++i) {
+        output << "  ";
+    }
 }
 
 void Generator::visit(RootNode& node) {
@@ -18,35 +38,78 @@ void Generator::visit(ElementNode& node) {
     indent();
     output << "<" << node.tagName;
 
-    // Append attributes
     for (const auto& attr : node.attributes) {
         output << " " << attr.first << "=\"" << attr.second << "\"";
     }
 
-    // Append inline styles
     if (node.style && !node.style->properties.empty()) {
         output << " style=\"";
         for (size_t i = 0; i < node.style->properties.size(); ++i) {
             auto& prop = node.style->properties[i];
             output << prop->key << ": " << prop->value << ";";
-            if (i < node.style->properties.size() - 1) {
-                output << " ";
-            }
+            if (i < node.style->properties.size() - 1) output << " ";
         }
         output << "\"";
     }
 
-    output << ">";
+    bool hasContent = !node.children.empty() || (node.tagName == "head" && !collectedRules.empty());
+    if (!hasContent) {
+        output << "></" << node.tagName << ">\n";
+        return;
+    }
 
-    if (!node.children.empty()) {
-        output << "\n";
+    output << ">\n";
+    indentLevel++;
+
+    if (node.tagName == "head" && !collectedRules.empty()) {
+        indent();
+        output << "<style>\n";
         indentLevel++;
-        for (auto& child : node.children) {
-            child->accept(*this);
+        for (const auto& rulePair : collectedRules) {
+            StyleRuleNode* rule = rulePair.first;
+            ElementNode* parentElement = rulePair.second;
+
+            std::string finalSelector = rule->selector;
+            if (finalSelector.find('&') != std::string::npos) {
+                std::string primarySelector;
+                if (parentElement->attributes.count("id")) {
+                    primarySelector = "#" + parentElement->attributes.at("id");
+                } else if (parentElement->attributes.count("class")) {
+                    std::stringstream ss(parentElement->attributes.at("class"));
+                    std::string firstClass;
+                    ss >> firstClass;
+                    primarySelector = "." + firstClass;
+                }
+
+                if(!primarySelector.empty()) {
+                    finalSelector.replace(finalSelector.find('&'), 1, primarySelector);
+                } else {
+                    finalSelector.erase(finalSelector.find('&'), 1);
+                }
+            }
+
+            indent();
+            output << finalSelector << " {\n";
+            indentLevel++;
+            for (const auto& prop : rule->properties) {
+                indent();
+                output << prop->key << ": " << prop->value << ";\n";
+            }
+            indentLevel--;
+            indent();
+            output << "}\n";
         }
         indentLevel--;
         indent();
+        output << "</style>\n";
     }
+
+    for (auto& child : node.children) {
+        child->accept(*this);
+    }
+
+    indentLevel--;
+    indent();
     output << "</" << node.tagName << ">\n";
 }
 
@@ -58,26 +121,14 @@ void Generator::visit(TextNode& node) {
 void Generator::visit(CommentNode& node) {
     if (node.type == TokenType::GENERATOR_COMMENT) {
         indent();
-        // The spec says "# comment", so we find the first space and take the rest.
         size_t firstSpace = node.content.find(' ');
         std::string content = (firstSpace != std::string::npos)
                               ? node.content.substr(firstSpace + 1)
                               : node.content;
         output << "<!-- " << content << " -->\n";
     }
-    // Other comment types are ignored by the generator.
 }
 
-void Generator::indent() {
-    for (int i = 0; i < indentLevel; ++i) {
-        output << "  "; // 2 spaces for indentation
-    }
-}
-
-void Generator::visit(StyleNode& node) {
-    // Dummy implementation for now
-}
-
-void Generator::visit(StylePropertyNode& node) {
-    // Dummy implementation for now
-}
+void Generator::visit(StyleNode& node) {}
+void Generator::visit(StylePropertyNode& node) {}
+void Generator::visit(StyleRuleNode& node) {}

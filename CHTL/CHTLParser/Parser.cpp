@@ -107,19 +107,46 @@ std::unique_ptr<StyleNode> Parser::parseStyle() {
     auto styleNode = std::make_unique<StyleNode>();
 
     while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
-        Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
-        consume(TokenType::COLON, "Expected ':' after style property key.");
-
-        // For now, assume the value is a single token (identifier or number)
-        Token value = advance();
-        consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
-
-        styleNode->properties.push_back(std::make_unique<StylePropertyNode>(key.value, value.value));
+        // If it starts with a selector-like token, or is an identifier followed by a brace, it's a rule.
+        if (peek().type == TokenType::DOT || peek().type == TokenType::HASH || (peek().type == TokenType::IDENTIFIER && tokens[current + 1].type == TokenType::LEFT_BRACE)) {
+            styleNode->rules.push_back(parseStyleRule());
+        } else {
+            // Otherwise, it's an inline property.
+            Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
+            consume(TokenType::COLON, "Expected ':' after style property key.");
+            Token value = advance();
+            consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
+            styleNode->properties.push_back(std::make_unique<StylePropertyNode>(key.value, value.value));
+        }
     }
 
     consume(TokenType::RIGHT_BRACE, "Expected '}' after style block.");
 
     return styleNode;
+}
+
+std::unique_ptr<StyleRuleNode> Parser::parseStyleRule() {
+    std::string selector;
+    // A selector is a sequence of tokens up to the '{'
+    while (peek().type != TokenType::LEFT_BRACE && !isAtEnd()) {
+        selector += advance().value;
+    }
+
+    auto ruleNode = std::make_unique<StyleRuleNode>(selector);
+
+    consume(TokenType::LEFT_BRACE, "Expected '{' after style rule selector.");
+
+    while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
+        consume(TokenType::COLON, "Expected ':' after style property key.");
+        Token value = advance();
+        consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
+        ruleNode->properties.push_back(std::make_unique<StylePropertyNode>(key.value, value.value));
+    }
+
+    consume(TokenType::RIGHT_BRACE, "Expected '}' after style rule block.");
+
+    return ruleNode;
 }
 
 std::unique_ptr<TextNode> Parser::parseText() {

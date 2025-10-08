@@ -2,16 +2,16 @@
 
 #include "BaseNode.h"
 #include "StylePropertyNode.h"
-#include "StyleRuleNode.h"
+#include <string>
 #include <vector>
 #include <memory>
 
-class StyleNode : public BaseNode {
+class StyleRuleNode : public BaseNode {
 public:
-    // For inline properties like `color: red;`
+    std::string selector;
     std::vector<std::unique_ptr<StylePropertyNode>> properties;
-    // For full CSS rules like `.box { ... }`
-    std::vector<std::unique_ptr<StyleRuleNode>> rules;
+
+    StyleRuleNode(const std::string& selector) : selector(selector) {}
 
     void accept(ASTVisitor& visitor) override {
         visitor.visit(*this);

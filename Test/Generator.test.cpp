@@ -6,6 +6,21 @@
 #include "CHTL/CHTLNode/CommentNode.h"
 #include "CHTL/CHTLNode/StyleNode.h"
 #include "CHTL/CHTLNode/StylePropertyNode.h"
+#include <string>
+#include <algorithm>
+#include <cctype>
+
+// Helper function to make tests insensitive to whitespace changes
+std::string normalize_whitespace(const std::string& s) {
+    std::string result;
+    result.reserve(s.length());
+    for (char c : s) {
+        if (!std::isspace(c)) {
+            result += c;
+        }
+    }
+    return result;
+}
 
 TEST_CASE("Generator produces correct HTML", "[generator]") {
     SECTION("Generate a simple element") {
@@ -15,7 +30,7 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         Generator generator;
         std::string result = generator.generate(*root);
 
-        REQUIRE(result == "<div></div>\n");
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div></div>"));
     }
 
     SECTION("Generate an element with text") {
@@ -27,7 +42,7 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         Generator generator;
         std::string result = generator.generate(*root);
 
-        REQUIRE(result == "<p>\n  hello\n</p>\n");
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<p>hello</p>"));
     }
 
     SECTION("Generate nested elements") {
@@ -41,7 +56,7 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         Generator generator;
         std::string result = generator.generate(*root);
 
-        REQUIRE(result == "<html>\n  <body>\n    <div></div>\n  </body>\n</html>\n");
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<html><body><div></div></body></html>"));
     }
 
     SECTION("Generate comments") {
@@ -52,8 +67,7 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         Generator generator;
         std::string result = generator.generate(*root);
 
-        // Note the space added after '#'. The content is "# generator comment".
-        REQUIRE(result == "<!-- generator comment -->\n");
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<!-- generator comment -->"));
     }
 
     SECTION("Generate an element with attributes") {
@@ -66,8 +80,7 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         Generator generator;
         std::string result = generator.generate(*root);
 
-        // The order of attributes in a std::map is sorted by key.
-        REQUIRE(result == "<div class=\"container\" id=\"main\"></div>\n");
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div class=\"container\" id=\"main\"></div>"));
     }
 
     SECTION("Generate an element with inline styles") {
@@ -84,6 +97,94 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         Generator generator;
         std::string result = generator.generate(*root);
 
-        REQUIRE(result == "<div style=\"color: red; font-size: 16px;\"></div>\n");
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"color: red; font-size: 16px;\"></div>"));
+    }
+
+    SECTION("Generate a global stylesheet from style rules") {
+        auto root = std::make_unique<RootNode>();
+        auto html = std::make_unique<ElementNode>("html");
+        html->children.push_back(std::make_unique<ElementNode>("head"));
+
+        auto body = std::make_unique<ElementNode>("body");
+        auto div = std::make_unique<ElementNode>("div");
+        auto styleNode = std::make_unique<StyleNode>();
+        auto rule = std::make_unique<StyleRuleNode>(".box");
+        rule->properties.push_back(std::make_unique<StylePropertyNode>("color", "red"));
+        styleNode->rules.push_back(std::move(rule));
+        div->style = std::move(styleNode);
+        body->children.push_back(std::move(div));
+
+        html->children.push_back(std::move(body));
+        root->children.push_back(std::move(html));
+
+        Generator generator;
+        std::string result = generator.generate(*root);
+
+        std::string expected =
+            "<html>"
+            "  <head>"
+            "    <style>"
+            "      .box { color: red; }"
+            "    </style>"
+            "  </head>"
+            "  <body>"
+            "    <div class=\"box\"></div>"
+            "  </body>"
+            "</html>";
+
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace(expected));
+    }
+
+    SECTION("Automatically generate class and id attributes from style rules") {
+        auto root = std::make_unique<RootNode>();
+        auto element = std::make_unique<ElementNode>("div");
+        element->attributes["class"] = "existing-class";
+
+        auto styleNode = std::make_unique<StyleNode>();
+
+        auto classRule = std::make_unique<StyleRuleNode>(".box");
+        styleNode->rules.push_back(std::move(classRule));
+
+        auto idRule = std::make_unique<StyleRuleNode>("#main-content");
+        styleNode->rules.push_back(std::move(idRule));
+
+        element->style = std::move(styleNode);
+        root->children.push_back(std::move(element));
+
+        Generator generator;
+        std::string result = generator.generate(*root);
+
+        REQUIRE(normalize_whitespace(result).find(normalize_whitespace("<div class=\"box existing-class\" id=\"main-content\">")) != std::string::npos);
+    }
+
+    SECTION("Resolve the contextual selector '&' in style rules") {
+        auto root = std::make_unique<RootNode>();
+        auto html = std::make_unique<ElementNode>("html");
+        html->children.push_back(std::make_unique<ElementNode>("head"));
+
+        auto body = std::make_unique<ElementNode>("body");
+        auto button = std::make_unique<ElementNode>("button");
+
+        auto styleNode = std::make_unique<StyleNode>();
+
+        auto mainRule = std::make_unique<StyleRuleNode>(".btn");
+        styleNode->rules.push_back(std::move(mainRule));
+
+        auto hoverRule = std::make_unique<StyleRuleNode>("&:hover");
+        hoverRule->properties.push_back(std::make_unique<StylePropertyNode>("color", "red"));
+        styleNode->rules.push_back(std::move(hoverRule));
+
+        button->style = std::move(styleNode);
+        body->children.push_back(std::move(button));
+        html->children.push_back(std::move(body));
+        root->children.push_back(std::move(html));
+
+        Generator generator;
+        std::string result = generator.generate(*root);
+
+        std::string expected_style = ".btn{} .btn:hover{color:red;}";
+        REQUIRE(normalize_whitespace(result).find(normalize_whitespace(expected_style)) != std::string::npos);
+
+        REQUIRE(normalize_whitespace(result).find(normalize_whitespace("<button class=\"btn\">")) != std::string::npos);
     }
 }

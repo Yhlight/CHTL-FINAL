@@ -14,6 +14,8 @@ add_executable(chttl_tests
     ../CHTL/CHTLLexer/Lexer.cpp
     ../CHTL/CHTLParser/Parser.cpp
     ../CHTL/CHTLGenerator/Generator.cpp
+    ../CHTL/CHTLGenerator/StyleCollector.cpp
+    ../CHTL/CHTLGenerator/AttributeInjector.cpp
 )
 
 # Add a test to CTest

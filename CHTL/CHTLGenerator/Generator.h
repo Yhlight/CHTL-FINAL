@@ -5,8 +5,11 @@
 #include "../CHTLNode/ElementNode.h"
 #include "../CHTLNode/TextNode.h"
 #include "../CHTLNode/CommentNode.h"
+#include "StyleCollector.h"
+#include "AttributeInjector.h"
 #include <string>
 #include <sstream>
+#include <vector>
 
 class Generator : public ASTVisitor {
 public:
@@ -18,9 +21,11 @@ public:
     void visit(CommentNode& node) override;
     void visit(StyleNode& node) override;
     void visit(StylePropertyNode& node) override;
+    void visit(StyleRuleNode& node) override;
 
 private:
     std::stringstream output;
+    std::vector<std::pair<StyleRuleNode*, ElementNode*>> collectedRules;
     int indentLevel = 0;
     void indent();
 };

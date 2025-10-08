@@ -1,1 +1,32 @@
-third-party/
+# CMake
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+
+# Binaries
+*.exe
+*.out
+*.dll
+*.so
+*.dylib
+
+# CHTL artifacts
+*.cmod
+*.cjmod
+
+# IDE
+.vscode/
+*.suo
+*.user
+*.userosscache
+*.sln
+*.sdf
+*.opensdf
+
+# Other
+*.log
+*.tmp
+*~
+.DS_Store

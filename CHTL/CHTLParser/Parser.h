@@ -1,0 +1,30 @@
+#pragma once
+
+#include "../CHTLLexer/Token.h"
+#include "../CHTLNode/RootNode.h"
+#include "../CHTLNode/ElementNode.h"
+#include "../CHTLNode/TextNode.h"
+#include "../CHTLNode/CommentNode.h"
+#include <vector>
+#include <memory>
+
+class Parser {
+public:
+    Parser(const std::vector<Token>& tokens);
+    std::unique_ptr<RootNode> parse();
+
+private:
+    std::vector<Token> tokens;
+    size_t current = 0;
+
+    Token advance();
+    Token peek();
+    bool isAtEnd();
+    bool check(TokenType type);
+    bool match(const std::vector<TokenType>& types);
+    Token consume(TokenType type, const std::string& message);
+
+    std::unique_ptr<BaseNode> parseStatement();
+    std::unique_ptr<ElementNode> parseElement();
+    std::unique_ptr<TextNode> parseText();
+};

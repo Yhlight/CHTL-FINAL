@@ -26,9 +26,9 @@ TEST_CASE("Lexer::Punctuation and Operators", "[lexer]") {
     checkTokens(input, expected);
 }
 
-TEST_CASE("Lexer::Identifiers and Literals", "[lexer]") {
+TEST_CASE("Lexer::Identifiers and Literals with Fixes", "[lexer]") {
     const std::string input = R"(
-        my_var "a string" 'another string' 123 45.67 font-size
+        my_var "a string" 'another string' 123 45.67 font-size 16px 50%
     )";
     const std::vector<CHTL::TokenType> expected = {
         CHTL::TokenType::IDENTIFIER,
@@ -37,6 +37,8 @@ TEST_CASE("Lexer::Identifiers and Literals", "[lexer]") {
         CHTL::TokenType::NUMERIC_LITERAL,
         CHTL::TokenType::NUMERIC_LITERAL,
         CHTL::TokenType::IDENTIFIER, // font-size
+        CHTL::TokenType::NUMERIC_LITERAL, // 16px
+        CHTL::TokenType::NUMERIC_LITERAL, // 50%
         CHTL::TokenType::END_OF_FILE
     };
     checkTokens(input, expected);

@@ -2,6 +2,7 @@
 #define CHTL_ELEMENTNODE_H
 
 #include "BaseNode.h"
+#include "ExpressionNode.h"
 #include <string>
 #include <vector>
 #include <utility>
@@ -10,16 +11,17 @@ namespace CHTL {
 
 class Attribute {
 public:
-    Attribute(std::string key, std::string value)
+    Attribute(std::string key, std::unique_ptr<ExpressionNode> value)
         : m_key(std::move(key)), m_value(std::move(value)) {}
 
     std::string ToString() const {
-        return m_key + ": " + m_value + ";";
+        std::string value_str = m_value ? m_value->ToString(0) : "null";
+        return m_key + ": " + value_str + ";";
     }
 
 private:
     std::string m_key;
-    std::string m_value;
+    std::unique_ptr<ExpressionNode> m_value;
 };
 
 class ElementNode : public BaseNode {
@@ -30,8 +32,8 @@ public:
         return m_token.literal;
     }
 
-    void AddAttribute(const Attribute& attr) {
-        m_attributes.push_back(attr);
+    void AddAttribute(Attribute attr) {
+        m_attributes.push_back(std::move(attr));
     }
 
     std::string ToString(int indent = 0) const override {

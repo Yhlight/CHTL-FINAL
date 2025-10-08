@@ -24,7 +24,6 @@ private:
     Token readIdentifier();
     Token readStringLiteral(char quote_type);
     Token readNumericLiteral();
-    Token readUnquotedLiteral();
     Token readBracketedKeyword();
 
     std::string m_input;

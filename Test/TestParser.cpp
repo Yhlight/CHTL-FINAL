@@ -148,3 +148,33 @@ TEST_CASE("Parser::Quoted Text Node", "[parser]") {
     REQUIRE(textNode != nullptr);
     REQUIRE(textNode->GetText() == "This is some quoted text.");
 }
+
+TEST_CASE("Parser::Arithmetic Expression", "[parser]") {
+    const std::string input = R"(
+        div {
+            width: 100 + 20px;
+        }
+    )";
+    CHTL::Lexer lexer(input);
+    CHTL::Parser parser(lexer);
+    auto program = parser.ParseProgram();
+
+    REQUIRE(program != nullptr);
+    if (!parser.Errors().empty()) INFO(parser.Errors()[0]);
+    REQUIRE(parser.Errors().empty());
+}
+
+TEST_CASE("Parser::Conditional Expression", "[parser]") {
+    const std::string input = R"(
+        div {
+            background-color: width > 50 ? "red" : "blue";
+        }
+    )";
+    CHTL::Lexer lexer(input);
+    CHTL::Parser parser(lexer);
+    auto program = parser.ParseProgram();
+
+    REQUIRE(program != nullptr);
+    if (!parser.Errors().empty()) INFO(parser.Errors()[0]);
+    REQUIRE(parser.Errors().empty());
+}

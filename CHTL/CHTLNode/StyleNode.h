@@ -2,6 +2,7 @@
 #define CHTL_STYLENODE_H
 
 #include "BaseNode.h"
+#include "ExpressionNode.h"
 #include <string>
 #include <vector>
 #include <utility>
@@ -10,7 +11,7 @@ namespace CHTL {
 
 class StylePropertyNode : public BaseNode {
 public:
-    StylePropertyNode(Token token, std::string key, std::string value)
+    StylePropertyNode(Token token, std::string key, std::unique_ptr<ExpressionNode> value)
         : m_token(std::move(token)), m_key(std::move(key)), m_value(std::move(value)) {}
 
     std::string GetTokenLiteral() const override {
@@ -18,13 +19,14 @@ public:
     }
 
     std::string ToString(int indent = 0) const override {
-        return indentString(indent) + m_key + ": " + m_value + ";\n";
+        std::string value_str = m_value ? m_value->ToString(0) : "null";
+        return indentString(indent) + m_key + ": " + value_str + ";\n";
     }
 
 private:
     Token m_token;
     std::string m_key;
-    std::string m_value;
+    std::unique_ptr<ExpressionNode> m_value;
 };
 
 class StyleNode : public BaseNode {

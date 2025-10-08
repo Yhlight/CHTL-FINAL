@@ -81,3 +81,18 @@ TEST_CASE("Lexer correctly tokenizes literals", "[lexer]") {
         REQUIRE(tokens[2].type == TokenType::END_OF_FILE);
     }
 }
+
+TEST_CASE("Lexer correctly tokenizes operators", "[lexer]") {
+    SECTION("Arithmetic operators") {
+        Lexer lexer("+ - * / % **");
+        auto tokens = lexer.tokenize();
+        REQUIRE(tokens.size() == 7);
+        REQUIRE(tokens[0].type == TokenType::PLUS);
+        REQUIRE(tokens[1].type == TokenType::MINUS);
+        REQUIRE(tokens[2].type == TokenType::STAR);
+        REQUIRE(tokens[3].type == TokenType::SLASH);
+        REQUIRE(tokens[4].type == TokenType::PERCENT);
+        REQUIRE(tokens[5].type == TokenType::DOUBLE_STAR);
+        REQUIRE(tokens[6].type == TokenType::END_OF_FILE);
+    }
+}

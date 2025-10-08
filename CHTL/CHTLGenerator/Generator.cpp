@@ -1,8 +1,22 @@
 #include "Generator.h"
 #include "StyleCollector.h"
 #include "AttributeInjector.h"
+#include "ExpressionEvaluator.h"
 #include <set>
 #include <sstream>
+
+// Helper to convert an evaluated value to a string for CSS
+static std::string evaluatedValueToString(const EvaluatedValue& val) {
+    if (val.isNumeric) {
+        std::string s = std::to_string(val.value);
+        s.erase(s.find_last_not_of('0') + 1, std::string::npos);
+        if (s.back() == '.') {
+            s.pop_back();
+        }
+        return s + val.unit;
+    }
+    return val.stringValue;
+}
 
 std::string Generator::generate(RootNode& root) {
     // Pass 1: Collect all style rules and their contexts
@@ -43,10 +57,12 @@ void Generator::visit(ElementNode& node) {
     }
 
     if (node.style && !node.style->properties.empty()) {
+        ExpressionEvaluator evaluator;
         output << " style=\"";
         for (size_t i = 0; i < node.style->properties.size(); ++i) {
             auto& prop = node.style->properties[i];
-            output << prop->key << ": " << prop->value << ";";
+            EvaluatedValue val = evaluator.evaluate(*prop->value);
+            output << prop->key << ": " << evaluatedValueToString(val) << ";";
             if (i < node.style->properties.size() - 1) output << " ";
         }
         output << "\"";
@@ -62,6 +78,7 @@ void Generator::visit(ElementNode& node) {
     indentLevel++;
 
     if (node.tagName == "head" && !collectedRules.empty()) {
+        ExpressionEvaluator evaluator;
         indent();
         output << "<style>\n";
         indentLevel++;
@@ -93,7 +110,8 @@ void Generator::visit(ElementNode& node) {
             indentLevel++;
             for (const auto& prop : rule->properties) {
                 indent();
-                output << prop->key << ": " << prop->value << ";\n";
+                EvaluatedValue val = evaluator.evaluate(*prop->value);
+                output << prop->key << ": " << evaluatedValueToString(val) << ";\n";
             }
             indentLevel--;
             indent();

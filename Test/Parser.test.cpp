@@ -4,6 +4,11 @@
 #include "CHTL/CHTLNode/ElementNode.h"
 #include "CHTL/CHTLNode/TextNode.h"
 #include "CHTL/CHTLNode/CommentNode.h"
+#include "CHTL/CHTLNode/StyleNode.h"
+#include "CHTL/CHTLNode/StylePropertyNode.h"
+#include "CHTL/CHTLNode/NumericLiteralExprNode.h"
+#include "CHTL/CHTLNode/IdentifierExprNode.h"
+#include "CHTL/CHTLNode/BinaryOpExprNode.h"
 
 TEST_CASE("Parser correctly parses simple structures", "[parser]") {
     SECTION("Parse a simple element") {
@@ -30,8 +35,36 @@ TEST_CASE("Parser correctly parses simple structures", "[parser]") {
 
         auto* text = dynamic_cast<TextNode*>(ast->children[0].get());
         REQUIRE(text != nullptr);
-        // The value in the token includes quotes, so the parser should strip them.
         REQUIRE(text->content == "hello world");
+    }
+}
+
+TEST_CASE("Parser correctly handles expressions in styles", "[parser]") {
+    SECTION("Parse a style property with an arithmetic expression") {
+        Lexer lexer("div { style { width: 100 + 20; } }");
+        Parser parser(lexer.tokenize());
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.size() == 1);
+        auto* div = dynamic_cast<ElementNode*>(ast->children[0].get());
+        REQUIRE(div != nullptr);
+        REQUIRE(div->style != nullptr);
+        REQUIRE(div->style->properties.size() == 1);
+
+        auto* prop = div->style->properties[0].get();
+        REQUIRE(prop->key == "width");
+
+        auto* binaryOp = dynamic_cast<BinaryOpExprNode*>(prop->value.get());
+        REQUIRE(binaryOp != nullptr);
+        REQUIRE(binaryOp->op == TokenType::PLUS);
+
+        auto* left = dynamic_cast<NumericLiteralExprNode*>(binaryOp->left.get());
+        REQUIRE(left != nullptr);
+        REQUIRE(left->value == 100);
+
+        auto* right = dynamic_cast<NumericLiteralExprNode*>(binaryOp->right.get());
+        REQUIRE(right != nullptr);
+        REQUIRE(right->value == 20);
     }
 }
 
@@ -49,10 +82,6 @@ TEST_CASE("Parser correctly handles style blocks", "[parser]") {
     }
 
     SECTION("Parse a style block with properties") {
-        // This test requires the lexer to handle "16px" as a single value.
-        // For now, we will treat it as two tokens: a numeric literal and an identifier.
-        // The parser will need to be smart enough to combine them.
-        // Let's simplify for now and use unquoted values.
         Lexer lexer("div { style { color: red; font-size: 16; } }");
         Parser parser(lexer.tokenize());
         auto ast = parser.parse();
@@ -65,11 +94,15 @@ TEST_CASE("Parser correctly handles style blocks", "[parser]") {
 
         auto* prop1 = div->style->properties[0].get();
         REQUIRE(prop1->key == "color");
-        REQUIRE(prop1->value == "red");
+        auto* value1 = dynamic_cast<IdentifierExprNode*>(prop1->value.get());
+        REQUIRE(value1 != nullptr);
+        REQUIRE(value1->name == "red");
 
         auto* prop2 = div->style->properties[1].get();
         REQUIRE(prop2->key == "font-size");
-        REQUIRE(prop2->value == "16");
+        auto* value2 = dynamic_cast<NumericLiteralExprNode*>(prop2->value.get());
+        REQUIRE(value2 != nullptr);
+        REQUIRE(value2->value == 16);
     }
 
     SECTION("Parse a style block with a CSS rule") {
@@ -81,7 +114,7 @@ TEST_CASE("Parser correctly handles style blocks", "[parser]") {
         auto* div = dynamic_cast<ElementNode*>(ast->children[0].get());
         REQUIRE(div != nullptr);
         REQUIRE(div->style != nullptr);
-        REQUIRE(div->style->properties.empty()); // No inline properties
+        REQUIRE(div->style->properties.empty());
         REQUIRE(div->style->rules.size() == 1);
 
         auto* rule = div->style->rules[0].get();
@@ -90,7 +123,9 @@ TEST_CASE("Parser correctly handles style blocks", "[parser]") {
 
         auto* prop = rule->properties[0].get();
         REQUIRE(prop->key == "color");
-        REQUIRE(prop->value == "blue");
+        auto* value = dynamic_cast<IdentifierExprNode*>(prop->value.get());
+        REQUIRE(value != nullptr);
+        REQUIRE(value->name == "blue");
     }
 }
 
@@ -127,7 +162,7 @@ TEST_CASE("Parser correctly handles comments", "[parser]") {
             div {
                 /* Another comment */
             }
-            # Generator comment
+            # generator comment
         )");
         Parser parser(lexer.tokenize());
         auto ast = parser.parse();
@@ -212,11 +247,9 @@ TEST_CASE("Parser correctly handles attributes", "[parser]") {
         REQUIRE(div != nullptr);
         REQUIRE(div->tagName == "div");
 
-        // The 'text' attribute should not be in the attributes map
         REQUIRE(div->attributes.find("text") == div->attributes.end());
         REQUIRE(div->attributes.empty());
 
-        // It should be a child TextNode
         REQUIRE(div->children.size() == 1);
         auto* text = dynamic_cast<TextNode*>(div->children[0].get());
         REQUIRE(text != nullptr);

@@ -11,11 +11,15 @@ add_executable(chttl_tests
     Lexer.test.cpp
     Parser.test.cpp
     Generator.test.cpp
+    ExpressionParser.test.cpp
     ../CHTL/CHTLLexer/Lexer.cpp
     ../CHTL/CHTLParser/Parser.cpp
+    ../CHTL/CHTLParser/ExpressionParser.cpp
     ../CHTL/CHTLGenerator/Generator.cpp
     ../CHTL/CHTLGenerator/StyleCollector.cpp
     ../CHTL/CHTLGenerator/AttributeInjector.cpp
+    ../CHTL/CHTLGenerator/ExpressionEvaluator.cpp
+    ExpressionEvaluator.test.cpp
 )
 
 # Add a test to CTest

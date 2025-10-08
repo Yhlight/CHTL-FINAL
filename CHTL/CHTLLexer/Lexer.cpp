@@ -55,7 +55,16 @@ Token Lexer::nextToken() {
         case ';': return makeToken(TokenType::SEMICOLON, ";");
         case '.': return makeToken(TokenType::DOT, ".");
         case '&': return makeToken(TokenType::AMPERSAND, "&");
-        // ... other single-character tokens
+        case '+': return makeToken(TokenType::PLUS, "+");
+        case '-': return makeToken(TokenType::MINUS, "-");
+        case '/': return makeToken(TokenType::SLASH, "/");
+        case '%': return makeToken(TokenType::PERCENT, "%");
+        case '*':
+            if (peek() == '*') {
+                advance();
+                return makeToken(TokenType::DOUBLE_STAR, "**");
+            }
+            return makeToken(TokenType::STAR, "*");
         default:
             return makeToken(TokenType::UNKNOWN, std::string(1, c));
     }

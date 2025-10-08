@@ -1,6 +1,9 @@
 #include "Parser.h"
 #include <stdexcept>
 #include <algorithm>
+#include "../CHTLNode/NumericLiteralExprNode.h"
+#include "../CHTLNode/IdentifierExprNode.h"
+#include "ExpressionParser.h"
 
 Parser::Parser(const std::vector<Token>& tokens) : tokens(tokens) {
     // Filter out comments
@@ -114,9 +117,18 @@ std::unique_ptr<StyleNode> Parser::parseStyle() {
             // Otherwise, it's an inline property.
             Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
             consume(TokenType::COLON, "Expected ':' after style property key.");
-            Token value = advance();
+
+            std::vector<Token> valueTokens;
+            while(peek().type != TokenType::SEMICOLON && !isAtEnd()) {
+                valueTokens.push_back(advance());
+            }
+            valueTokens.push_back(Token{TokenType::END_OF_FILE, "", 0, 0}); // Add EOF for the sub-parser
+
+            ExpressionParser exprParser(valueTokens);
+            auto value = exprParser.parse();
+
             consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
-            styleNode->properties.push_back(std::make_unique<StylePropertyNode>(key.value, value.value));
+            styleNode->properties.push_back(std::make_unique<StylePropertyNode>(key.value, std::move(value)));
         }
     }
 
@@ -139,9 +151,18 @@ std::unique_ptr<StyleRuleNode> Parser::parseStyleRule() {
     while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
         Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
         consume(TokenType::COLON, "Expected ':' after style property key.");
-        Token value = advance();
+
+        std::vector<Token> valueTokens;
+        while(peek().type != TokenType::SEMICOLON && !isAtEnd()) {
+            valueTokens.push_back(advance());
+        }
+        valueTokens.push_back(Token{TokenType::END_OF_FILE, "", 0, 0});
+
+        ExpressionParser exprParser(valueTokens);
+        auto value = exprParser.parse();
+
         consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
-        ruleNode->properties.push_back(std::make_unique<StylePropertyNode>(key.value, value.value));
+        ruleNode->properties.push_back(std::make_unique<StylePropertyNode>(key.value, std::move(value)));
     }
 
     consume(TokenType::RIGHT_BRACE, "Expected '}' after style rule block.");

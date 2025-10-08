@@ -7,6 +7,7 @@
 #include "../CHTLNode/CommentNode.h"
 #include "StyleCollector.h"
 #include "AttributeInjector.h"
+#include "ExpressionEvaluator.h"
 #include <string>
 #include <sstream>
 #include <vector>

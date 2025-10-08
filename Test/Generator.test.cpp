@@ -6,6 +6,9 @@
 #include "CHTL/CHTLNode/CommentNode.h"
 #include "CHTL/CHTLNode/StyleNode.h"
 #include "CHTL/CHTLNode/StylePropertyNode.h"
+#include "CHTL/CHTLNode/NumericLiteralExprNode.h"
+#include "CHTL/CHTLNode/IdentifierExprNode.h"
+#include "CHTL/CHTLNode/BinaryOpExprNode.h"
 #include <string>
 #include <algorithm>
 #include <cctype>
@@ -88,8 +91,8 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         auto element = std::make_unique<ElementNode>("div");
 
         auto styleNode = std::make_unique<StyleNode>();
-        styleNode->properties.push_back(std::make_unique<StylePropertyNode>("color", "red"));
-        styleNode->properties.push_back(std::make_unique<StylePropertyNode>("font-size", "16px"));
+        styleNode->properties.push_back(std::make_unique<StylePropertyNode>("color", std::make_unique<IdentifierExprNode>("red")));
+        styleNode->properties.push_back(std::make_unique<StylePropertyNode>("font-size", std::make_unique<IdentifierExprNode>("16px")));
         element->style = std::move(styleNode);
 
         root->children.push_back(std::move(element));
@@ -109,7 +112,7 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         auto div = std::make_unique<ElementNode>("div");
         auto styleNode = std::make_unique<StyleNode>();
         auto rule = std::make_unique<StyleRuleNode>(".box");
-        rule->properties.push_back(std::make_unique<StylePropertyNode>("color", "red"));
+        rule->properties.push_back(std::make_unique<StylePropertyNode>("color", std::make_unique<IdentifierExprNode>("red")));
         styleNode->rules.push_back(std::move(rule));
         div->style = std::move(styleNode);
         body->children.push_back(std::move(div));
@@ -171,7 +174,7 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         styleNode->rules.push_back(std::move(mainRule));
 
         auto hoverRule = std::make_unique<StyleRuleNode>("&:hover");
-        hoverRule->properties.push_back(std::make_unique<StylePropertyNode>("color", "red"));
+        hoverRule->properties.push_back(std::make_unique<StylePropertyNode>("color", std::make_unique<IdentifierExprNode>("red")));
         styleNode->rules.push_back(std::move(hoverRule));
 
         button->style = std::move(styleNode);
@@ -186,5 +189,24 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         REQUIRE(normalize_whitespace(result).find(normalize_whitespace(expected_style)) != std::string::npos);
 
         REQUIRE(normalize_whitespace(result).find(normalize_whitespace("<button class=\"btn\">")) != std::string::npos);
+    }
+
+    SECTION("Generate style property with an arithmetic expression") {
+        auto root = std::make_unique<RootNode>();
+        auto element = std::make_unique<ElementNode>("div");
+
+        auto styleNode = std::make_unique<StyleNode>();
+        auto left = std::make_unique<NumericLiteralExprNode>(100, "px");
+        auto right = std::make_unique<NumericLiteralExprNode>(50, "px");
+        auto expr = std::make_unique<BinaryOpExprNode>(std::move(left), TokenType::PLUS, std::move(right));
+        styleNode->properties.push_back(std::make_unique<StylePropertyNode>("width", std::move(expr)));
+        element->style = std::move(styleNode);
+
+        root->children.push_back(std::move(element));
+
+        Generator generator;
+        std::string result = generator.generate(*root);
+
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"width: 150px;\"></div>"));
     }
 }

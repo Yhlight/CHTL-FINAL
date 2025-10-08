@@ -2,6 +2,7 @@
 add_library(ChtlLib STATIC
     CHTLLexer/Token.cpp
     CHTLLexer/Lexer.cpp
+    CHTLParser/Parser.cpp
 )
 
 # Publicly expose the header files of the ChtlLib library

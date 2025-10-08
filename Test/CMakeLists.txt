@@ -2,6 +2,7 @@
 add_executable(RunTests
     TestStringUtil.cpp
     TestLexer.cpp
+    TestParser.cpp
 )
 
 # Add include directories for third-party libraries like Catch2

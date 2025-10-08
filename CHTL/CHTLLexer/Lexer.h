@@ -12,7 +12,10 @@ private:
     void readChar();
     char peekChar();
     std::string readIdentifier();
-    std::string readString();
+    std::string readString(char delimiter);
+    std::string readNumber();
+    std::string readSingleLineComment();
+    std::string readMultiLineComment();
     void skipWhitespace();
 
     std::string input;

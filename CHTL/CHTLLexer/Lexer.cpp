@@ -29,10 +29,10 @@ Token Lexer::nextToken() {
     if (c == '#') {
         return generatorComment();
     }
-    if (c == '"') {
-        return stringLiteral();
+    if (c == '"' || c == '\'') {
+        return stringLiteral(c);
     }
-    if (isalpha(c)) {
+    if (isalpha(c) || c == '_') {
         // Backtrack to include the first character
         current--;
         return identifier();
@@ -41,6 +41,9 @@ Token Lexer::nextToken() {
     switch (c) {
         case '{': return makeToken(TokenType::LEFT_BRACE, "{");
         case '}': return makeToken(TokenType::RIGHT_BRACE, "}");
+        case ':': return makeToken(TokenType::COLON, ":");
+        case '=': return makeToken(TokenType::EQUALS, "=");
+        case ';': return makeToken(TokenType::SEMICOLON, ";");
         // ... other single-character tokens
         default:
             return makeToken(TokenType::UNKNOWN, std::string(1, c));
@@ -95,7 +98,7 @@ Token Lexer::makeToken(TokenType type, const std::string& value) {
 
 Token Lexer::identifier() {
     size_t start = current;
-    while (isalnum(peek()) || peek() == '_') {
+    while (isalnum(peek()) || peek() == '_' || peek() == '-') {
         advance();
     }
     std::string value = source.substr(start, current - start);
@@ -105,9 +108,9 @@ Token Lexer::identifier() {
     return makeToken(TokenType::IDENTIFIER, value);
 }
 
-Token Lexer::stringLiteral() {
+Token Lexer::stringLiteral(char quoteType) {
     size_t start = current - 1; // Include the opening quote
-    while (peek() != '"' && !isAtEnd()) {
+    while (peek() != quoteType && !isAtEnd()) {
         if (peek() == '\n') {
             line++;
             column = 1;

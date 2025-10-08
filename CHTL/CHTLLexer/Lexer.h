@@ -24,7 +24,7 @@ private:
     Token makeToken(TokenType type, const std::string& value);
     Token text();
     Token identifier();
-    Token stringLiteral();
+    Token stringLiteral(char quoteType);
     Token singleLineComment();
     Token multiLineComment();
     Token generatorComment();

@@ -16,7 +16,15 @@ void Generator::visit(RootNode& node) {
 
 void Generator::visit(ElementNode& node) {
     indent();
-    output << "<" << node.tagName << ">";
+    output << "<" << node.tagName;
+
+    // Append attributes
+    for (const auto& attr : node.attributes) {
+        output << " " << attr.first << "=\"" << attr.second << "\"";
+    }
+
+    output << ">";
+
     if (!node.children.empty()) {
         output << "\n";
         indentLevel++;

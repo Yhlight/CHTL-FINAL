@@ -40,12 +40,64 @@ std::unique_ptr<ElementNode> Parser::parseElement() {
     consume(TokenType::LEFT_BRACE, "Expected '{' after element name.");
 
     while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
-        element->children.push_back(parseStatement());
+        // Look ahead to differentiate between a child element and an attribute.
+        // A child element is an identifier followed by a '{'.
+        // An attribute is an identifier followed by a ':' or '='.
+        if (peek().type == TokenType::IDENTIFIER || peek().type == TokenType::TEXT_KEYWORD) {
+            if (tokens[current + 1].type == TokenType::COLON || tokens[current + 1].type == TokenType::EQUALS) {
+                parseAttribute(element.get());
+            } else {
+                element->children.push_back(parseStatement());
+            }
+        } else {
+            // It's not an identifier, so it must be a statement (e.g., a text {} block)
+            element->children.push_back(parseStatement());
+        }
     }
 
     consume(TokenType::RIGHT_BRACE, "Expected '}' after element body.");
 
     return element;
+}
+
+void Parser::parseAttribute(ElementNode* element) {
+    Token key;
+    if (peek().type == TokenType::IDENTIFIER || peek().type == TokenType::TEXT_KEYWORD) {
+        key = advance();
+    } else {
+        throw std::runtime_error("Expected attribute key.");
+    }
+
+    // Consume colon or equals
+    if (!match({TokenType::COLON, TokenType::EQUALS})) {
+        throw std::runtime_error("Expected ':' or '=' after attribute key.");
+    }
+
+    Token valueToken;
+    // An attribute value can be a string literal or any identifier-like token
+    if (peek().type == TokenType::STRING_LITERAL) {
+        valueToken = consume(TokenType::STRING_LITERAL, "Expected attribute value.");
+    } else if (peek().type == TokenType::IDENTIFIER || peek().type == TokenType::TEXT_KEYWORD) { // Allow keywords as values
+        valueToken = advance();
+    } else {
+        throw std::runtime_error("Expected attribute value to be a string or an identifier.");
+    }
+
+    consume(TokenType::SEMICOLON, "Expected ';' after attribute value.");
+
+    std::string value = valueToken.value;
+    // Strip quotes from string literals
+    if (valueToken.type == TokenType::STRING_LITERAL) {
+        if (value.length() >= 2 && (value.front() == '"' || value.front() == '\'') && value.front() == value.back()) {
+            value = value.substr(1, value.length() - 2);
+        }
+    }
+
+    if (key.value == "text") {
+        element->children.push_back(std::make_unique<TextNode>(value));
+    } else {
+        element->attributes[key.value] = value;
+    }
 }
 
 std::unique_ptr<TextNode> Parser::parseText() {

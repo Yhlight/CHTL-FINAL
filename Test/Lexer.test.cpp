@@ -43,3 +43,30 @@ TEST_CASE("Lexer correctly tokenizes text nodes", "[lexer]") {
         REQUIRE(tokens[4].type == TokenType::END_OF_FILE);
     }
 }
+
+TEST_CASE("Lexer correctly tokenizes literals", "[lexer]") {
+    SECTION("Single-quoted string literal") {
+        Lexer lexer("'hello single quotes'");
+        auto tokens = lexer.tokenize();
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::STRING_LITERAL);
+        REQUIRE(tokens[0].value == "'hello single quotes'");
+        REQUIRE(tokens[1].type == TokenType::END_OF_FILE);
+    }
+
+    SECTION("Unquoted text in text node") {
+        Lexer lexer("text { this is text }");
+        auto tokens = lexer.tokenize();
+        REQUIRE(tokens.size() == 7);
+        REQUIRE(tokens[0].type == TokenType::TEXT_KEYWORD);
+        REQUIRE(tokens[1].type == TokenType::LEFT_BRACE);
+        REQUIRE(tokens[2].type == TokenType::IDENTIFIER);
+        REQUIRE(tokens[2].value == "this");
+        REQUIRE(tokens[3].type == TokenType::IDENTIFIER);
+        REQUIRE(tokens[3].value == "is");
+        REQUIRE(tokens[4].type == TokenType::TEXT_KEYWORD);
+        REQUIRE(tokens[4].value == "text");
+        REQUIRE(tokens[5].type == TokenType::RIGHT_BRACE);
+        REQUIRE(tokens[6].type == TokenType::END_OF_FILE);
+    }
+}

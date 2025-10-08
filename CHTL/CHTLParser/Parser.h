@@ -27,4 +27,5 @@ private:
     std::unique_ptr<BaseNode> parseStatement();
     std::unique_ptr<ElementNode> parseElement();
     std::unique_ptr<TextNode> parseText();
+    void parseAttribute(ElementNode* element);
 };

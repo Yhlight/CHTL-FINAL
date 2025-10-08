@@ -53,4 +53,18 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         // Note the space added after '#'. The content is "# generator comment".
         REQUIRE(result == "<!-- generator comment -->\n");
     }
+
+    SECTION("Generate an element with attributes") {
+        auto root = std::make_unique<RootNode>();
+        auto element = std::make_unique<ElementNode>("div");
+        element->attributes["id"] = "main";
+        element->attributes["class"] = "container";
+        root->children.push_back(std::move(element));
+
+        Generator generator;
+        std::string result = generator.generate(*root);
+
+        // The order of attributes in a std::map is sorted by key.
+        REQUIRE(result == "<div class=\"container\" id=\"main\"></div>\n");
+    }
 }

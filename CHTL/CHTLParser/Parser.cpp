@@ -5,7 +5,9 @@
 #include "../CHTLNode/IdentifierExprNode.h"
 #include "ExpressionParser.h"
 
-Parser::Parser(const std::vector<Token>& tokens) : tokens(tokens) {
+#include "../CHTLContext/CHTLContext.h"
+
+Parser::Parser(const std::vector<Token>& tokens, CHTLContext& context) : tokens(tokens), context(context) {
     // Filter out comments
     this->tokens.erase(
         std::remove_if(this->tokens.begin(), this->tokens.end(), [](const Token& t) {
@@ -20,17 +22,26 @@ Parser::Parser(const std::vector<Token>& tokens) : tokens(tokens) {
 std::unique_ptr<RootNode> Parser::parse() {
     auto root = std::make_unique<RootNode>();
     while (!isAtEnd() && peek().type != TokenType::END_OF_FILE) {
-        root->children.push_back(parseStatement());
+        auto statement = parseStatement();
+        if (statement) { // Template declarations return nullptr
+            root->children.push_back(std::move(statement));
+        }
     }
     return root;
 }
 
 std::unique_ptr<BaseNode> Parser::parseStatement() {
+    if (peek().type == TokenType::LEFT_BRACKET) {
+        return parseTemplateDeclaration();
+    }
     if (peek().type == TokenType::TEXT_KEYWORD) {
         return parseText();
     }
     if (peek().type == TokenType::IDENTIFIER) {
         return parseElement();
+    }
+    if (peek().type == TokenType::AT) {
+        return parseTemplateUsage();
     }
     // Should not happen with valid CHTL
     throw std::runtime_error("Unexpected token in parseStatement: " + peek().value);
@@ -110,11 +121,14 @@ std::unique_ptr<StyleNode> Parser::parseStyle() {
     auto styleNode = std::make_unique<StyleNode>();
 
     while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
-        // If it starts with a selector-like token, or is an identifier followed by a brace, it's a rule.
-        if (peek().type == TokenType::DOT || peek().type == TokenType::HASH || (peek().type == TokenType::IDENTIFIER && tokens[current + 1].type == TokenType::LEFT_BRACE)) {
+        // Check for template usage first
+        if (peek().type == TokenType::AT) {
+            styleNode->templateUsages.push_back(parseTemplateUsage());
+        } else if (peek().type == TokenType::DOT || peek().type == TokenType::HASH || (peek().type == TokenType::IDENTIFIER && tokens[current + 1].type == TokenType::LEFT_BRACE)) {
+            // It's a rule
             styleNode->rules.push_back(parseStyleRule());
         } else {
-            // Otherwise, it's an inline property.
+            // Otherwise, it's an inline property
             Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
             consume(TokenType::COLON, "Expected ':' after style property key.");
 
@@ -220,4 +234,76 @@ Token Parser::consume(TokenType type, const std::string& message) {
         return advance();
     }
     throw std::runtime_error(message + " Got " + peek().value + " instead.");
+}
+
+std::unique_ptr<TemplateDeclarationNode> Parser::parseTemplateDeclaration() {
+    consume(TokenType::LEFT_BRACKET, "Expected '[' at the start of a template declaration.");
+    Token keyword = consume(TokenType::IDENTIFIER, "Expected 'Template' keyword.");
+    if (keyword.value != "Template") {
+        throw std::runtime_error("Expected 'Template' keyword inside brackets, got " + keyword.value);
+    }
+    consume(TokenType::RIGHT_BRACKET, "Expected ']' after 'Template' keyword.");
+
+    consume(TokenType::AT, "Expected '@' before template type.");
+
+    TemplateType type;
+    if (peek().type == TokenType::STYLE_KEYWORD) {
+        type = TemplateType::STYLE;
+        advance();
+    } else {
+        // This is simplified for now.
+        throw std::runtime_error("Unsupported template type in declaration: " + peek().value);
+    }
+
+    Token name = consume(TokenType::IDENTIFIER, "Expected template name.");
+    auto templateNode = std::make_unique<TemplateDeclarationNode>(type, name.value);
+
+    consume(TokenType::LEFT_BRACE, "Expected '{' to start template body.");
+
+    // For a style template, the body contains style properties.
+    while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        Token key = consume(TokenType::IDENTIFIER, "Expected style property key.");
+        consume(TokenType::COLON, "Expected ':' after style property key.");
+
+        std::vector<Token> valueTokens;
+        while(peek().type != TokenType::SEMICOLON && !isAtEnd()) {
+            valueTokens.push_back(advance());
+        }
+        valueTokens.push_back(Token{TokenType::END_OF_FILE, "", 0, 0});
+
+        ExpressionParser exprParser(valueTokens);
+        auto value = exprParser.parse();
+
+        consume(TokenType::SEMICOLON, "Expected ';' after style property value.");
+        templateNode->body.push_back(std::make_unique<StylePropertyNode>(key.value, std::move(value)));
+    }
+    consume(TokenType::RIGHT_BRACE, "Expected '}' to end template body.");
+
+    // Store the template in the context instead of returning it to the main AST
+    if (templateNode->templateType == TemplateType::STYLE) {
+        context.styleTemplates[templateNode->name] = std::move(templateNode);
+    }
+
+    // Return a nullptr because the template declaration is not part of the main AST
+    return nullptr;
+}
+
+std::unique_ptr<TemplateUsageNode> Parser::parseTemplateUsage() {
+    consume(TokenType::AT, "Expected '@' for template usage.");
+
+    TemplateType type;
+    if (peek().type == TokenType::STYLE_KEYWORD) {
+        type = TemplateType::STYLE;
+        advance();
+    } else if (peek().type == TokenType::IDENTIFIER && (peek().value == "Element" || peek().value == "element")) {
+        type = TemplateType::ELEMENT;
+        advance();
+    } else {
+        throw std::runtime_error("Unsupported template type in usage: " + peek().value);
+    }
+
+    Token name = consume(TokenType::IDENTIFIER, "Expected template name.");
+    consume(TokenType::SEMICOLON, "Expected ';' after template usage.");
+
+    return std::make_unique<TemplateUsageNode>(type, name.value);
 }

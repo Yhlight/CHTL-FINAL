@@ -28,4 +28,6 @@ private:
     void visit(CommentNode& node) override {}
     void visit(StylePropertyNode& node) override {}
     void visit(StyleRuleNode& node) override {}
+    void visit(TemplateDeclarationNode& node) override {}
+    void visit(TemplateUsageNode& node) override {}
 };

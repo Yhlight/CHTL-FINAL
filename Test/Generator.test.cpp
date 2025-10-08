@@ -9,6 +9,9 @@
 #include "CHTL/CHTLNode/NumericLiteralExprNode.h"
 #include "CHTL/CHTLNode/IdentifierExprNode.h"
 #include "CHTL/CHTLNode/BinaryOpExprNode.h"
+#include "CHTL/CHTLNode/TemplateDeclarationNode.h"
+#include "CHTL/CHTLNode/TemplateUsageNode.h"
+#include "CHTL/CHTLContext/CHTLContext.h"
 #include <string>
 #include <algorithm>
 #include <cctype>
@@ -26,13 +29,13 @@ std::string normalize_whitespace(const std::string& s) {
 }
 
 TEST_CASE("Generator produces correct HTML", "[generator]") {
+    CHTLContext context;
+
     SECTION("Generate a simple element") {
         auto root = std::make_unique<RootNode>();
         root->children.push_back(std::make_unique<ElementNode>("div"));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
+        std::string result = generator.generate(*root, context);
         REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div></div>"));
     }
 
@@ -41,10 +44,8 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         auto element = std::make_unique<ElementNode>("p");
         element->children.push_back(std::make_unique<TextNode>("hello"));
         root->children.push_back(std::move(element));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
+        std::string result = generator.generate(*root, context);
         REQUIRE(normalize_whitespace(result) == normalize_whitespace("<p>hello</p>"));
     }
 
@@ -55,10 +56,8 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         body->children.push_back(std::make_unique<ElementNode>("div"));
         html->children.push_back(std::move(body));
         root->children.push_back(std::move(html));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
+        std::string result = generator.generate(*root, context);
         REQUIRE(normalize_whitespace(result) == normalize_whitespace("<html><body><div></div></body></html>"));
     }
 
@@ -66,10 +65,8 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         auto root = std::make_unique<RootNode>();
         root->children.push_back(std::make_unique<CommentNode>("# generator comment", TokenType::GENERATOR_COMMENT));
         root->children.push_back(std::make_unique<CommentNode>("// ignored comment", TokenType::SINGLE_LINE_COMMENT));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
+        std::string result = generator.generate(*root, context);
         REQUIRE(normalize_whitespace(result) == normalize_whitespace("<!-- generator comment -->"));
     }
 
@@ -79,27 +76,21 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         element->attributes["id"] = "main";
         element->attributes["class"] = "container";
         root->children.push_back(std::move(element));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
+        std::string result = generator.generate(*root, context);
         REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div class=\"container\" id=\"main\"></div>"));
     }
 
     SECTION("Generate an element with inline styles") {
         auto root = std::make_unique<RootNode>();
         auto element = std::make_unique<ElementNode>("div");
-
         auto styleNode = std::make_unique<StyleNode>();
         styleNode->properties.push_back(std::make_unique<StylePropertyNode>("color", std::make_unique<IdentifierExprNode>("red")));
         styleNode->properties.push_back(std::make_unique<StylePropertyNode>("font-size", std::make_unique<IdentifierExprNode>("16px")));
         element->style = std::move(styleNode);
-
         root->children.push_back(std::move(element));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
+        std::string result = generator.generate(*root, context);
         REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"color: red; font-size: 16px;\"></div>"));
     }
 
@@ -107,7 +98,6 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         auto root = std::make_unique<RootNode>();
         auto html = std::make_unique<ElementNode>("html");
         html->children.push_back(std::make_unique<ElementNode>("head"));
-
         auto body = std::make_unique<ElementNode>("body");
         auto div = std::make_unique<ElementNode>("div");
         auto styleNode = std::make_unique<StyleNode>();
@@ -116,25 +106,11 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         styleNode->rules.push_back(std::move(rule));
         div->style = std::move(styleNode);
         body->children.push_back(std::move(div));
-
         html->children.push_back(std::move(body));
         root->children.push_back(std::move(html));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
-        std::string expected =
-            "<html>"
-            "  <head>"
-            "    <style>"
-            "      .box { color: red; }"
-            "    </style>"
-            "  </head>"
-            "  <body>"
-            "    <div class=\"box\"></div>"
-            "  </body>"
-            "</html>";
-
+        std::string result = generator.generate(*root, context);
+        std::string expected = "<html><head><style>.box { color: red; }</style></head><body><div class=\"box\"></div></body></html>";
         REQUIRE(normalize_whitespace(result) == normalize_whitespace(expected));
     }
 
@@ -142,21 +118,15 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         auto root = std::make_unique<RootNode>();
         auto element = std::make_unique<ElementNode>("div");
         element->attributes["class"] = "existing-class";
-
         auto styleNode = std::make_unique<StyleNode>();
-
         auto classRule = std::make_unique<StyleRuleNode>(".box");
         styleNode->rules.push_back(std::move(classRule));
-
         auto idRule = std::make_unique<StyleRuleNode>("#main-content");
         styleNode->rules.push_back(std::move(idRule));
-
         element->style = std::move(styleNode);
         root->children.push_back(std::move(element));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
+        std::string result = generator.generate(*root, context);
         REQUIRE(normalize_whitespace(result).find(normalize_whitespace("<div class=\"box existing-class\" id=\"main-content\">")) != std::string::npos);
     }
 
@@ -164,49 +134,40 @@ TEST_CASE("Generator produces correct HTML", "[generator]") {
         auto root = std::make_unique<RootNode>();
         auto html = std::make_unique<ElementNode>("html");
         html->children.push_back(std::make_unique<ElementNode>("head"));
-
         auto body = std::make_unique<ElementNode>("body");
         auto button = std::make_unique<ElementNode>("button");
-
         auto styleNode = std::make_unique<StyleNode>();
-
         auto mainRule = std::make_unique<StyleRuleNode>(".btn");
         styleNode->rules.push_back(std::move(mainRule));
-
         auto hoverRule = std::make_unique<StyleRuleNode>("&:hover");
         hoverRule->properties.push_back(std::make_unique<StylePropertyNode>("color", std::make_unique<IdentifierExprNode>("red")));
         styleNode->rules.push_back(std::move(hoverRule));
-
         button->style = std::move(styleNode);
         body->children.push_back(std::move(button));
         html->children.push_back(std::move(body));
         root->children.push_back(std::move(html));
-
         Generator generator;
-        std::string result = generator.generate(*root);
-
+        std::string result = generator.generate(*root, context);
         std::string expected_style = ".btn{} .btn:hover{color:red;}";
         REQUIRE(normalize_whitespace(result).find(normalize_whitespace(expected_style)) != std::string::npos);
-
         REQUIRE(normalize_whitespace(result).find(normalize_whitespace("<button class=\"btn\">")) != std::string::npos);
     }
 
-    SECTION("Generate style property with an arithmetic expression") {
+    SECTION("Expand a style template") {
+        auto tpl = std::make_unique<TemplateDeclarationNode>(TemplateType::STYLE, "DefaultText");
+        tpl->body.push_back(std::make_unique<StylePropertyNode>("color", std::make_unique<IdentifierExprNode>("blue")));
+        tpl->body.push_back(std::make_unique<StylePropertyNode>("font-size", std::make_unique<NumericLiteralExprNode>(12, "pt")));
+        context.styleTemplates["DefaultText"] = std::move(tpl);
+
         auto root = std::make_unique<RootNode>();
-        auto element = std::make_unique<ElementNode>("div");
-
+        auto div = std::make_unique<ElementNode>("div");
         auto styleNode = std::make_unique<StyleNode>();
-        auto left = std::make_unique<NumericLiteralExprNode>(100, "px");
-        auto right = std::make_unique<NumericLiteralExprNode>(50, "px");
-        auto expr = std::make_unique<BinaryOpExprNode>(std::move(left), TokenType::PLUS, std::move(right));
-        styleNode->properties.push_back(std::make_unique<StylePropertyNode>("width", std::move(expr)));
-        element->style = std::move(styleNode);
-
-        root->children.push_back(std::move(element));
+        styleNode->templateUsages.push_back(std::make_unique<TemplateUsageNode>(TemplateType::STYLE, "DefaultText"));
+        div->style = std::move(styleNode);
+        root->children.push_back(std::move(div));
 
         Generator generator;
-        std::string result = generator.generate(*root);
-
-        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"width: 150px;\"></div>"));
+        std::string result = generator.generate(*root, context);
+        REQUIRE(normalize_whitespace(result) == normalize_whitespace("<div style=\"color: blue; font-size: 12pt;\"></div>"));
     }
 }

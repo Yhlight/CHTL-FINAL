@@ -12,6 +12,8 @@ class CommentNode;
 class StyleNode;
 class StylePropertyNode;
 class StyleRuleNode;
+class TemplateDeclarationNode;
+class TemplateUsageNode;
 
 // Visitor pattern for traversing the AST
 class ASTVisitor {
@@ -24,6 +26,8 @@ public:
     virtual void visit(StyleNode& node) = 0;
     virtual void visit(StylePropertyNode& node) = 0;
     virtual void visit(StyleRuleNode& node) = 0;
+    virtual void visit(TemplateDeclarationNode& node) = 0;
+    virtual void visit(TemplateUsageNode& node) = 0;
 };
 
 class BaseNode {

@@ -9,11 +9,15 @@
 #include "CHTL/CHTLNode/NumericLiteralExprNode.h"
 #include "CHTL/CHTLNode/IdentifierExprNode.h"
 #include "CHTL/CHTLNode/BinaryOpExprNode.h"
+#include "CHTL/CHTLNode/TemplateDeclarationNode.h"
+#include "CHTL/CHTLNode/TemplateUsageNode.h"
+#include "CHTL/CHTLContext/CHTLContext.h"
 
 TEST_CASE("Parser correctly parses simple structures", "[parser]") {
     SECTION("Parse a simple element") {
+        CHTLContext context;
         Lexer lexer("div {}");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast != nullptr);
@@ -26,8 +30,9 @@ TEST_CASE("Parser correctly parses simple structures", "[parser]") {
     }
 
     SECTION("Parse a text node") {
+        CHTLContext context;
         Lexer lexer("text { \"hello world\" }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast != nullptr);
@@ -41,8 +46,9 @@ TEST_CASE("Parser correctly parses simple structures", "[parser]") {
 
 TEST_CASE("Parser correctly handles expressions in styles", "[parser]") {
     SECTION("Parse a style property with an arithmetic expression") {
+        CHTLContext context;
         Lexer lexer("div { style { width: 100 + 20; } }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);
@@ -70,8 +76,9 @@ TEST_CASE("Parser correctly handles expressions in styles", "[parser]") {
 
 TEST_CASE("Parser correctly handles style blocks", "[parser]") {
     SECTION("Parse an empty style block") {
+        CHTLContext context;
         Lexer lexer("div { style {} }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);
@@ -82,8 +89,9 @@ TEST_CASE("Parser correctly handles style blocks", "[parser]") {
     }
 
     SECTION("Parse a style block with properties") {
+        CHTLContext context;
         Lexer lexer("div { style { color: red; font-size: 16; } }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);
@@ -106,8 +114,9 @@ TEST_CASE("Parser correctly handles style blocks", "[parser]") {
     }
 
     SECTION("Parse a style block with a CSS rule") {
+        CHTLContext context;
         Lexer lexer("div { style { .box { color: blue; } } }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);
@@ -129,10 +138,64 @@ TEST_CASE("Parser correctly handles style blocks", "[parser]") {
     }
 }
 
+TEST_CASE("Parser correctly handles templates", "[parser]") {
+    SECTION("Parse a top-level style template declaration") {
+        CHTLContext context;
+        Lexer lexer("[Template] @Style DefaultText { color: black; }");
+        Parser parser(lexer.tokenize(), context);
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.empty());
+
+        REQUIRE(context.styleTemplates.count("DefaultText") == 1);
+        auto* tpl = context.styleTemplates["DefaultText"].get();
+        REQUIRE(tpl != nullptr);
+        REQUIRE(tpl->templateType == TemplateType::STYLE);
+        REQUIRE(tpl->name == "DefaultText");
+        REQUIRE(tpl->body.size() == 1);
+    }
+
+    SECTION("Parse a style template usage") {
+        CHTLContext context;
+        Lexer lexer("div { style { @Style DefaultText; } }");
+        Parser parser(lexer.tokenize(), context);
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.size() == 1);
+        auto* div = dynamic_cast<ElementNode*>(ast->children[0].get());
+        REQUIRE(div != nullptr);
+        REQUIRE(div->style != nullptr);
+        REQUIRE(div->style->properties.empty());
+        REQUIRE(div->style->rules.empty());
+        REQUIRE(div->style->templateUsages.size() == 1);
+
+        auto* usage = div->style->templateUsages[0].get();
+        REQUIRE(usage->templateType == TemplateType::STYLE);
+        REQUIRE(usage->name == "DefaultText");
+    }
+
+    SECTION("Parse an element template usage") {
+        CHTLContext context;
+        Lexer lexer("body { @Element Box; }");
+        Parser parser(lexer.tokenize(), context);
+        auto ast = parser.parse();
+
+        REQUIRE(ast->children.size() == 1);
+        auto* body = dynamic_cast<ElementNode*>(ast->children[0].get());
+        REQUIRE(body != nullptr);
+        REQUIRE(body->children.size() == 1);
+        auto* usage = dynamic_cast<TemplateUsageNode*>(body->children[0].get());
+        REQUIRE(usage != nullptr);
+        REQUIRE(usage->templateType == TemplateType::ELEMENT);
+        REQUIRE(usage->name == "Box");
+    }
+}
+
 TEST_CASE("Parser handles nested structures", "[parser]") {
     SECTION("Parse nested elements") {
+        CHTLContext context;
         Lexer lexer("html { body { div {} } }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast != nullptr);
@@ -157,6 +220,7 @@ TEST_CASE("Parser handles nested structures", "[parser]") {
 
 TEST_CASE("Parser correctly handles comments", "[parser]") {
     SECTION("Parser ignores comments") {
+        CHTLContext context;
         Lexer lexer(R"(
             // This is a comment
             div {
@@ -164,7 +228,7 @@ TEST_CASE("Parser correctly handles comments", "[parser]") {
             }
             # generator comment
         )");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast != nullptr);
@@ -177,8 +241,9 @@ TEST_CASE("Parser correctly handles comments", "[parser]") {
 
 TEST_CASE("Parser correctly handles attributes", "[parser]") {
     SECTION("Parse an element with a simple attribute (colon)") {
+        CHTLContext context;
         Lexer lexer("div { id: my-id; }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);
@@ -191,8 +256,9 @@ TEST_CASE("Parser correctly handles attributes", "[parser]") {
     }
 
     SECTION("Parse an element with a simple attribute (equals)") {
+        CHTLContext context;
         Lexer lexer("div { class = \"my-class\"; }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);
@@ -205,8 +271,9 @@ TEST_CASE("Parser correctly handles attributes", "[parser]") {
     }
 
     SECTION("Parse an element with multiple attributes") {
+        CHTLContext context;
         Lexer lexer("a { href: \"/index.html\"; target = _blank; }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);
@@ -220,8 +287,9 @@ TEST_CASE("Parser correctly handles attributes", "[parser]") {
     }
 
     SECTION("Parse a mix of attributes and child elements") {
+        CHTLContext context;
         Lexer lexer("div { id: main; h1 {} }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);
@@ -238,8 +306,9 @@ TEST_CASE("Parser correctly handles attributes", "[parser]") {
     }
 
     SECTION("Parse the 'text' attribute as a child node") {
+        CHTLContext context;
         Lexer lexer("div { text: \"hello world\"; }");
-        Parser parser(lexer.tokenize());
+        Parser parser(lexer.tokenize(), context);
         auto ast = parser.parse();
 
         REQUIRE(ast->children.size() == 1);

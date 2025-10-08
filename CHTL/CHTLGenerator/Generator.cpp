@@ -18,7 +18,9 @@ static std::string evaluatedValueToString(const EvaluatedValue& val) {
     return val.stringValue;
 }
 
-std::string Generator::generate(RootNode& root) {
+std::string Generator::generate(RootNode& root, CHTLContext& context) {
+    this->context = &context;
+
     // Pass 1: Collect all style rules and their contexts
     StyleCollector collector;
     collector.collect(root);
@@ -56,14 +58,15 @@ void Generator::visit(ElementNode& node) {
         output << " " << attr.first << "=\"" << attr.second << "\"";
     }
 
-    if (node.style && !node.style->properties.empty()) {
-        ExpressionEvaluator evaluator;
+    if (node.style && (!node.style->properties.empty() || !node.style->templateUsages.empty())) {
         output << " style=\"";
+        // Render direct properties
         for (size_t i = 0; i < node.style->properties.size(); ++i) {
-            auto& prop = node.style->properties[i];
-            EvaluatedValue val = evaluator.evaluate(*prop->value);
-            output << prop->key << ": " << evaluatedValueToString(val) << ";";
-            if (i < node.style->properties.size() - 1) output << " ";
+            node.style->properties[i]->accept(*this);
+        }
+        // Render template usages
+        for (size_t i = 0; i < node.style->templateUsages.size(); ++i) {
+            node.style->templateUsages[i]->accept(*this);
         }
         output << "\"";
     }
@@ -147,6 +150,31 @@ void Generator::visit(CommentNode& node) {
     }
 }
 
-void Generator::visit(StyleNode& node) {}
-void Generator::visit(StylePropertyNode& node) {}
+void Generator::visit(StyleNode& node) {
+    // This is handled by visit(ElementNode&)
+}
+
+void Generator::visit(StylePropertyNode& node) {
+    ExpressionEvaluator evaluator;
+    EvaluatedValue val = evaluator.evaluate(*node.value);
+    output << node.key << ": " << evaluatedValueToString(val) << "; ";
+}
+
 void Generator::visit(StyleRuleNode& node) {}
+void Generator::visit(TemplateDeclarationNode& node) {
+    // Declarations are not rendered directly.
+}
+
+void Generator::visit(TemplateUsageNode& node) {
+    if (!context) return;
+
+    if (node.templateType == TemplateType::STYLE) {
+        if (context->styleTemplates.count(node.name)) {
+            auto* tpl = context->styleTemplates[node.name].get();
+            for (const auto& bodyNode : tpl->body) {
+                bodyNode->accept(*this); // Visit the StylePropertyNode
+            }
+        }
+    }
+    // Element and Var templates will be handled elsewhere or in future steps.
+}

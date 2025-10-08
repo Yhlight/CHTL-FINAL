@@ -96,3 +96,20 @@ TEST_CASE("Lexer correctly tokenizes operators", "[lexer]") {
         REQUIRE(tokens[6].type == TokenType::END_OF_FILE);
     }
 }
+
+TEST_CASE("Lexer correctly tokenizes template syntax", "[lexer]") {
+    SECTION("Template declaration") {
+        Lexer lexer("[Template] @Style DefaultText");
+        auto tokens = lexer.tokenize();
+        REQUIRE(tokens.size() == 7);
+        REQUIRE(tokens[0].type == TokenType::LEFT_BRACKET);
+        REQUIRE(tokens[1].type == TokenType::IDENTIFIER);
+        REQUIRE(tokens[1].value == "Template");
+        REQUIRE(tokens[2].type == TokenType::RIGHT_BRACKET);
+        REQUIRE(tokens[3].type == TokenType::AT);
+        REQUIRE(tokens[4].type == TokenType::STYLE_KEYWORD);
+        REQUIRE(tokens[5].type == TokenType::IDENTIFIER);
+        REQUIRE(tokens[5].value == "DefaultText");
+        REQUIRE(tokens[6].type == TokenType::END_OF_FILE);
+    }
+}

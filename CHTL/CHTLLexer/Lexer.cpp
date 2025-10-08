@@ -1,6 +1,7 @@
 #include "Lexer.h"
 #include <cctype>
 #include <stdexcept>
+#include <algorithm>
 
 Lexer::Lexer(const std::string& source) : source(source) {}
 
@@ -65,6 +66,9 @@ Token Lexer::nextToken() {
                 return makeToken(TokenType::DOUBLE_STAR, "**");
             }
             return makeToken(TokenType::STAR, "*");
+        case '[': return makeToken(TokenType::LEFT_BRACKET, "[");
+        case ']': return makeToken(TokenType::RIGHT_BRACKET, "]");
+        case '@': return makeToken(TokenType::AT, "@");
         default:
             return makeToken(TokenType::UNKNOWN, std::string(1, c));
     }
@@ -122,10 +126,15 @@ Token Lexer::identifier() {
         advance();
     }
     std::string value = source.substr(start, current - start);
-    if (value == "text") {
+
+    std::string lowerValue = value;
+    std::transform(lowerValue.begin(), lowerValue.end(), lowerValue.begin(),
+                   [](unsigned char c){ return std::tolower(c); });
+
+    if (lowerValue == "text") {
         return makeToken(TokenType::TEXT_KEYWORD, value);
     }
-    if (value == "style") {
+    if (lowerValue == "style") {
         return makeToken(TokenType::STYLE_KEYWORD, value);
     }
     return makeToken(TokenType::IDENTIFIER, value);

@@ -1,5 +1,8 @@
-use crate::chtl::node::ast::*;
 use crate::chtl::evaluator::object::Object;
+use crate::chtl::node::ast::*;
+use std::collections::HashMap;
+
+pub type DocumentMap = HashMap<String, HashMap<String, Expression>>;
 
 pub struct Evaluator;
 
@@ -11,13 +14,14 @@ impl Evaluator {
     pub fn eval(
         &self,
         node: &Expression,
-        context: &std::collections::HashMap<String, Object>,
-        templates: &std::collections::HashMap<String, TemplateDefinitionStatement>,
+        context: &HashMap<String, Object>,
+        templates: &HashMap<String, TemplateDefinitionStatement>,
+        document_map: &DocumentMap,
     ) -> Object {
         match node {
             Expression::StringLiteral(s) => Object::String(s.value.clone()),
             Expression::UnquotedLiteral(u) => self.eval_unquoted_literal(u, context),
-            Expression::Infix(i) => self.eval_infix_expression(i, context, templates),
+            Expression::Infix(i) => self.eval_infix_expression(i, context, templates, document_map),
             Expression::Identifier(i) => {
                 if let Some(val) = context.get(&i.value) {
                     return val.clone();
@@ -29,15 +33,65 @@ impl Evaluator {
                 let unit = n.unit.clone().unwrap_or_else(|| "".to_string());
                 Object::Number(value, unit)
             }
-            Expression::Conditional(c) => self.eval_conditional_expression(c, context, templates),
-            Expression::FunctionCall(f) => self.eval_function_call_expression(f, templates),
+            Expression::Conditional(c) => {
+                self.eval_conditional_expression(c, context, templates, document_map)
+            }
+            Expression::FunctionCall(f) => {
+                self.eval_function_call_expression(f, templates, document_map)
+            }
+            Expression::PropertyAccess(p) => {
+                self.eval_property_access_expression(p, context, templates, document_map)
+            }
         }
+    }
+
+    fn eval_property_access_expression(
+        &self,
+        node: &PropertyAccessExpression,
+        context: &HashMap<String, Object>,
+        templates: &HashMap<String, TemplateDefinitionStatement>,
+        document_map: &DocumentMap,
+    ) -> Object {
+        let selector = match self.eval(&node.object, context, templates, document_map) {
+            Object::String(s) => s,
+            _ => {
+                return Object::Error(format!(
+                    "Property access object must be a selector string, but got {:?}",
+                    &node.object
+                ))
+            }
+        };
+
+        let element_id = selector.trim_start_matches(|c| c == '#' || c == '.');
+        let property_name = &node.property.value;
+
+        if let Some(properties) = document_map.get(element_id) {
+            if let Some(property_expr) = properties.get(property_name) {
+                // Evaluate the referenced property.
+                // For now, we use an empty context, which means the referenced property
+                // cannot depend on other properties of its own element.
+                // This is a simplification to avoid circular dependencies.
+                let empty_context = HashMap::new();
+                return self.eval(property_expr, &empty_context, templates, document_map);
+            } else {
+                return Object::Error(format!(
+                    "Property '{}' not found on element '{}'",
+                    property_name, element_id
+                ));
+            }
+        }
+
+        Object::Error(format!(
+            "Element with selector '{}' not found in document map",
+            selector
+        ))
     }
 
     fn eval_function_call_expression(
         &self,
         node: &FunctionCallExpression,
-        templates: &std::collections::HashMap<String, TemplateDefinitionStatement>,
+        templates: &HashMap<String, TemplateDefinitionStatement>,
+        document_map: &DocumentMap,
     ) -> Object {
         if let Expression::Identifier(ident) = &*node.function {
             let template_name = &ident.value;
@@ -49,10 +103,13 @@ impl Evaluator {
                             if let Statement::Attribute(attr) = stmt {
                                 if attr.name.value == *var_name {
                                     if let Some(expr) = &attr.value {
-                                        // Note: This does not support context within the var template itself.
-                                        // This is a simplification for now.
-                                        let empty_context = std::collections::HashMap::new();
-                                        return self.eval(expr, &empty_context, templates);
+                                        let empty_context = HashMap::new();
+                                        return self.eval(
+                                            expr,
+                                            &empty_context,
+                                            templates,
+                                            document_map,
+                                        );
                                     }
                                 }
                             }
@@ -72,17 +129,18 @@ impl Evaluator {
     fn eval_conditional_expression(
         &self,
         node: &ConditionalExpression,
-        context: &std::collections::HashMap<String, Object>,
-        templates: &std::collections::HashMap<String, TemplateDefinitionStatement>,
+        context: &HashMap<String, Object>,
+        templates: &HashMap<String, TemplateDefinitionStatement>,
+        document_map: &DocumentMap,
     ) -> Object {
-        let condition = self.eval(&node.condition, context, templates);
+        let condition = self.eval(&node.condition, context, templates, document_map);
 
         match condition {
             Object::Boolean(b) => {
                 if b {
-                    self.eval(&node.consequence, context, templates)
+                    self.eval(&node.consequence, context, templates, document_map)
                 } else if let Some(alt) = &node.alternative {
-                    self.eval(alt, context, templates)
+                    self.eval(alt, context, templates, document_map)
                 } else {
                     Object::String("".to_string())
                 }
@@ -96,28 +154,23 @@ impl Evaluator {
     fn eval_unquoted_literal(
         &self,
         literal: &UnquotedLiteralExpression,
-        context: &std::collections::HashMap<String, Object>,
+        context: &HashMap<String, Object>,
     ) -> Object {
         if let Some(obj) = context.get(&literal.value) {
             return obj.clone();
         }
-        // Heuristic: if it starts with a digit or dot, treat as a number. Otherwise, a string.
-        if literal.value.chars().next().map_or(false, |c| c.is_ascii_digit() || c == '.') {
-            let (val, unit) = self.parse_value_unit(&literal.value);
-            Object::Number(val, unit)
-        } else {
-            Object::String(literal.value.clone())
-        }
+        Object::String(literal.value.clone())
     }
 
     fn eval_infix_expression(
         &self,
         node: &InfixExpression,
-        context: &std::collections::HashMap<String, Object>,
-        templates: &std::collections::HashMap<String, TemplateDefinitionStatement>,
+        context: &HashMap<String, Object>,
+        templates: &HashMap<String, TemplateDefinitionStatement>,
+        document_map: &DocumentMap,
     ) -> Object {
-        let left = self.eval(&node.left, context, templates);
-        let right = self.eval(&node.right, context, templates);
+        let left = self.eval(&node.left, context, templates, document_map);
+        let right = self.eval(&node.right, context, templates, document_map);
 
         match (left, right) {
             (Object::Number(left_val, left_unit), Object::Number(right_val, right_unit)) => {
@@ -142,16 +195,6 @@ impl Evaluator {
             _ => Object::Error(format!("Type mismatch for operator {}", node.operator)),
         }
     }
-
-    fn parse_value_unit(&self, s: &str) -> (f64, String) {
-        let s = s.trim();
-        let split_index = s.find(|c: char| !c.is_ascii_digit() && c != '.').unwrap_or(s.len());
-        let (value_str, unit_str) = s.split_at(split_index);
-
-        let value = value_str.trim().parse::<f64>().unwrap_or(0.0);
-        let unit = unit_str.trim().to_string();
-        (value, unit)
-    }
 }
 
 #[cfg(test)]
@@ -172,7 +215,8 @@ mod tests {
                     let evaluator = Evaluator::new();
                     let context = std::collections::HashMap::new();
                     let templates = std::collections::HashMap::new();
-                    return evaluator.eval(expr, &context, &templates);
+                    let document_map = std::collections::HashMap::new();
+                    return evaluator.eval(expr, &context, &templates, &document_map);
                 }
             }
         }
@@ -241,11 +285,12 @@ mod tests {
             let evaluator = Evaluator::new();
             let mut context = std::collections::HashMap::new();
             let templates = std::collections::HashMap::new();
+            let document_map = std::collections::HashMap::new();
 
             // Manually evaluate the first attribute to populate context
             if let Statement::Attribute(attr) = &style_stmt.body[0] {
                 if let Some(expr) = &attr.value {
-                    let val = evaluator.eval(expr, &context, &templates);
+                    let val = evaluator.eval(expr, &context, &templates, &document_map);
                     context.insert(attr.name.value.clone(), val);
                 }
             } else {
@@ -255,7 +300,7 @@ mod tests {
             // Evaluate the second attribute using the populated context
             if let Statement::Attribute(attr) = &style_stmt.body[1] {
                 if let Some(expr) = &attr.value {
-                    let result = evaluator.eval(expr, &context, &templates);
+                    let result = evaluator.eval(expr, &context, &templates, &document_map);
                     assert_eq!(result, Object::Number(200.0, "px".to_string()));
                 }
             } else {
@@ -296,7 +341,8 @@ mod tests {
                 if let Some(expr) = &attr.value {
                     let evaluator = Evaluator::new();
                     let context = std::collections::HashMap::new();
-                    let result = evaluator.eval(expr, &context, &templates);
+                    let document_map = std::collections::HashMap::new();
+                    let result = evaluator.eval(expr, &context, &templates, &document_map);
                     assert_eq!(result, Object::String("rgb(255, 192, 203)".to_string()));
                 }
             } else {

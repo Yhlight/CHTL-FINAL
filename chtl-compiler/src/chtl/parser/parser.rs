@@ -11,6 +11,7 @@ enum Precedence {
     Product,     // * or /
     Power,       // **
     Call,        // my_function(X)
+    PropertyAccess, // .
 }
 
 pub struct Parser<'a> {
@@ -562,6 +563,9 @@ impl<'a> Parser<'a> {
             } else if self.peek_token_is(&Token::Question) {
                 self.next_token();
                 left_exp = self.parse_conditional_expression(left_exp)?;
+            } else if self.peek_token_is(&Token::Dot) {
+                self.next_token();
+                left_exp = self.parse_property_access_expression(left_exp)?;
             } else {
                 self.next_token();
                 left_exp = self.parse_infix_expression(left_exp)?;
@@ -578,6 +582,24 @@ impl<'a> Parser<'a> {
                 value,
                 unit,
             })),
+            Token::Hash | Token::Dot => {
+                let mut selector = if self.current_token_is(&Token::Hash) {
+                    "#".to_string()
+                } else {
+                    ".".to_string()
+                };
+                self.next_token(); // consume # or .
+                if let Token::Identifier(name) = self.current_token.clone() {
+                    selector.push_str(&name);
+                    Some(Expression::UnquotedLiteral(UnquotedLiteralExpression {
+                        value: selector,
+                    }))
+                } else {
+                    self.errors
+                        .push(format!("Expected identifier after # or ., got {:?}", self.current_token));
+                    None
+                }
+            }
             tok if self.is_unquoted_literal_token(&tok) => {
                 if let Token::Identifier(s) = &tok {
                     if !self.is_peek_unquoted_literal_token() {
@@ -643,6 +665,29 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn parse_property_access_expression(&mut self, object: Expression) -> Option<Expression> {
+        // current_token is '.'
+        if !self.peek_token_is(&Token::Identifier("".to_string())) {
+            self.errors.push(format!(
+                "Expected property name after '.', got {:?}",
+                self.peek_token
+            ));
+            return None;
+        }
+        self.next_token(); // consume '.', current_token is now the property identifier
+
+        let property = if let Token::Identifier(name) = self.current_token.clone() {
+            IdentifierExpression { value: name }
+        } else {
+            unreachable!();
+        };
+
+        Some(Expression::PropertyAccess(PropertyAccessExpression {
+            object: Box::new(object),
+            property,
+        }))
+    }
+
     fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
         let mut args = Vec::new();
 
@@ -684,6 +729,7 @@ impl<'a> Parser<'a> {
             Token::Gt | Token::Lt => Precedence::LessGreater,
             Token::Question => Precedence::Conditional,
             Token::LParen => Precedence::Call,
+            Token::Dot => Precedence::PropertyAccess,
             _ => Precedence::Lowest,
         }
     }
@@ -777,12 +823,53 @@ impl<'a> Parser<'a> {
             _ => None,
         }
     }
+
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::chtl::lexer::lexer::Lexer;
+
+    #[test]
+    fn test_property_access_expression() {
+        let input = r#"
+        style {
+            width: #box.width;
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Style(style_stmt) = stmt {
+            let attr_stmt = &style_stmt.body[0];
+            if let Statement::Attribute(attr) = attr_stmt {
+                assert_eq!(attr.name.value, "width");
+                if let Some(Expression::PropertyAccess(prop_access)) = &attr.value {
+                    if let Expression::UnquotedLiteral(obj) = &*prop_access.object {
+                        assert_eq!(obj.value, "#box");
+                    } else {
+                        panic!("Expected UnquotedLiteral for object");
+                    }
+                    assert_eq!(prop_access.property.value, "width");
+                } else {
+                    panic!("Expected PropertyAccessExpression");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
+        }
+    }
 
     #[test]
     fn test_parse_program() {

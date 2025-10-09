@@ -6,11 +6,14 @@ use crate::chtl::node::ast::*;
 use crate::chtl::parser::parser::Parser;
 use std::collections::HashMap;
 
+type DocumentMap = HashMap<String, HashMap<String, Expression>>;
+
 pub struct Generator {
     evaluator: Evaluator,
     global_css: String,
     templates: HashMap<String, TemplateDefinitionStatement>,
     loader: Loader,
+    document_map: DocumentMap,
 }
 
 impl Generator {
@@ -20,6 +23,7 @@ impl Generator {
             global_css: String::new(),
             templates: HashMap::new(),
             loader: Loader::new(),
+            document_map: HashMap::new(),
         }
     }
 
@@ -33,7 +37,7 @@ impl Generator {
             match stmt {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let value_obj = self.evaluator.eval(expr, context, &self.templates);
+                        let value_obj = self.evaluator.eval(expr, context, &self.templates, &self.document_map);
                         context.insert(attr.name.value.clone(), value_obj.clone());
                         inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
                     }
@@ -97,9 +101,64 @@ impl Generator {
             }
         }
     }
+    fn collect_element_properties(&mut self, statements: &[Statement]) {
+        for statement in statements {
+            if let Statement::Element(element) = statement {
+                let mut element_id = None;
+                let mut properties = HashMap::new();
+
+                // First pass to find the ID and collect attributes
+                for stmt in &element.body {
+                    if let Statement::Attribute(attr) = stmt {
+                        if attr.name.value == "id" {
+                            if let Some(expr) = &attr.value {
+                                // For simplicity, we assume the ID is a string or unquoted literal.
+                                match expr {
+                                    Expression::StringLiteral(s) => {
+                                        element_id = Some(s.value.clone());
+                                    }
+                                    Expression::UnquotedLiteral(u) => {
+                                        element_id = Some(u.value.clone());
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        if let Some(value_expr) = &attr.value {
+                            properties.insert(attr.name.value.clone(), value_expr.clone());
+                        }
+                    }
+                }
+
+                // Second pass for properties inside style blocks
+                for stmt in &element.body {
+                    if let Statement::Style(style_block) = stmt {
+                        for style_stmt in &style_block.body {
+                            if let Statement::Attribute(attr) = style_stmt {
+                                if let Some(value_expr) = &attr.value {
+                                    properties.insert(attr.name.value.clone(), value_expr.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let Some(id) = element_id {
+                    self.document_map.insert(id, properties);
+                }
+
+                // Recurse into children
+                self.collect_element_properties(&element.body);
+            }
+        }
+    }
+
     pub fn generate(&mut self, program: &Program) -> String {
         // First pass: recursively process imports and collect templates.
         self.process_imports_and_templates(program);
+
+        // New pass: collect all element properties for cross-element reference.
+        self.collect_element_properties(&program.statements);
 
         // Second pass: generate the actual HTML from the main program.
         let mut html = String::new();
@@ -224,7 +283,7 @@ impl Generator {
             match statement {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let value_obj = self.evaluator.eval(expr, &context, &self.templates);
+                        let value_obj = self.evaluator.eval(expr, &context, &self.templates, &self.document_map);
                         context.insert(attr.name.value.clone(), value_obj.clone());
                         inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
                     }
@@ -296,8 +355,12 @@ impl Generator {
             for prop in &rule.body {
                 if let Statement::Attribute(attr_prop) = prop {
                     if let Some(expr) = &attr_prop.value {
-                        let value_obj =
-                            self.evaluator.eval(expr, &rule_context, &self.templates);
+                        let value_obj = self.evaluator.eval(
+                            expr,
+                            &rule_context,
+                            &self.templates,
+                            &self.document_map,
+                        );
                         rule_context.insert(attr_prop.name.value.clone(), value_obj.clone());
                         rule_css_body.push_str(&format!(
                             "{}:{};",
@@ -348,7 +411,7 @@ impl Generator {
         expr: &Expression,
         context: &std::collections::HashMap<String, Object>,
     ) -> String {
-        let value_obj = self.evaluator.eval(expr, context, &self.templates);
+        let value_obj = self.evaluator.eval(expr, context, &self.templates, &self.document_map);
         match value_obj {
             Object::Error(e) => {
                 eprintln!("Evaluation Error: {}", e);
@@ -709,6 +772,38 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<body><div class="card">This is a card from an imported template.</div></body>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_generate_with_property_reference() {
+        let input = r#"
+        div {
+            id: "box";
+            style {
+                width: 100px;
+            }
+        }
+        span {
+            style {
+                height: #box.width;
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<div id="box" style="width:100px"></div><span style="height:100px"></span>"#;
         assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
     }
 }

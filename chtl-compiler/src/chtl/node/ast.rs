@@ -85,6 +85,13 @@ pub enum Expression {
     Infix(InfixExpression),
     Conditional(ConditionalExpression),
     FunctionCall(FunctionCallExpression),
+    PropertyAccess(PropertyAccessExpression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct PropertyAccessExpression {
+    pub object: Box<Expression>,
+    pub property: IdentifierExpression,
 }
 
 #[derive(Debug, PartialEq, Clone)]

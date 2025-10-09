@@ -58,6 +58,12 @@ impl<'a> Parser<'a> {
 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.current_token.clone() {
+            Token::LBracket => {
+                if self.peek_token_is(&Token::Template) {
+                    return self.parse_template_definition_statement();
+                }
+                None
+            }
             Token::Identifier(_) => {
                 if self.peek_token_is(&Token::LBrace) {
                     self.parse_element_statement()
@@ -98,6 +104,7 @@ impl<'a> Parser<'a> {
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
             let stmt = match self.current_token.clone() {
                 Token::Dot | Token::Hash | Token::Ampersand => self.parse_style_rule_statement(),
+                Token::At => self.parse_use_template_statement(),
                 Token::Identifier(_) => {
                     if self.peek_token_is(&Token::LBrace) {
                         self.parse_style_rule_statement()
@@ -189,6 +196,98 @@ impl<'a> Parser<'a> {
             condition: Box::new(condition),
             consequence: Box::new(consequence),
             alternative: alternative.map(Box::new),
+        }))
+    }
+
+    fn parse_template_definition_statement(&mut self) -> Option<Statement> {
+        // Current token is `[`, peek is `Template`
+        self.expect_peek(&Token::Template)?; // Consume `[`, current is `Template`
+        self.expect_peek(&Token::RBracket)?; // Consume `Template`, current is `]`
+        self.expect_peek(&Token::At)?; // Consume `]`, current is `@`
+        self.next_token(); // Consume `@`, current is type keyword
+
+        let template_type = match self.current_token.clone() {
+            Token::Style => TemplateType::Style,
+            Token::Element => TemplateType::Element,
+            Token::Var => TemplateType::Var,
+            _ => {
+                self.errors.push(format!(
+                    "Expected template type (Style, Element, Var), got {:?}",
+                    self.current_token
+                ));
+                return None;
+            }
+        };
+
+        self.next_token(); // Consume type keyword, current is template name
+
+        let name = if let Token::Identifier(n) = self.current_token.clone() {
+            IdentifierExpression { value: n }
+        } else {
+            self.errors.push(format!(
+                "Expected template name identifier, got {:?}",
+                self.current_token
+            ));
+            return None;
+        };
+
+        self.expect_peek(&Token::LBrace)?; // Consume name, current is `{`
+        self.next_token(); // Consume `{`
+
+        let mut body = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(stmt) = self.parse_statement() {
+                body.push(stmt);
+            }
+            self.next_token();
+        }
+
+        Some(Statement::TemplateDefinition(TemplateDefinitionStatement {
+            name,
+            template_type,
+            body,
+        }))
+    }
+
+    fn parse_use_template_statement(&mut self) -> Option<Statement> {
+        // Current token is `@`
+        self.next_token(); // Consume `@`, current is type keyword (e.g. Style)
+
+        let template_type_str = match self.current_token.clone() {
+            Token::Style => "Style",
+            Token::Element => "Element",
+            Token::Var => "Var",
+            _ => {
+                self.errors.push(format!(
+                    "Expected template type keyword after @, got {:?}",
+                    self.current_token
+                ));
+                return None;
+            }
+        };
+        let template_type = IdentifierExpression {
+            value: template_type_str.to_string(),
+        };
+
+        self.next_token(); // Consume type keyword, current is template name
+
+        let name = if let Token::Identifier(n) = self.current_token.clone() {
+            IdentifierExpression { value: n }
+        } else {
+            self.errors.push(format!(
+                "Expected template name identifier, got {:?}",
+                self.current_token
+            ));
+            return None;
+        };
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::UseTemplate(UseTemplateStatement {
+            name,
+            template_type,
         }))
     }
 
@@ -738,6 +837,60 @@ mod tests {
             }
         } else {
             panic!("Expected StyleStatement");
+        }
+    }
+
+    #[test]
+    fn test_template_parsing() {
+        let input = r#"
+        [Template] @Style DefaultText {
+            color: "black";
+            line-height: 1.6;
+        }
+
+        div {
+            style {
+                @Style DefaultText;
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        // Test TemplateDefinitionStatement
+        let template_def_stmt = &program.statements[0];
+        if let Statement::TemplateDefinition(def) = template_def_stmt {
+            assert_eq!(def.name.value, "DefaultText");
+            assert!(matches!(def.template_type, TemplateType::Style));
+            assert_eq!(def.body.len(), 2);
+        } else {
+            panic!("Expected TemplateDefinitionStatement");
+        }
+
+        // Test UseTemplateStatement inside style block
+        let div_stmt = &program.statements[1];
+        if let Statement::Element(element) = div_stmt {
+            let style_block = &element.body[0];
+            if let Statement::Style(style) = style_block {
+                let use_template_stmt = &style.body[0];
+                if let Statement::UseTemplate(use_stmt) = use_template_stmt {
+                    assert_eq!(use_stmt.name.value, "DefaultText");
+                    assert_eq!(use_stmt.template_type.value, "Style");
+                } else {
+                    panic!("Expected UseTemplateStatement");
+                }
+            } else {
+                panic!("Expected StyleStatement");
+            }
+        } else {
+            panic!("Expected ElementStatement");
         }
     }
 }

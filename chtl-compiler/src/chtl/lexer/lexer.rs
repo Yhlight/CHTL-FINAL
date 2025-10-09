@@ -82,11 +82,13 @@ impl<'a> Lexer<'a> {
             _ => {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
-                    return match literal.as_str() {
+                    return match literal.to_lowercase().as_str() {
                         "text" => Token::Text,
                         "style" => Token::Style,
                         "script" => Token::Script,
                         "template" => Token::Template,
+                        "element" => Token::Element,
+                        "var" => Token::Var,
                         "custom" => Token::Custom,
                         "origin" => Token::Origin,
                         "import" => Token::Import,
@@ -112,9 +114,9 @@ impl<'a> Lexer<'a> {
                                 return Token::Identifier(literal);
                             }
                             let next_word = self.read_identifier();
-                            if next_word == "top" {
+                            if next_word.to_lowercase() == "top" {
                                 Token::AtTop
-                            } else if next_word == "bottom" {
+                            } else if next_word.to_lowercase() == "bottom" {
                                 Token::AtBottom
                             } else {
                                 self.ch = start_ch;

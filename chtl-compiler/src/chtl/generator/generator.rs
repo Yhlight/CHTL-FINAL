@@ -1,10 +1,12 @@
 use crate::chtl::node::ast::*;
 use crate::chtl::evaluator::evaluator::Evaluator;
 use crate::chtl::evaluator::object::Object;
+use std::collections::HashMap;
 
 pub struct Generator {
     evaluator: Evaluator,
     global_css: String,
+    templates: HashMap<String, TemplateDefinitionStatement>,
 }
 
 impl Generator {
@@ -12,13 +14,24 @@ impl Generator {
         Generator {
             evaluator: Evaluator::new(),
             global_css: String::new(),
+            templates: HashMap::new(),
         }
     }
 
     pub fn generate(&mut self, program: &Program) -> String {
+        // First pass: collect all template definitions
+        for statement in &program.statements {
+            if let Statement::TemplateDefinition(def) = statement {
+                self.templates.insert(def.name.value.clone(), def.clone());
+            }
+        }
+
+        // Second pass: generate the actual HTML
         let mut html = String::new();
         for statement in &program.statements {
-            html.push_str(&self.generate_statement(statement));
+            if !matches!(statement, Statement::TemplateDefinition(_)) {
+                html.push_str(&self.generate_statement(statement));
+            }
         }
 
         if !self.global_css.is_empty() {
@@ -42,6 +55,8 @@ impl Generator {
             Statement::Comment(comment) => self.generate_comment(comment),
             Statement::Attribute(_) => String::new(), // Attributes are handled within elements
             Statement::StyleRule(_) => String::new(), // Style rules are handled within style blocks
+            Statement::TemplateDefinition(_) => String::new(), // Handled at a higher level
+            Statement::UseTemplate(_) => String::new(), // Handled within style blocks
         }
     }
 
@@ -121,6 +136,22 @@ impl Generator {
                 }
                 Statement::StyleRule(rule) => {
                     style_rules.push(rule);
+                }
+                Statement::UseTemplate(use_stmt) => {
+                    if use_stmt.template_type.value == "Style" {
+                        if let Some(template) = self.templates.get(&use_stmt.name.value) {
+                            if matches!(template.template_type, TemplateType::Style) {
+                                for stmt in &template.body {
+                                    if let Statement::Attribute(attr) = stmt {
+                                        let value_obj = self.evaluator.eval(&attr.value, &context);
+                                        context.insert(attr.name.value.clone(), value_obj.clone());
+                                        inline_style_props
+                                            .insert(attr.name.value.clone(), value_obj.to_string());
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 _ => (),
             }
@@ -435,6 +466,38 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<div style="background-color:red;width:100px"></div>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_generate_with_style_template() {
+        let input = r#"
+        [Template] @Style DefaultText {
+            color: "black";
+            line-height: 1.6;
+        }
+
+        div {
+            style {
+                @Style DefaultText;
+                font-size: 16px;
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<div style="color:black;font-size:16px;line-height:1.6"></div>"#;
         assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
     }
 }

@@ -17,6 +17,29 @@ pub struct StyleRuleStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum TemplateType {
+    Style,
+    Element,
+    Var,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct TemplateDefinitionStatement {
+    pub name: IdentifierExpression,
+    pub template_type: TemplateType,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct UseTemplateStatement {
+    pub name: IdentifierExpression,
+    // For now, we'll just store the raw type identifier (e.g., "Style")
+    // This can be refined later if needed.
+    pub template_type: IdentifierExpression,
+}
+
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Element(ElementStatement),
     Text(TextStatement),
@@ -24,6 +47,8 @@ pub enum Statement {
     Style(StyleStatement),
     StyleRule(StyleRuleStatement),
     Comment(CommentStatement),
+    TemplateDefinition(TemplateDefinitionStatement),
+    UseTemplate(UseTemplateStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -39,6 +39,8 @@ pub enum Token {
     Style,
     Script,
     Template,
+    Element,
+    Var,
     Custom,
     Origin,
     Import,

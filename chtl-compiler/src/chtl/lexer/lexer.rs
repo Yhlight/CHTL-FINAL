@@ -1,90 +1,83 @@
 use crate::chtl::lexer::token::Token;
+use std::iter::Peekable;
+use std::str::Chars;
 
 pub struct Lexer<'a> {
-    input: &'a str,
-    position: usize,      // current position in input (points to current char)
-    read_position: usize, // current reading position in input (after current char)
-    ch: u8,               // current char under examination
+    input: Peekable<Chars<'a>>,
+    ch: char,
 }
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Self {
         let mut l = Lexer {
-            input,
-            position: 0,
-            read_position: 0,
-            ch: 0,
+            input: input.chars().peekable(),
+            ch: ' ',
         };
         l.read_char();
         l
     }
 
     fn read_char(&mut self) {
-        if self.read_position >= self.input.len() {
-            self.ch = 0; // NUL character, signifies EOF
-        } else {
-            self.ch = self.input.as_bytes()[self.read_position];
-        }
-        self.position = self.read_position;
-        self.read_position += 1;
+        self.ch = self.input.next().unwrap_or('\0');
     }
 
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
         let tok = match self.ch {
-            b'=' => Token::Assign,
-            b':' => Token::Colon,
-            b';' => Token::Semicolon,
-            b'(' => Token::LParen,
-            b')' => Token::RParen,
-            b'{' => Token::LBrace,
-            b'}' => Token::RBrace,
-            b'[' => Token::LBracket,
-            b']' => Token::RBracket,
-            b',' => Token::Comma,
-            b'.' => Token::Dot,
-            b'+' => Token::Plus,
-            b'-' => Token::Minus,
-            b'/' => {
-                if self.peek_char() == b'/' {
-                    self.read_char();
-                    let comment = self.read_single_line_comment();
-                    return Token::SingleLineComment(comment);
-                } else if self.peek_char() == b'*' {
-                    self.read_char();
-                    let comment = self.read_multi_line_comment();
-                    return Token::MultiLineComment(comment);
-                } else {
-                    Token::Slash
+            '=' | ':' => Token::Colon,
+            ';' => Token::Semicolon,
+            '(' => Token::LParen,
+            ')' => Token::RParen,
+            '{' => Token::LBrace,
+            '}' => Token::RBrace,
+            '[' => Token::LBracket,
+            ']' => Token::RBracket,
+            ',' => Token::Comma,
+            '.' => Token::Dot,
+            '+' => Token::Plus,
+            '-' => Token::Minus,
+            '/' => {
+                if let Some(&c) = self.input.peek() {
+                    if c == '/' {
+                        self.read_char(); // consume first /
+                        self.read_char(); // consume second /
+                        return Token::SingleLineComment(self.read_single_line_comment());
+                    } else if c == '*' {
+                        self.read_char(); // consume /
+                        self.read_char(); // consume *
+                        return Token::MultiLineComment(self.read_multi_line_comment());
+                    }
                 }
+                Token::Slash
             }
-            b'*' => {
-                if self.peek_char() == b'*' {
+            '*' => {
+                if let Some(&'*') = self.input.peek() {
                     self.read_char();
                     Token::Power
                 } else {
                     Token::Asterisk
                 }
             }
-            b'%' => Token::Percent,
-            b'>' => Token::Gt,
-            b'<' => Token::Lt,
-            b'!' => Token::Bang,
-            b'&' => Token::Ampersand,
-            b'@' => Token::At,
-            b'#' => {
-                if self.peek_char() == b' ' {
-                    self.read_char();
-                    let comment = self.read_generator_comment();
-                    return Token::GeneratorComment(comment);
+            '%' => Token::Percent,
+            '>' => Token::Gt,
+            '<' => Token::Lt,
+            '!' => Token::Bang,
+            '&' => Token::Ampersand,
+            '@' => Token::At,
+            '#' => {
+                if let Some(&' ') = self.input.peek() {
+                    self.read_char(); // consume #
+                    self.read_char(); // consume space
+                    return Token::GeneratorComment(self.read_single_line_comment());
                 } else {
                     Token::Hash
                 }
             }
-            b'"' => self.read_string(),
-            b'\'' => self.read_string(),
-            0 => Token::Eof,
+            '"' | '\'' => {
+                return self.read_string();
+            }
+            '\0' => Token::Eof,
             _ => {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
@@ -108,19 +101,24 @@ impl<'a> Lexer<'a> {
                         "before" => Token::Before,
                         "replace" => Token::Replace,
                         "at" => {
-                            if self.peek_char() == b' ' {
-                                let next_word = self.peek_word();
-                                if next_word == "top" {
-                                    self.read_char(); // consume space
-                                    self.read_identifier(); // consume "top"
-                                    return Token::AtTop;
-                                } else if next_word == "bottom" {
-                                    self.read_char(); // consume space
-                                    self.read_identifier(); // consume "bottom"
-                                    return Token::AtBottom;
-                                }
+                            let start_ch = self.ch;
+                            let start_input = self.input.clone();
+                            self.skip_whitespace();
+                            if !is_letter(self.ch) {
+                                self.ch = start_ch;
+                                self.input = start_input;
+                                return Token::Identifier(literal);
                             }
-                            Token::Identifier(literal)
+                            let next_word = self.read_identifier();
+                            if next_word == "top" {
+                                Token::AtTop
+                            } else if next_word == "bottom" {
+                                Token::AtBottom
+                            } else {
+                                self.ch = start_ch;
+                                self.input = start_input;
+                                Token::Identifier(literal)
+                            }
                         }
                         "from" => Token::From,
                         "as" => Token::As,
@@ -139,101 +137,70 @@ impl<'a> Lexer<'a> {
     }
 
     fn skip_whitespace(&mut self) {
-        while self.ch.is_ascii_whitespace() {
+        while self.ch.is_whitespace() {
             self.read_char();
         }
     }
 
     fn read_identifier(&mut self) -> String {
-        let position = self.position;
+        let mut identifier = String::new();
         while is_letter(self.ch) || is_digit(self.ch) {
+            identifier.push(self.ch);
             self.read_char();
         }
-        self.input[position..self.position].to_string()
+        identifier
     }
 
     fn read_number(&mut self) -> Token {
-        let position = self.position;
-        while is_digit(self.ch) || self.ch == b'.' {
+        let mut number = String::new();
+        while is_digit(self.ch) || self.ch == '.' {
+            number.push(self.ch);
             self.read_char();
         }
-        let number_str = &self.input[position..self.position];
-        Token::Number(number_str.to_string())
+        Token::Number(number)
     }
 
     fn read_string(&mut self) -> Token {
         let quote_type = self.ch;
-        let position = self.position + 1;
-        loop {
+        let mut value = String::new();
+        self.read_char(); // Consume opening quote
+        while self.ch != quote_type && self.ch != '\0' {
+            value.push(self.ch);
             self.read_char();
-            if self.ch == quote_type || self.ch == 0 {
-                break;
-            }
         }
-        let value = self.input[position..self.position].to_string();
+        self.read_char(); // Consume closing quote
         Token::String(value)
     }
 
     fn read_single_line_comment(&mut self) -> String {
-        let position = self.position + 1;
-        while self.ch != b'\n' && self.ch != 0 {
+        let mut comment = String::new();
+        while self.ch != '\n' && self.ch != '\0' {
+            comment.push(self.ch);
             self.read_char();
         }
-        self.input[position..self.position].to_string()
+        comment
     }
 
     fn read_multi_line_comment(&mut self) -> String {
-        let position = self.position + 1;
-        loop {
-            self.read_char();
-            if self.ch == b'*' && self.peek_char() == b'/' {
-                break;
+        let mut comment = String::new();
+        while !(self.ch == '*' && self.input.peek() == Some(&'/')) {
+            if self.ch == '\0' {
+                return comment;
             }
-            if self.ch == 0 {
-                break;
-            }
-        }
-        let value = self.input[position..self.position].to_string();
-        self.read_char(); // consume *
-        self.read_char(); // consume /
-        value
-    }
-
-    fn read_generator_comment(&mut self) -> String {
-        let position = self.position + 1;
-        while self.ch != b'\n' && self.ch != 0 {
+            comment.push(self.ch);
             self.read_char();
         }
-        self.input[position..self.position].to_string()
-    }
-
-
-    fn peek_char(&self) -> u8 {
-        if self.read_position >= self.input.len() {
-            0
-        } else {
-            self.input.as_bytes()[self.read_position]
-        }
-    }
-
-    fn peek_word(&self) -> &str {
-        let start = self.read_position;
-        if start >= self.input.len() {
-            return "";
-        }
-        let mut end = start;
-        while end < self.input.len() && is_letter(self.input.as_bytes()[end]) {
-            end += 1;
-        }
-        &self.input[start..end]
+        self.read_char(); // consume '*'
+        self.read_char(); // consume '/'
+        comment
     }
 }
 
-fn is_letter(ch: u8) -> bool {
-    ch.is_ascii_alphabetic() || ch == b'_'
+fn is_letter(ch: char) -> bool {
+    ch.is_alphabetic() || ch == '_' || ch == '-'
 }
 
-fn is_digit(ch: u8) -> bool {
+fn is_digit(ch: char) -> bool {
     ch.is_ascii_digit()
 }
 
@@ -304,6 +271,28 @@ mod tests {
 
         let mut lexer = Lexer::new(input);
 
+        for expected_token in tests {
+            let tok = lexer.next_token();
+            assert_eq!(tok, expected_token);
+        }
+    }
+
+    #[test]
+    fn test_ce_equivalence() {
+        let input = "id: box; class = container;";
+        let tests = vec![
+            Token::Identifier("id".to_string()),
+            Token::Colon,
+            Token::Identifier("box".to_string()),
+            Token::Semicolon,
+            Token::Identifier("class".to_string()),
+            Token::Colon,
+            Token::Identifier("container".to_string()),
+            Token::Semicolon,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input);
         for expected_token in tests {
             let tok = lexer.next_token();
             assert_eq!(tok, expected_token);

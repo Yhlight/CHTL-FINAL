@@ -34,6 +34,12 @@ pub enum Expression {
     Identifier(IdentifierExpression),
     StringLiteral(StringLiteralExpression),
     NumberLiteral(NumberLiteralExpression),
+    UnquotedLiteral(UnquotedLiteralExpression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct UnquotedLiteralExpression {
+    pub value: String,
 }
 
 #[derive(Debug, PartialEq, Clone)]

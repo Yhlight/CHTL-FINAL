@@ -10,7 +10,6 @@ pub enum Token {
     Number(String),
 
     // Operators
-    Assign,      // =
     Colon,       // :
     Semicolon,   // ;
     LParen,      // (

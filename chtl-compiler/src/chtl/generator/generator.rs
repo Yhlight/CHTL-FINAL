@@ -42,6 +42,7 @@ impl Generator {
                             Expression::Identifier(ident) => ident.value.clone(),
                             Expression::StringLiteral(s) => s.value.clone(),
                             Expression::NumberLiteral(n) => n.value.clone(),
+                            Expression::UnquotedLiteral(u) => u.value.clone(),
                         };
                         children.push_str(&text_value);
                     } else {
@@ -75,6 +76,7 @@ impl Generator {
                     Expression::Identifier(ident) => ident.value.clone(),
                     Expression::StringLiteral(s) => s.value.clone(),
                     Expression::NumberLiteral(n) => n.value.clone(),
+                    Expression::UnquotedLiteral(u) => u.value.clone(),
                 };
                 style_props.push(format!("{}:{}", attr.name.value, value));
             }
@@ -91,6 +93,7 @@ impl Generator {
             Expression::Identifier(ident) => ident.value.clone(),
             Expression::StringLiteral(s) => s.value.clone(),
             Expression::NumberLiteral(n) => n.value.clone(),
+            Expression::UnquotedLiteral(u) => u.value.clone(),
         };
         format!(r#" {_name}="{_value}""#, _name = attribute.name.value, _value = value)
     }
@@ -155,6 +158,27 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<!-- This is a comment that should appear in the HTML--><p>This is a paragraph from a text attribute.</p>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_unquoted_literals() {
+        let input = r#"
+        div {
+            class: my-class another-class;
+            text { This is unquoted text }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
+
+        let generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<div class="my-class another-class">This is unquoted text</div>"#;
         assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
     }
 }

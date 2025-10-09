@@ -17,7 +17,6 @@ impl<'a> Parser<'a> {
             peek_token: Token::Eof,
             errors: Vec::new(),
         };
-        // Read two tokens, so current_token and peek_token are both set
         p.next_token();
         p.next_token();
         p
@@ -38,9 +37,8 @@ impl<'a> Parser<'a> {
         };
 
         while !self.current_token_is(&Token::Eof) {
-            match self.parse_statement() {
-                Some(statement) => program.statements.push(statement),
-                None => {}
+            if let Some(statement) = self.parse_statement() {
+                program.statements.push(statement);
             }
             self.next_token();
         }
@@ -49,7 +47,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_statement(&mut self) -> Option<Statement> {
-        match &self.current_token {
+        match self.current_token.clone() {
             Token::Identifier(name) => {
                 if name == "text" && self.peek_token_is(&Token::LBrace) {
                     self.parse_text_statement()
@@ -62,7 +60,7 @@ impl<'a> Parser<'a> {
                 }
             }
             Token::Style => self.parse_style_statement(),
-            Token::GeneratorComment(value) => self.parse_comment_statement(value.clone()),
+            Token::GeneratorComment(value) => self.parse_comment_statement(value),
             _ => None,
         }
     }
@@ -72,9 +70,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_style_statement(&mut self) -> Option<Statement> {
-        if !self.expect_peek(&Token::LBrace) {
-            return None;
-        }
+        self.expect_peek(&Token::LBrace)?;
         self.next_token();
 
         let mut body = Vec::new();
@@ -90,19 +86,14 @@ impl<'a> Parser<'a> {
 
     fn parse_element_statement(&mut self) -> Option<Statement> {
         let name = match self.current_token.clone() {
-            Token::Identifier(name) => IdentifierExpression {
-                value: name,
-            },
+            Token::Identifier(name) => IdentifierExpression { value: name },
             _ => return None,
         };
 
-        if !self.expect_peek(&Token::LBrace) {
-            return None;
-        }
+        self.expect_peek(&Token::LBrace)?;
+        self.next_token();
 
         let mut body = Vec::new();
-        // use next_token to consume the LBrace
-        self.next_token();
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
             if let Some(stmt) = self.parse_statement() {
                 body.push(stmt);
@@ -115,16 +106,11 @@ impl<'a> Parser<'a> {
 
     fn parse_attribute_statement(&mut self) -> Option<Statement> {
         let name = match self.current_token.clone() {
-            Token::Identifier(name) => IdentifierExpression {
-                value: name,
-            },
+            Token::Identifier(name) => IdentifierExpression { value: name },
             _ => return None,
         };
 
-        if !self.expect_peek(&Token::Colon) {
-            return None;
-        }
-
+        self.expect_peek(&Token::Colon)?;
         self.next_token();
 
         let value = self.parse_expression()?;
@@ -137,42 +123,70 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_text_statement(&mut self) -> Option<Statement> {
-        if !self.expect_peek(&Token::LBrace) {
-            return None;
-        }
-
+        self.expect_peek(&Token::LBrace)?;
         self.next_token();
 
-        let value = match self.current_token.clone() {
-            Token::String(value) => StringLiteralExpression {
-                value,
-            },
-             Token::Identifier(value) => StringLiteralExpression {
-                value,
-            },
-            _ => return None,
-        };
+        if let Token::String(value) = self.current_token.clone() {
+            let text_value = StringLiteralExpression { value };
+            self.next_token();
+            if !self.current_token_is(&Token::RBrace) {
+                return None;
+            }
+            return Some(Statement::Text(TextStatement { value: text_value }));
+        }
 
-        if !self.expect_peek(&Token::RBrace) {
+        let mut literal = String::new();
+        let mut first = true;
+        while self.is_unquoted_literal_token() {
+            if !first {
+                literal.push(' ');
+            }
+            let s = match self.current_token.clone() {
+                Token::Identifier(s) => s,
+                Token::Number(s) => s,
+                _ => break,
+            };
+            literal.push_str(&s);
+            self.next_token();
+            first = false;
+        }
+
+        if !self.current_token_is(&Token::RBrace) {
             return None;
         }
 
-        Some(Statement::Text(TextStatement { value }))
+        Some(Statement::Text(TextStatement { value: StringLiteralExpression { value: literal } }))
     }
 
     fn parse_expression(&mut self) -> Option<Expression> {
-        match &self.current_token {
-            Token::Identifier(value) => Some(Expression::Identifier(IdentifierExpression {
-                value: value.clone(),
-            })),
-            Token::String(value) => Some(Expression::StringLiteral(StringLiteralExpression {
-                value: value.clone(),
-            })),
-            Token::Number(value) => Some(Expression::NumberLiteral(NumberLiteralExpression {
-                value: value.clone(),
-            })),
-            _ => None,
+        if let Token::String(value) = self.current_token.clone() {
+            return Some(Expression::StringLiteral(StringLiteralExpression { value }));
         }
+
+        let mut literal = String::new();
+        if self.is_unquoted_literal_token() {
+            let s_val = match self.current_token.clone() {
+                Token::Identifier(s) => s,
+                Token::Number(s) => s,
+                _ => unreachable!(),
+            };
+            literal.push_str(&s_val);
+        } else {
+            return None;
+        }
+
+        while self.is_peek_unquoted_literal_token() {
+            self.next_token();
+            literal.push(' ');
+            let s_val = match self.current_token.clone() {
+                Token::Identifier(s) => s,
+                Token::Number(s) => s,
+                _ => unreachable!(),
+            };
+            literal.push_str(&s_val);
+        }
+
+        Some(Expression::UnquotedLiteral(UnquotedLiteralExpression { value: literal }))
     }
 
     fn current_token_is(&self, t: &Token) -> bool {
@@ -183,13 +197,21 @@ impl<'a> Parser<'a> {
         std::mem::discriminant(&self.peek_token) == std::mem::discriminant(t)
     }
 
-    fn expect_peek(&mut self, t: &Token) -> bool {
+    fn is_unquoted_literal_token(&self) -> bool {
+        matches!(&self.current_token, Token::Identifier(_) | Token::Number(_))
+    }
+
+    fn is_peek_unquoted_literal_token(&self) -> bool {
+        matches!(&self.peek_token, Token::Identifier(_) | Token::Number(_))
+    }
+
+    fn expect_peek(&mut self, t: &Token) -> Option<()> {
         if self.peek_token_is(t) {
             self.next_token();
-            true
+            Some(())
         } else {
             self.peek_error(t);
-            false
+            None
         }
     }
 

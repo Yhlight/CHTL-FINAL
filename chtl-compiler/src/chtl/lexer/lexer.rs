@@ -166,7 +166,24 @@ impl<'a> Lexer<'a> {
             number.push(self.ch);
             self.read_char();
         }
-        Token::Number(number)
+
+        let unit = self.read_unit();
+
+        Token::Number(number, unit)
+    }
+
+    fn read_unit(&mut self) -> Option<String> {
+        // CSS units can contain letters or a percentage sign.
+        // We'll keep it simple and read any sequence of letters.
+        if is_letter(self.ch) || self.ch == '%' {
+            let mut unit = String::new();
+            while is_letter(self.ch) || self.ch == '%' {
+                unit.push(self.ch);
+                self.read_char();
+            }
+            return Some(unit);
+        }
+        None
     }
 
     fn read_string(&mut self) -> Token {
@@ -265,13 +282,11 @@ mod tests {
             Token::LBrace,
             Token::Identifier("width".to_string()),
             Token::Colon,
-            Token::Number("100".to_string()),
-            Token::Identifier("px".to_string()),
+            Token::Number("100".to_string(), Some("px".to_string())),
             Token::Semicolon,
             Token::Identifier("height".to_string()),
             Token::Colon,
-            Token::Number("200.5".to_string()),
-            Token::Identifier("px".to_string()),
+            Token::Number("200.5".to_string(), Some("px".to_string())),
             Token::Semicolon,
             Token::RBrace,
             Token::RBrace,
@@ -316,6 +331,24 @@ mod tests {
             Token::LBrace,
             Token::String("some text".to_string()),
             Token::RBrace,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input);
+        for expected_token in tests {
+            let tok = lexer.next_token();
+            assert_eq!(tok, expected_token);
+        }
+    }
+
+    #[test]
+    fn test_percentage_unit() {
+        let input = "width: 50%;";
+        let tests = vec![
+            Token::Identifier("width".to_string()),
+            Token::Colon,
+            Token::Number("50".to_string(), Some("%".to_string())),
+            Token::Semicolon,
             Token::Eof,
         ];
 

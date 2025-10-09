@@ -129,6 +129,7 @@ pub struct StringLiteralExpression {
 #[derive(Debug, PartialEq, Clone)]
 pub struct NumberLiteralExpression {
     pub value: String,
+    pub unit: Option<String>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

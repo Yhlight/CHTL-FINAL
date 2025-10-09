@@ -24,12 +24,11 @@ impl Evaluator {
                 }
                 Object::String(i.value.clone())
             }
-            Expression::NumberLiteral(n) => self.eval_unquoted_literal(
-                &UnquotedLiteralExpression {
-                    value: n.value.clone(),
-                },
-                context,
-            ),
+            Expression::NumberLiteral(n) => {
+                let value = n.value.parse::<f64>().unwrap_or(0.0);
+                let unit = n.unit.clone().unwrap_or_else(|| "".to_string());
+                Object::Number(value, unit)
+            }
             Expression::Conditional(c) => self.eval_conditional_expression(c, context, templates),
             Expression::FunctionCall(f) => self.eval_function_call_expression(f, templates),
         }

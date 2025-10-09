@@ -7,7 +7,7 @@ pub enum Token {
     // Identifiers & Literals
     Identifier(String),
     String(String),
-    Number(String),
+    Number(String, Option<String>),
 
     // Operators
     Colon,       // :

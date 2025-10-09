@@ -363,7 +363,7 @@ impl<'a> Parser<'a> {
 
         let mut path = String::new();
         let is_path_token = |token: &Token| -> bool {
-            matches!(token, Token::Identifier(_) | Token::Dot | Token::Slash | Token::Number(_) | Token::Chtl | Token::Html | Token::JavaScript | Token::CjMod)
+            matches!(token, Token::Identifier(_) | Token::Dot | Token::Slash | Token::Number(_, _) | Token::Chtl | Token::Html | Token::JavaScript | Token::CjMod)
         };
 
         while is_path_token(&self.current_token) {
@@ -371,7 +371,7 @@ impl<'a> Parser<'a> {
                 Token::Identifier(s) => s,
                 Token::Dot => ".".to_string(),
                 Token::Slash => "/".to_string(),
-                Token::Number(n) => n,
+                Token::Number(n, _) => n,
                 Token::Chtl => "chtl".to_string(),
                 Token::Html => "html".to_string(),
                 Token::JavaScript => "js".to_string(),
@@ -574,6 +574,10 @@ impl<'a> Parser<'a> {
     fn parse_prefix(&mut self) -> Option<Expression> {
         match self.current_token.clone() {
             Token::String(s) => Some(Expression::StringLiteral(StringLiteralExpression { value: s })),
+            Token::Number(value, unit) => Some(Expression::NumberLiteral(NumberLiteralExpression {
+                value,
+                unit,
+            })),
             tok if self.is_unquoted_literal_token(&tok) => {
                 if let Token::Identifier(s) = &tok {
                     if !self.is_peek_unquoted_literal_token() {
@@ -583,7 +587,7 @@ impl<'a> Parser<'a> {
                     }
                 }
 
-                // Fallthrough for multi-word unquoted literals or numbers followed by units
+                // Fallthrough for multi-word unquoted literals
                 let mut literal = String::new();
                 let mut current_tok = tok;
                 loop {
@@ -594,15 +598,9 @@ impl<'a> Parser<'a> {
                     }
 
                     if self.is_peek_unquoted_literal_token() {
-                        let is_current_number = matches!(current_tok, Token::Number(_));
-                        let is_peek_identifier = matches!(self.peek_token, Token::Identifier(_));
-
                         self.next_token();
                         current_tok = self.current_token.clone();
-
-                        if !(is_current_number && is_peek_identifier) {
-                            literal.push(' ');
-                        }
+                        literal.push(' ');
                     } else {
                         break;
                     }
@@ -739,7 +737,13 @@ impl<'a> Parser<'a> {
     fn token_to_string_for_unquoted_literal(&self, token: &Token) -> Option<String> {
         match token.clone() {
             Token::Identifier(s) => Some(s),
-            Token::Number(s) => Some(s),
+            Token::Number(val, unit) => {
+                if let Some(u) = unit {
+                    Some(format!("{}{}", val, u))
+                } else {
+                    Some(val)
+                }
+            }
             Token::Text => Some("text".to_string()),
             Token::Style => Some("Style".to_string()),
             Token::Script => Some("script".to_string()),
@@ -876,27 +880,31 @@ mod tests {
                     // 10 + (2 * (3 ** 2))
                     assert_eq!(infix_exp.operator, "+");
 
-                    if let Expression::UnquotedLiteral(left) = &*infix_exp.left {
+                    if let Expression::NumberLiteral(left) = &*infix_exp.left {
                         assert_eq!(left.value, "10");
+                        assert_eq!(left.unit, None);
                     } else {
-                        panic!("Expected UnquotedLiteral for left expression");
+                        panic!("Expected NumberLiteral for left expression");
                     }
 
                     if let Expression::Infix(right_infix) = &*infix_exp.right {
                         assert_eq!(right_infix.operator, "*");
-                        if let Expression::UnquotedLiteral(right_left) = &*right_infix.left {
+                        if let Expression::NumberLiteral(right_left) = &*right_infix.left {
                              assert_eq!(right_left.value, "2");
+                             assert_eq!(right_left.unit, None);
                         } else {
-                             panic!("Expected UnquotedLiteral for right-left expression");
+                             panic!("Expected NumberLiteral for right-left expression");
                         }
 
                         if let Expression::Infix(power_infix) = &*right_infix.right {
                             assert_eq!(power_infix.operator, "**");
-                            if let Expression::UnquotedLiteral(power_left) = &*power_infix.left {
+                            if let Expression::NumberLiteral(power_left) = &*power_infix.left {
                                 assert_eq!(power_left.value, "3");
+                                assert_eq!(power_left.unit, None);
                             }
-                            if let Expression::UnquotedLiteral(power_right) = &*power_infix.right {
+                            if let Expression::NumberLiteral(power_right) = &*power_infix.right {
                                 assert_eq!(power_right.value, "2");
+                                assert_eq!(power_right.unit, None);
                             }
                         } else {
                             panic!("Expected InfixExpression for power expression");
@@ -1078,10 +1086,11 @@ mod tests {
                 assert_eq!(rule.body.len(), 1);
                 if let Statement::Attribute(attr) = &rule.body[0] {
                     assert_eq!(attr.name.value, "font-size");
-                    if let Some(Expression::UnquotedLiteral(s)) = &attr.value {
-                        assert_eq!(s.value, "16px");
+                    if let Some(Expression::NumberLiteral(n)) = &attr.value {
+                        assert_eq!(n.value, "16");
+                        assert_eq!(n.unit, Some("px".to_string()));
                     } else {
-                        panic!("Expected UnquotedLiteral for font-size value");
+                        panic!("Expected NumberLiteral for font-size value");
                     }
                 } else {
                     panic!("Expected AttributeStatement");
@@ -1097,10 +1106,11 @@ mod tests {
                 assert_eq!(rule.body.len(), 1);
                 if let Statement::Attribute(attr) = &rule.body[0] {
                     assert_eq!(attr.name.value, "margin");
-                    if let Some(Expression::UnquotedLiteral(s)) = &attr.value {
-                        assert_eq!(s.value, "0");
+                    if let Some(Expression::NumberLiteral(n)) = &attr.value {
+                        assert_eq!(n.value, "0");
+                        assert_eq!(n.unit, None);
                     } else {
-                        panic!("Expected UnquotedLiteral for margin value");
+                        panic!("Expected NumberLiteral for margin value");
                     }
                 } else {
                     panic!("Expected AttributeStatement");

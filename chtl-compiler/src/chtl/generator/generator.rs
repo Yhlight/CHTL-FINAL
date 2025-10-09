@@ -28,18 +28,23 @@ impl Generator {
     }
 
     fn apply_style_template(
-        &self,
+        &mut self,
         template: &TemplateDefinitionStatement,
         context: &mut HashMap<String, Object>,
         inline_style_props: &mut HashMap<String, String>,
+        specialization_body: &Option<Vec<Statement>>,
     ) {
+        let mut applied_properties = HashMap::new();
+
+        // First, apply properties from the base template
         for stmt in &template.body {
             match stmt {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let value_obj = self.evaluator.eval(expr, context, &self.templates, &self.document_map);
-                        context.insert(attr.name.value.clone(), value_obj.clone());
-                        inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
+                        let value_obj =
+                            self.evaluator
+                                .eval(expr, context, &self.templates, &self.document_map);
+                        applied_properties.insert(attr.name.value.clone(), value_obj);
                     }
                 }
                 Statement::UseTemplate(use_stmt) => {
@@ -52,6 +57,7 @@ impl Generator {
                                     &nested_template,
                                     context,
                                     inline_style_props,
+                                    &None, // No specialization for nested templates for now
                                 );
                             }
                         }
@@ -59,6 +65,53 @@ impl Generator {
                 }
                 _ => (),
             }
+        }
+
+        // Apply specialized properties and deletions
+        if let Some(body) = specialization_body {
+            for stmt in body {
+                match stmt {
+                    Statement::Attribute(attr) => {
+                        if let Some(expr) = &attr.value {
+                            let value_obj = self.evaluator.eval(
+                                expr,
+                                context,
+                                &self.templates,
+                                &self.document_map,
+                            );
+                            applied_properties.insert(attr.name.value.clone(), value_obj);
+                        }
+                    }
+                    Statement::Delete(del_stmt) => {
+                        for target in &del_stmt.targets {
+                            if let Expression::Identifier(ident) = target {
+                                applied_properties.remove(&ident.value);
+                            } else if let Expression::UnquotedLiteral(lit) = target {
+                                // Handle cases like `delete @Style Base`
+                                if lit.value.starts_with("@Style") {
+                                    let template_name = lit.value.split_whitespace().last().unwrap();
+                                    // This is a simplification. A more robust solution would
+                                    // track which properties came from which template.
+                                    if let Some(template_to_delete) = self.templates.get(template_name) {
+                                        for t_stmt in &template_to_delete.body {
+                                            if let Statement::Attribute(t_attr) = t_stmt {
+                                                applied_properties.remove(&t_attr.name.value);
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+
+        // Finally, add all processed properties to the inline style map
+        for (key, value) in applied_properties {
+            context.insert(key.clone(), value.clone());
+            inline_style_props.insert(key, value.to_string());
         }
     }
 
@@ -207,6 +260,7 @@ impl Generator {
                 String::new()
             }
             Statement::Import(_) => String::new(),
+            Statement::Delete(_) => String::new(), // Handled within template application
         }
     }
 
@@ -299,6 +353,7 @@ impl Generator {
                                     &template,
                                     &mut context,
                                     &mut inline_style_props,
+                                    &use_stmt.body,
                                 );
                             }
                         }
@@ -804,6 +859,41 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<div id="box" style="width:100px"></div><span style="height:100px"></span>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_generate_with_template_specialization() {
+        let input = r#"
+        [Template] @Style Base {
+            color: "red";
+            font-size: 16px;
+            font-weight: "bold";
+        }
+
+        div {
+            style {
+                @Style Base {
+                    color: "blue";
+                    delete font-weight;
+                }
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<div style="color:blue;font-size:16px"></div>"#;
         assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
     }
 }

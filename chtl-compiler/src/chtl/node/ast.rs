@@ -34,11 +34,14 @@ pub struct TemplateDefinitionStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct UseTemplateStatement {
     pub name: IdentifierExpression,
-    // For now, we'll just store the raw type identifier (e.g., "Style")
-    // This can be refined later if needed.
     pub template_type: IdentifierExpression,
+    pub body: Option<Vec<Statement>>,
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct DeleteStatement {
+    pub targets: Vec<Expression>,
+}
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
@@ -51,6 +54,7 @@ pub enum Statement {
     TemplateDefinition(TemplateDefinitionStatement),
     UseTemplate(UseTemplateStatement),
     Import(ImportStatement),
+    Delete(DeleteStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -93,8 +93,71 @@ impl<'a> Parser<'a> {
             }
             Token::Style => self.parse_style_statement(),
             Token::GeneratorComment(value) => self.parse_comment_statement(value),
+            Token::Delete => self.parse_delete_statement(),
             _ => None,
         }
+    }
+
+    fn parse_delete_statement(&mut self) -> Option<Statement> {
+        self.next_token(); // consume `delete`
+
+        let mut targets = Vec::new();
+
+        loop {
+            let expr = if self.current_token_is(&Token::At) {
+                self.next_token(); // consume `@`
+                let type_name =
+                    if let Some(s) = self.token_to_string_for_unquoted_literal(&self.current_token)
+                    {
+                        s
+                    } else {
+                        self.errors.push(format!(
+                            "Expected template type after @ in delete, got {:?}",
+                            self.current_token
+                        ));
+                        return None;
+                    };
+                self.next_token(); // consume type_name
+
+                let template_name = if let Token::Identifier(s) = self.current_token.clone() {
+                    s
+                } else {
+                    self.errors.push(format!(
+                        "Expected template name after type in delete, got {:?}",
+                        self.current_token
+                    ));
+                    return None;
+                };
+                Some(Expression::UnquotedLiteral(UnquotedLiteralExpression {
+                    value: format!("@{} {}", type_name, template_name),
+                }))
+            } else {
+                self.parse_expression(Precedence::Lowest)
+            };
+
+            if let Some(e) = expr {
+                targets.push(e);
+            } else {
+                self.errors.push(format!(
+                    "Invalid expression in delete statement near {:?}",
+                    self.current_token
+                ));
+                return None;
+            }
+
+            if self.peek_token_is(&Token::Comma) {
+                self.next_token(); // consume expression's last token
+                self.next_token(); // consume comma
+            } else {
+                break;
+            }
+        }
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::Delete(DeleteStatement { targets }))
     }
 
     fn parse_comment_statement(&mut self, value: String) -> Option<Statement> {
@@ -455,13 +518,27 @@ impl<'a> Parser<'a> {
             return None;
         };
 
-        if self.peek_token_is(&Token::Semicolon) {
+        let mut body = None;
+        if self.peek_token_is(&Token::LBrace) {
+            self.next_token(); // consume name, current is `{`
+            self.next_token(); // consume `{`
+
+            let mut stmts = Vec::new();
+            while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+                if let Some(stmt) = self.parse_statement() {
+                    stmts.push(stmt);
+                }
+                self.next_token();
+            }
+            body = Some(stmts);
+        } else if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
         }
 
         Some(Statement::UseTemplate(UseTemplateStatement {
             name,
             template_type,
+            body,
         }))
     }
 
@@ -865,6 +942,95 @@ mod tests {
                 }
             } else {
                 panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
+        }
+    }
+
+    #[test]
+    fn test_delete_statement_parsing() {
+        let input = "delete font-size, @Style Base, some-other-prop;";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let stmt = parser.parse_statement().unwrap();
+
+        if let Statement::Delete(del_stmt) = stmt {
+            assert_eq!(del_stmt.targets.len(), 3);
+            if let Expression::Identifier(ident) = &del_stmt.targets[0] {
+                assert_eq!(ident.value, "font-size");
+            } else {
+                panic!("Expected Identifier for first delete target");
+            }
+            if let Expression::UnquotedLiteral(lit) = &del_stmt.targets[1] {
+                assert_eq!(lit.value, "@Style Base");
+            } else {
+                panic!("Expected UnquotedLiteral for second delete target");
+            }
+            if let Expression::Identifier(ident) = &del_stmt.targets[2] {
+                assert_eq!(ident.value, "some-other-prop");
+            } else {
+                panic!("Expected Identifier for third delete target");
+            }
+        } else {
+            panic!("Expected DeleteStatement");
+        }
+    }
+
+    #[test]
+    fn test_use_template_with_specialization() {
+        let input = r#"
+        style {
+            @Style MyTemplate {
+                color: "blue";
+                delete font-size, @Style Base;
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Style(style_stmt) = stmt {
+            let use_stmt = &style_stmt.body[0];
+            if let Statement::UseTemplate(use_template) = use_stmt {
+                assert_eq!(use_template.name.value, "MyTemplate");
+                assert!(use_template.body.is_some());
+                let body = use_template.body.as_ref().unwrap();
+                assert_eq!(body.len(), 2);
+
+                // Check attribute override
+                if let Statement::Attribute(attr) = &body[0] {
+                    assert_eq!(attr.name.value, "color");
+                } else {
+                    panic!("Expected AttributeStatement");
+                }
+
+                // Check delete statement
+                if let Statement::Delete(del_stmt) = &body[1] {
+                    assert_eq!(del_stmt.targets.len(), 2);
+                    if let Expression::Identifier(ident) = &del_stmt.targets[0] {
+                        assert_eq!(ident.value, "font-size");
+                    } else {
+                        panic!("Expected Identifier for first delete target");
+                    }
+                    if let Expression::UnquotedLiteral(lit) = &del_stmt.targets[1] {
+                        assert_eq!(lit.value, "@Style Base");
+                    } else {
+                        panic!("Expected UnquotedLiteral for second delete target");
+                    }
+                } else {
+                    panic!("Expected DeleteStatement");
+                }
+            } else {
+                panic!("Expected UseTemplateStatement");
             }
         } else {
             panic!("Expected StyleStatement");

@@ -33,6 +33,8 @@ pub enum Token {
     Ampersand,   // &
     At,          // @
     Hash,        // #
+    And,         // &&
+    Or,          // ||
 
     // Keywords
     Text,

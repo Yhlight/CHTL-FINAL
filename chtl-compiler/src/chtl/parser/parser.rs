@@ -6,6 +6,7 @@ use crate::chtl::node::ast::*;
 enum Precedence {
     Lowest,
     Conditional, // ?:
+    Logic,       // && or ||
     LessGreater, // > or <
     Sum,         // + or -
     Product,     // * or /
@@ -101,6 +102,21 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn token_to_string(token: &Token) -> Option<String> {
+        match token {
+            Token::Identifier(s) => Some(s.clone()),
+            Token::Style => Some("Style".to_string()),
+            Token::Element => Some("Element".to_string()),
+            Token::Var => Some("Var".to_string()),
+            Token::Html => Some("Html".to_string()),
+            Token::JavaScript => Some("JavaScript".to_string()),
+            Token::Chtl => Some("CHTL".to_string()),
+            Token::CjMod => Some("CJmod".to_string()),
+            Token::Config => Some("Config".to_string()),
+            _ => None,
+        }
+    }
+
     fn parse_if_statement(&mut self) -> Option<Statement> {
         // current token is `if`
         self.expect_peek(&Token::LBrace)?; // consume `if`, current is `{`
@@ -178,8 +194,7 @@ impl<'a> Parser<'a> {
             let expr = if self.current_token_is(&Token::At) {
                 self.next_token(); // consume `@`
                 let type_name =
-                    if let Some(s) = self.token_to_string_for_unquoted_literal(&self.current_token)
-                    {
+                    if let Some(s) = Self::token_to_string(&self.current_token) {
                         s
                     } else {
                         self.errors.push(format!(
@@ -466,7 +481,7 @@ impl<'a> Parser<'a> {
         let mut item_type: Option<IdentifierExpression> = None;
         if self.current_token_is(&Token::At) {
             self.next_token(); // consume `@`
-            if let Some(type_str) = self.token_to_string_for_unquoted_literal(&self.current_token) {
+            if let Some(type_str) = Self::token_to_string(&self.current_token) {
                 item_type = Some(IdentifierExpression { value: type_str });
                 self.next_token(); // consume item type
             } else {
@@ -684,38 +699,24 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_text_statement(&mut self) -> Option<Statement> {
-        self.expect_peek(&Token::LBrace)?;
-        self.next_token();
+        self.expect_peek(&Token::LBrace)?; // current is `text`, expects `{` and consumes it. current is now `{`
+        self.next_token(); // consume `{`, current is the start of the expression
 
-        if let Token::String(value) = self.current_token.clone() {
-            let text_value = StringLiteralExpression { value };
-            self.next_token();
-            if !self.current_token_is(&Token::RBrace) {
-                return None;
-            }
-            return Some(Statement::Text(TextStatement { value: text_value }));
-        }
+        // The content of a text block is an expression (either string or unquoted)
+        let value = self.parse_expression(Precedence::Lowest)?;
 
-        let mut literal = String::new();
-        let mut first = true;
-        while self.is_unquoted_literal_token(&self.current_token) {
-            if !first {
-                literal.push(' ');
-            }
-            if let Some(s) = self.token_to_string_for_unquoted_literal(&self.current_token) {
-                literal.push_str(&s);
-            } else {
-                break;
-            }
-            self.next_token();
-            first = false;
-        }
-
-        if !self.current_token_is(&Token::RBrace) {
+        // After parse_expression, current_token is the *last* token of the expression.
+        // The next token should be `}`.
+        if !self.peek_token_is(&Token::RBrace) {
+            self.errors.push(format!(
+                "Expected '}}' after text block expression, got {:?}",
+                self.peek_token
+            ));
             return None;
         }
+        self.next_token(); // consume last token of expression. current is now `}`
 
-        Some(Statement::Text(TextStatement { value: StringLiteralExpression { value: literal } }))
+        Some(Statement::Text(TextStatement { value }))
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
@@ -743,10 +744,23 @@ impl<'a> Parser<'a> {
     fn parse_prefix(&mut self) -> Option<Expression> {
         match self.current_token.clone() {
             Token::String(s) => Some(Expression::StringLiteral(StringLiteralExpression { value: s })),
-            Token::Number(value, unit) => Some(Expression::NumberLiteral(NumberLiteralExpression {
-                value,
-                unit,
-            })),
+            Token::Identifier(s) => {
+                if self.is_peek_unquoted_literal_part() {
+                    return self.parse_unquoted_literal_expression(s);
+                }
+                Some(Expression::Identifier(IdentifierExpression { value: s }))
+            }
+            Token::Number(value, unit) => {
+                if self.is_peek_unquoted_literal_part() {
+                    let initial = if let Some(u) = unit {
+                        format!("{}{}", value, u)
+                    } else {
+                        value
+                    };
+                    return self.parse_unquoted_literal_expression(initial);
+                }
+                Some(Expression::NumberLiteral(NumberLiteralExpression { value, unit }))
+            }
             Token::Hash | Token::Dot => {
                 let mut selector = if self.current_token_is(&Token::Hash) {
                     "#".to_string()
@@ -756,46 +770,46 @@ impl<'a> Parser<'a> {
                 self.next_token(); // consume # or .
                 if let Token::Identifier(name) = self.current_token.clone() {
                     selector.push_str(&name);
+
+                    // Check if this is the start of a property access like `#box.width`
+                    if self.peek_token_is(&Token::Dot) {
+                        return Some(Expression::UnquotedLiteral(UnquotedLiteralExpression {
+                            value: selector,
+                        }));
+                    }
+
+                    // Otherwise, it's a selector that might be part of a larger literal
+                    if self.is_peek_unquoted_literal_part() {
+                        return self.parse_unquoted_literal_expression(selector);
+                    }
+
                     Some(Expression::UnquotedLiteral(UnquotedLiteralExpression {
                         value: selector,
                     }))
                 } else {
-                    self.errors
-                        .push(format!("Expected identifier after # or ., got {:?}", self.current_token));
+                    self.errors.push(format!(
+                        "Expected identifier after # or ., got {:?}",
+                        self.current_token
+                    ));
                     None
                 }
             }
-            tok if self.is_unquoted_literal_token(&tok) => {
-                if let Token::Identifier(s) = &tok {
-                    if !self.is_peek_unquoted_literal_token() {
-                        return Some(Expression::Identifier(IdentifierExpression {
-                            value: s.clone(),
-                        }));
-                    }
-                }
-
-                // Fallthrough for multi-word unquoted literals
-                let mut literal = String::new();
-                let mut current_tok = tok;
-                loop {
-                    if let Some(s_val) = self.token_to_string_for_unquoted_literal(&current_tok) {
-                        literal.push_str(&s_val);
-                    } else {
-                        break;
-                    }
-
-                    if self.is_peek_unquoted_literal_token() {
-                        self.next_token();
-                        current_tok = self.current_token.clone();
-                        literal.push(' ');
-                    } else {
-                        break;
-                    }
-                }
-                Some(Expression::UnquotedLiteral(UnquotedLiteralExpression { value: literal }))
-            }
             _ => None,
         }
+    }
+
+    fn parse_unquoted_literal_expression(&mut self, initial: String) -> Option<Expression> {
+        let mut literal = initial;
+        while self.is_peek_unquoted_literal_part() {
+            self.next_token();
+            literal.push(' ');
+            if let Some(part) = Self::token_to_string_for_unquoted_part(&self.current_token) {
+                literal.push_str(&part);
+            } else {
+                break; // Should not happen
+            }
+        }
+        Some(Expression::UnquotedLiteral(UnquotedLiteralExpression { value: literal }))
     }
 
     fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
@@ -808,6 +822,8 @@ impl<'a> Parser<'a> {
             Token::Power => "**".to_string(),
             Token::Gt => ">".to_string(),
             Token::Lt => "<".to_string(),
+            Token::And => "&&".to_string(),
+            Token::Or => "||".to_string(),
             _ => return None,
         };
 
@@ -892,6 +908,7 @@ impl<'a> Parser<'a> {
             Token::Asterisk | Token::Slash | Token::Percent => Precedence::Product,
             Token::Power => Precedence::Power,
             Token::Gt | Token::Lt => Precedence::LessGreater,
+            Token::And | Token::Or => Precedence::Logic,
             Token::Question => Precedence::Conditional,
             Token::LParen => Precedence::Call,
             Token::Dot => Precedence::PropertyAccess,
@@ -907,12 +924,50 @@ impl<'a> Parser<'a> {
         std::mem::discriminant(&self.peek_token) == std::mem::discriminant(t)
     }
 
-    fn is_unquoted_literal_token(&self, t: &Token) -> bool {
-        self.token_to_string_for_unquoted_literal(t).is_some()
+    fn is_peek_unquoted_literal_part(&self) -> bool {
+        // A token is part of a literal if it's not a hard delimiter.
+        // The expression parser's precedence rules will handle operators.
+        match &self.peek_token {
+            Token::Identifier(_) | Token::Number(_, _) => true,
+            // Also include keywords that can plausibly be part of a value.
+            Token::From | Token::As | Token::Text | Token::Style | Token::Script |
+            Token::Element | Token::Var | Token::Html | Token::JavaScript |
+            Token::Chtl | Token::CjMod | Token::Config | Token::After | Token::Before |
+            Token::Replace | Token::AtTop | Token::AtBottom => true,
+            _ => false,
+        }
     }
 
-    fn is_peek_unquoted_literal_token(&self) -> bool {
-        self.is_unquoted_literal_token(&self.peek_token)
+    fn token_to_string_for_unquoted_part(token: &Token) -> Option<String> {
+        match token.clone() {
+            Token::Identifier(s) => Some(s),
+            Token::Number(val, unit) => {
+                if let Some(u) = unit {
+                    Some(format!("{}{}", val, u))
+                } else {
+                    Some(val)
+                }
+            }
+            // Add other tokens that can be part of a literal
+            Token::From => Some("from".to_string()),
+            Token::As => Some("as".to_string()),
+            Token::Text => Some("text".to_string()),
+            Token::Style => Some("style".to_string()),
+            Token::Script => Some("script".to_string()),
+            Token::Element => Some("Element".to_string()),
+            Token::Var => Some("Var".to_string()),
+            Token::Html => Some("Html".to_string()),
+            Token::JavaScript => Some("JavaScript".to_string()),
+            Token::Chtl => Some("CHTL".to_string()),
+            Token::CjMod => Some("CJmod".to_string()),
+            Token::Config => Some("Config".to_string()),
+            Token::After => Some("after".to_string()),
+            Token::Before => Some("before".to_string()),
+            Token::Replace => Some("replace".to_string()),
+            Token::AtTop => Some("at top".to_string()),
+            Token::AtBottom => Some("at bottom".to_string()),
+            _ => None,
+        }
     }
 
     fn expect_peek(&mut self, t: &Token) -> Option<()> {
@@ -941,50 +996,6 @@ impl<'a> Parser<'a> {
             Token::Ampersand => Some(("&".to_string(), false)),
             Token::Colon => Some((":".to_string(), false)),
             Token::Before => Some(("before".to_string(), true)),
-            _ => None,
-        }
-    }
-
-    fn token_to_string_for_unquoted_literal(&self, token: &Token) -> Option<String> {
-        match token.clone() {
-            Token::Identifier(s) => Some(s),
-            Token::Number(val, unit) => {
-                if let Some(u) = unit {
-                    Some(format!("{}{}", val, u))
-                } else {
-                    Some(val)
-                }
-            }
-            Token::Text => Some("text".to_string()),
-            Token::Style => Some("Style".to_string()),
-            Token::Script => Some("script".to_string()),
-            Token::Template => Some("Template".to_string()),
-            Token::Element => Some("Element".to_string()),
-            Token::Var => Some("Var".to_string()),
-            Token::Custom => Some("Custom".to_string()),
-            Token::Origin => Some("Origin".to_string()),
-            Token::Import => Some("Import".to_string()),
-            Token::Namespace => Some("Namespace".to_string()),
-            Token::Configuration => Some("Configuration".to_string()),
-            Token::Use => Some("use".to_string()),
-            Token::If => Some("if".to_string()),
-            Token::Else => Some("else".to_string()),
-            Token::Except => Some("except".to_string()),
-            Token::Inherit => Some("inherit".to_string()),
-            Token::Delete => Some("delete".to_string()),
-            Token::Insert => Some("insert".to_string()),
-            Token::After => Some("after".to_string()),
-            Token::Before => Some("before".to_string()),
-            Token::Replace => Some("replace".to_string()),
-            Token::AtTop => Some("at top".to_string()),
-            Token::AtBottom => Some("at bottom".to_string()),
-            Token::From => Some("from".to_string()),
-            Token::As => Some("as".to_string()),
-            Token::Html => Some("Html".to_string()),
-            Token::JavaScript => Some("JavaScript".to_string()),
-            Token::Chtl => Some("Chtl".to_string()),
-            Token::CjMod => Some("CJmod".to_string()),
-            Token::Config => Some("Config".to_string()),
             _ => None,
         }
     }
@@ -1204,7 +1215,11 @@ mod tests {
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
-        assert!(parser.errors.is_empty(), "Parser has errors: {:?}", parser.errors);
+        assert!(
+            parser.errors.is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors
+        );
         assert_eq!(program.statements.len(), 1);
         let stmt = &program.statements[0];
         if let Statement::Element(element_stmt) = stmt {
@@ -1225,12 +1240,82 @@ mod tests {
 
             let text_stmt = &element_stmt.body[1];
             if let Statement::Text(text) = text_stmt {
-                assert_eq!(text.value.value, "Hello");
+                if let Expression::StringLiteral(s) = &text.value {
+                    assert_eq!(s.value, "Hello");
+                } else {
+                    panic!("Expected StringLiteral expression in TextStatement");
+                }
             } else {
                 panic!("Expected TextStatement");
             }
         } else {
             panic!("Expected ElementStatement");
+        }
+    }
+
+    #[test]
+    fn test_unquoted_literal_parsing() {
+        let input = r#"
+        style {
+            font-family: Times New Roman;
+            border: 1px solid black;
+        }
+        text {
+            Hello world from CHTL
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        // Check style block
+        let style_stmt = &program.statements[0];
+        if let Statement::Style(style) = style_stmt {
+            // font-family
+            let attr1 = &style.body[0];
+            if let Statement::Attribute(attr) = attr1 {
+                assert_eq!(attr.name.value, "font-family");
+                if let Some(Expression::UnquotedLiteral(lit)) = &attr.value {
+                    assert_eq!(lit.value, "Times New Roman");
+                } else {
+                    panic!("Expected UnquotedLiteral for font-family");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+
+            // border
+            let attr2 = &style.body[1];
+            if let Statement::Attribute(attr) = attr2 {
+                assert_eq!(attr.name.value, "border");
+                if let Some(Expression::UnquotedLiteral(lit)) = &attr.value {
+                    assert_eq!(lit.value, "1px solid black");
+                } else {
+                    panic!("Expected UnquotedLiteral for border");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
+        }
+
+        // Check text block
+        let text_stmt = &program.statements[1];
+        if let Statement::Text(text) = text_stmt {
+             if let Expression::UnquotedLiteral(lit) = &text.value {
+                assert_eq!(lit.value, "Hello world from CHTL");
+            } else {
+                panic!("Expected UnquotedLiteral for text content");
+            }
+        } else {
+            panic!("Expected TextStatement");
         }
     }
 
@@ -1582,6 +1667,60 @@ mod tests {
             }
         } else {
             panic!("Expected ElementStatement");
+        }
+    }
+
+    #[test]
+    fn test_logical_expressions() {
+        let input = r#"
+        style {
+            background-color: width > 50px && height < 100px ? "red" : "blue";
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Style(style_stmt) = stmt {
+            let attr_stmt = &style_stmt.body[0];
+            if let Statement::Attribute(attr) = attr_stmt {
+                if let Some(Expression::Conditional(cond_expr)) = &attr.value {
+                    // Check condition
+                    if let Expression::Infix(infix) = &*cond_expr.condition {
+                        assert_eq!(infix.operator, "&&");
+
+                        // Check left side of &&
+                        if let Expression::Infix(left_infix) = &*infix.left {
+                             assert_eq!(left_infix.operator, ">");
+                        } else {
+                            panic!("Expected InfixExpression for left side of &&");
+                        }
+
+                        // Check right side of &&
+                        if let Expression::Infix(right_infix) = &*infix.right {
+                             assert_eq!(right_infix.operator, "<");
+                        } else {
+                            panic!("Expected InfixExpression for right side of &&");
+                        }
+
+                    } else {
+                        panic!("Expected InfixExpression for condition");
+                    }
+                } else {
+                    panic!("Expected ConditionalExpression");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
         }
     }
 

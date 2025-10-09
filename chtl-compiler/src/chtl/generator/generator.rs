@@ -593,7 +593,14 @@ impl Generator {
     }
 
     fn generate_text(&self, text: &TextStatement) -> String {
-        text.value.value.clone()
+        match &text.value {
+            Expression::StringLiteral(s) => s.value.clone(),
+            Expression::UnquotedLiteral(u) => u.value.clone(),
+            _ => {
+                eprintln!("Warning: Unsupported expression type in text block: {:?}", text.value);
+                String::new()
+            }
+        }
     }
 
     fn eval_expression_to_string(

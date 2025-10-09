@@ -132,7 +132,7 @@ pub struct ElementStatement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TextStatement {
-    pub value: StringLiteralExpression,
+    pub value: Expression,
 }
 
 #[derive(Debug, PartialEq, Clone)]

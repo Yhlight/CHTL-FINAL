@@ -50,6 +50,7 @@ pub enum Statement {
     Comment(CommentStatement),
     TemplateDefinition(TemplateDefinitionStatement),
     UseTemplate(UseTemplateStatement),
+    Import(ImportStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -128,4 +129,42 @@ pub struct StringLiteralExpression {
 #[derive(Debug, PartialEq, Clone)]
 pub struct NumberLiteralExpression {
     pub value: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ImportStatement {
+    pub path: Expression,
+    pub alias: Option<IdentifierExpression>,
+    pub specifier: ImportSpecifier,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ImportSpecifier {
+    File(ImportFileType),
+    Item(ImportItemSpecifier),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ImportFileType {
+    Chtl,
+    Html,
+    Style,
+    JavaScript,
+    CjMod,
+    Config,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ImportItemSpecifier {
+    pub category: Option<ImportItemCategory>,
+    pub item_type: Option<IdentifierExpression>,
+    pub name: Option<IdentifierExpression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum ImportItemCategory {
+    Custom,
+    Template,
+    Origin,
+    Configuration,
 }

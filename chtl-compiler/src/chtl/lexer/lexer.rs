@@ -126,6 +126,11 @@ impl<'a> Lexer<'a> {
                         }
                         "from" => Token::From,
                         "as" => Token::As,
+                        "html" => Token::Html,
+                        "javascript" => Token::JavaScript,
+                        "chtl" => Token::Chtl,
+                        "cjmod" => Token::CjMod,
+                        "config" => Token::Config,
                         _ => Token::Identifier(literal),
                     };
                 } else if is_digit(self.ch) {
@@ -315,6 +320,83 @@ mod tests {
         ];
 
         let mut lexer = Lexer::new(input);
+        for expected_token in tests {
+            let tok = lexer.next_token();
+            assert_eq!(tok, expected_token);
+        }
+    }
+
+    #[test]
+    fn test_import_keywords() {
+        let input = r#"
+        [Import] @Html from "a.html" as A;
+        [Import] @JavaScript from "b.js" as B;
+        [Import] @Chtl from "c.chtl" as C;
+        [Import] @CJmod from "d.cjmod" as D;
+        [Import] @Config from "e.chtl" as E;
+        "#;
+
+        let tests = vec![
+            // First line
+            Token::LBracket,
+            Token::Import,
+            Token::RBracket,
+            Token::At,
+            Token::Html,
+            Token::From,
+            Token::String("a.html".to_string()),
+            Token::As,
+            Token::Identifier("A".to_string()),
+            Token::Semicolon,
+            // Second line
+            Token::LBracket,
+            Token::Import,
+            Token::RBracket,
+            Token::At,
+            Token::JavaScript,
+            Token::From,
+            Token::String("b.js".to_string()),
+            Token::As,
+            Token::Identifier("B".to_string()),
+            Token::Semicolon,
+            // Third line
+            Token::LBracket,
+            Token::Import,
+            Token::RBracket,
+            Token::At,
+            Token::Chtl,
+            Token::From,
+            Token::String("c.chtl".to_string()),
+            Token::As,
+            Token::Identifier("C".to_string()),
+            Token::Semicolon,
+            // Fourth line
+            Token::LBracket,
+            Token::Import,
+            Token::RBracket,
+            Token::At,
+            Token::CjMod,
+            Token::From,
+            Token::String("d.cjmod".to_string()),
+            Token::As,
+            Token::Identifier("D".to_string()),
+            Token::Semicolon,
+            // Fifth line
+            Token::LBracket,
+            Token::Import,
+            Token::RBracket,
+            Token::At,
+            Token::Config,
+            Token::From,
+            Token::String("e.chtl".to_string()),
+            Token::As,
+            Token::Identifier("E".to_string()),
+            Token::Semicolon,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input);
+
         for expected_token in tests {
             let tok = lexer.next_token();
             assert_eq!(tok, expected_token);

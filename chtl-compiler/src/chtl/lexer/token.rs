@@ -60,6 +60,11 @@ pub enum Token {
     AtBottom,
     From,
     As,
+    Html,
+    JavaScript,
+    Chtl,
+    CjMod,
+    Config,
 
     // Comments
     SingleLineComment(String),

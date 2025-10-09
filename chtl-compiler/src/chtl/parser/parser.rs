@@ -62,6 +62,8 @@ impl<'a> Parser<'a> {
             Token::LBracket => {
                 if self.peek_token_is(&Token::Template) || self.peek_token_is(&Token::Custom) {
                     return self.parse_template_definition_statement();
+                } else if self.peek_token_is(&Token::Import) {
+                    return self.parse_import_statement();
                 }
                 None
             }
@@ -277,6 +279,146 @@ impl<'a> Parser<'a> {
             template_type,
             body,
             is_custom,
+        }))
+    }
+
+    fn parse_import_statement(&mut self) -> Option<Statement> {
+        // Current is `[`.
+        self.expect_peek(&Token::Import)?;     // consume `[`, current is `Import`
+        self.expect_peek(&Token::RBracket)?;  // consume `Import`, current is `]`
+        self.next_token();                   // consume `]`, current is now specifier start
+
+        // Case 1: File import like `[Import] @Chtl from ...`
+        if self.current_token_is(&Token::At) {
+             if let Some(file_type) = match self.peek_token.clone() {
+                Token::Chtl => Some(ImportFileType::Chtl),
+                Token::Html => Some(ImportFileType::Html),
+                Token::Style => Some(ImportFileType::Style),
+                Token::JavaScript => Some(ImportFileType::JavaScript),
+                Token::CjMod => Some(ImportFileType::CjMod),
+                Token::Config => Some(ImportFileType::Config),
+                _ => None,
+            } {
+                self.next_token(); // consume `@`
+                self.next_token(); // consume file type
+                let specifier = ImportSpecifier::File(file_type);
+                return self.parse_import_from_path_alias(specifier);
+            }
+        }
+
+        // Case 2: Item import like `[Import] [Custom] @Element ...`
+        let mut category: Option<ImportItemCategory> = None;
+        if self.current_token_is(&Token::LBracket) {
+            self.next_token(); // consume `[`
+            category = match self.current_token.clone() {
+                Token::Custom => Some(ImportItemCategory::Custom),
+                Token::Template => Some(ImportItemCategory::Template),
+                Token::Origin => Some(ImportItemCategory::Origin),
+                Token::Configuration => Some(ImportItemCategory::Configuration),
+                _ => {
+                    self.errors.push(format!("Invalid import category: {:?}", self.current_token));
+                    return None;
+                }
+            };
+            self.next_token(); // consume category
+            if !self.current_token_is(&Token::RBracket) {
+                 self.errors.push(format!("Expected ']' after import category, got {:?}", self.current_token));
+                 return None;
+            }
+            self.next_token(); // consume `]`
+        }
+
+        let mut item_type: Option<IdentifierExpression> = None;
+        if self.current_token_is(&Token::At) {
+            self.next_token(); // consume `@`
+            if let Some(type_str) = self.token_to_string_for_unquoted_literal(&self.current_token) {
+                item_type = Some(IdentifierExpression { value: type_str });
+                self.next_token(); // consume item type
+            } else {
+                self.errors.push(format!("Expected item type after @, got {:?}", self.current_token));
+                return None;
+            }
+        }
+
+        let mut name: Option<IdentifierExpression> = None;
+        if let Token::Identifier(n) = self.current_token.clone() {
+            name = Some(IdentifierExpression { value: n });
+            self.next_token(); // consume name
+        }
+
+        let specifier = ImportSpecifier::Item(ImportItemSpecifier {
+            category,
+            item_type,
+            name,
+        });
+
+        self.parse_import_from_path_alias(specifier)
+    }
+
+    fn parse_path_expression(&mut self) -> Option<Expression> {
+        if let Token::String(s) = self.current_token.clone() {
+            self.next_token();
+            return Some(Expression::StringLiteral(StringLiteralExpression { value: s }));
+        }
+
+        let mut path = String::new();
+        let is_path_token = |token: &Token| -> bool {
+            matches!(token, Token::Identifier(_) | Token::Dot | Token::Slash | Token::Number(_) | Token::Chtl | Token::Html | Token::JavaScript | Token::CjMod)
+        };
+
+        while is_path_token(&self.current_token) {
+            let part = match self.current_token.clone() {
+                Token::Identifier(s) => s,
+                Token::Dot => ".".to_string(),
+                Token::Slash => "/".to_string(),
+                Token::Number(n) => n,
+                Token::Chtl => "chtl".to_string(),
+                Token::Html => "html".to_string(),
+                Token::JavaScript => "js".to_string(),
+                Token::CjMod => "cjmod".to_string(),
+                _ => break,
+            };
+            path.push_str(&part);
+            self.next_token();
+        }
+
+        if path.is_empty() {
+            self.errors.push(format!("Expected a path literal, got {:?}", self.current_token));
+            return None;
+        }
+
+        Some(Expression::UnquotedLiteral(UnquotedLiteralExpression { value: path }))
+    }
+
+    fn parse_import_from_path_alias(&mut self, specifier: ImportSpecifier) -> Option<Statement> {
+        if !self.current_token_is(&Token::From) {
+            self.errors.push(format!("Expected 'from' after import specifier, got {:?}", self.current_token));
+            return None;
+        }
+        self.next_token(); // consume `from`
+
+        let path = self.parse_path_expression()?;
+
+        let mut alias: Option<IdentifierExpression> = None;
+        if self.peek_token_is(&Token::As) {
+            self.next_token();
+            self.next_token();
+            if let Token::Identifier(alias_name) = self.current_token.clone() {
+                alias = Some(IdentifierExpression { value: alias_name });
+            } else {
+                self.errors.push(format!("Expected identifier for alias, got {:?}", self.current_token));
+                return None;
+            }
+        }
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::Import(ImportStatement {
+            path,
+            alias,
+            specifier,
         }))
     }
 
@@ -599,14 +741,16 @@ impl<'a> Parser<'a> {
             Token::Identifier(s) => Some(s),
             Token::Number(s) => Some(s),
             Token::Text => Some("text".to_string()),
-            Token::Style => Some("style".to_string()),
+            Token::Style => Some("Style".to_string()),
             Token::Script => Some("script".to_string()),
-            Token::Template => Some("template".to_string()),
-            Token::Custom => Some("custom".to_string()),
-            Token::Origin => Some("origin".to_string()),
-            Token::Import => Some("import".to_string()),
-            Token::Namespace => Some("namespace".to_string()),
-            Token::Configuration => Some("configuration".to_string()),
+            Token::Template => Some("Template".to_string()),
+            Token::Element => Some("Element".to_string()),
+            Token::Var => Some("Var".to_string()),
+            Token::Custom => Some("Custom".to_string()),
+            Token::Origin => Some("Origin".to_string()),
+            Token::Import => Some("Import".to_string()),
+            Token::Namespace => Some("Namespace".to_string()),
+            Token::Configuration => Some("Configuration".to_string()),
             Token::Use => Some("use".to_string()),
             Token::If => Some("if".to_string()),
             Token::Else => Some("else".to_string()),
@@ -621,6 +765,11 @@ impl<'a> Parser<'a> {
             Token::AtBottom => Some("at bottom".to_string()),
             Token::From => Some("from".to_string()),
             Token::As => Some("as".to_string()),
+            Token::Html => Some("Html".to_string()),
+            Token::JavaScript => Some("JavaScript".to_string()),
+            Token::Chtl => Some("Chtl".to_string()),
+            Token::CjMod => Some("CJmod".to_string()),
+            Token::Config => Some("Config".to_string()),
             _ => None,
         }
     }

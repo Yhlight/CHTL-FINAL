@@ -1,12 +1,16 @@
-use crate::chtl::node::ast::*;
 use crate::chtl::evaluator::evaluator::Evaluator;
 use crate::chtl::evaluator::object::Object;
+use crate::chtl::lexer::lexer::Lexer;
+use crate::chtl::loader::Loader;
+use crate::chtl::node::ast::*;
+use crate::chtl::parser::parser::Parser;
 use std::collections::HashMap;
 
 pub struct Generator {
     evaluator: Evaluator,
     global_css: String,
     templates: HashMap<String, TemplateDefinitionStatement>,
+    loader: Loader,
 }
 
 impl Generator {
@@ -15,6 +19,7 @@ impl Generator {
             evaluator: Evaluator::new(),
             global_css: String::new(),
             templates: HashMap::new(),
+            loader: Loader::new(),
         }
     }
 
@@ -53,18 +58,54 @@ impl Generator {
         }
     }
 
-    pub fn generate(&mut self, program: &Program) -> String {
-        // First pass: collect all template definitions
+    fn process_imports_and_templates(&mut self, program: &Program) {
         for statement in &program.statements {
-            if let Statement::TemplateDefinition(def) = statement {
-                self.templates.insert(def.name.value.clone(), def.clone());
+            match statement {
+                Statement::TemplateDefinition(def) => {
+                    self.templates.insert(def.name.value.clone(), def.clone());
+                }
+                Statement::Import(import_stmt) => {
+                    // For now, we only handle CHTL file imports.
+                    if let ImportSpecifier::File(ImportFileType::Chtl) = &import_stmt.specifier {
+                        let path = match &import_stmt.path {
+                            Expression::StringLiteral(s) => s.value.clone(),
+                            Expression::UnquotedLiteral(u) => u.value.clone(),
+                            _ => {
+                                eprintln!("Warning: Unsupported import path expression: {:?}", import_stmt.path);
+                                continue;
+                            }
+                        };
+
+                        match self.loader.load_file_content(&path) {
+                            Ok(content) => {
+                                let lexer = Lexer::new(&content);
+                                let mut parser = Parser::new(lexer);
+                                let imported_program = parser.parse_program();
+                                if !parser.errors().is_empty() {
+                                    eprintln!("Warning: Parsing errors in imported file '{}': {:?}", path, parser.errors());
+                                }
+                                // Recursively process the imported file.
+                                self.process_imports_and_templates(&imported_program);
+                            }
+                            Err(e) => {
+                                eprintln!("Warning: Failed to load imported file '{}': {}", path, e);
+                            }
+                        }
+                    }
+                }
+                _ => {} // Ignore other statements in this pass.
             }
         }
+    }
+    pub fn generate(&mut self, program: &Program) -> String {
+        // First pass: recursively process imports and collect templates.
+        self.process_imports_and_templates(program);
 
-        // Second pass: generate the actual HTML
+        // Second pass: generate the actual HTML from the main program.
         let mut html = String::new();
         for statement in &program.statements {
-            if !matches!(statement, Statement::TemplateDefinition(_)) {
+            // Don't generate output for top-level templates or imports.
+            if !matches!(statement, Statement::TemplateDefinition(_) | Statement::Import(_)) {
                 html.push_str(&self.generate_statement(statement));
             }
         }
@@ -106,6 +147,7 @@ impl Generator {
                 // Non-element templates are handled within their respective blocks (e.g., style)
                 String::new()
             }
+            Statement::Import(_) => String::new(),
         }
     }
 
@@ -619,6 +661,54 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<div style="color:red;font-family:Arial"></div>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_generate_with_import() {
+        use std::fs::File;
+        use std::io::Write;
+        use tempfile::tempdir;
+
+        let dir = tempdir().unwrap();
+
+        // Create the imported file with a template definition
+        let template_file_path = dir.path().join("templates.chtl");
+        let mut template_file = File::create(&template_file_path).unwrap();
+        writeln!(
+            template_file,
+            r#"[Template] @Element MyCard {{
+                div {{
+                    class: "card";
+                    text: "This is a card from an imported template.";
+                }}
+            }}"#
+        )
+        .unwrap();
+
+        // Create the main file that imports and uses the template
+        let main_file_content = format!(
+            r#"[Import] @Chtl from "{}";
+            body {{
+                @Element MyCard;
+            }}"#,
+            template_file_path.to_str().unwrap()
+        );
+
+        let lexer = Lexer::new(&main_file_content);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<body><div class="card">This is a card from an imported template.</div></body>"#;
         assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
     }
 }

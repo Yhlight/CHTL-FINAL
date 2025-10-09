@@ -2,6 +2,14 @@ use crate::chtl::lexer::lexer::Lexer;
 use crate::chtl::lexer::token::Token;
 use crate::chtl::node::ast::*;
 
+#[derive(PartialEq, PartialOrd, Debug, Clone, Copy)]
+enum Precedence {
+    Lowest,
+    Sum,     // + or -
+    Product, // * or /
+    Power,   // **
+}
+
 pub struct Parser<'a> {
     lexer: Lexer<'a>,
     current_token: Token,
@@ -113,7 +121,7 @@ impl<'a> Parser<'a> {
         self.expect_peek(&Token::Colon)?;
         self.next_token();
 
-        let value = self.parse_expression()?;
+        let value = self.parse_expression(Precedence::Lowest)?;
 
         if self.peek_token_is(&Token::Semicolon) {
             self.next_token();
@@ -137,7 +145,7 @@ impl<'a> Parser<'a> {
 
         let mut literal = String::new();
         let mut first = true;
-        while self.is_unquoted_literal_token() {
+        while self.is_unquoted_literal_token(&self.current_token) {
             if !first {
                 literal.push(' ');
             }
@@ -158,35 +166,82 @@ impl<'a> Parser<'a> {
         Some(Statement::Text(TextStatement { value: StringLiteralExpression { value: literal } }))
     }
 
-    fn parse_expression(&mut self) -> Option<Expression> {
-        if let Token::String(value) = self.current_token.clone() {
-            return Some(Expression::StringLiteral(StringLiteralExpression { value }));
-        }
+    fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
+        let mut left_exp = self.parse_prefix()?;
 
-        let mut literal = String::new();
-        if self.is_unquoted_literal_token() {
-            let s_val = match self.current_token.clone() {
-                Token::Identifier(s) => s,
-                Token::Number(s) => s,
-                _ => unreachable!(),
-            };
-            literal.push_str(&s_val);
-        } else {
-            return None;
-        }
-
-        while self.is_peek_unquoted_literal_token() {
+        while !self.peek_token_is(&Token::Semicolon) && precedence < self.peek_precedence() {
             self.next_token();
-            literal.push(' ');
-            let s_val = match self.current_token.clone() {
-                Token::Identifier(s) => s,
-                Token::Number(s) => s,
-                _ => unreachable!(),
-            };
-            literal.push_str(&s_val);
+            left_exp = self.parse_infix_expression(left_exp)?;
         }
 
-        Some(Expression::UnquotedLiteral(UnquotedLiteralExpression { value: literal }))
+        Some(left_exp)
+    }
+
+    fn parse_prefix(&mut self) -> Option<Expression> {
+        match self.current_token.clone() {
+            Token::String(s) => Some(Expression::StringLiteral(StringLiteralExpression { value: s })),
+            tok if self.is_unquoted_literal_token(&tok) => {
+                let mut literal = String::new();
+                let mut current_tok = tok;
+                loop {
+                    let s_val = match current_tok {
+                        Token::Identifier(s) => s,
+                        Token::Number(s) => s,
+                        _ => unreachable!(),
+                    };
+                    literal.push_str(&s_val);
+
+                    if self.is_peek_unquoted_literal_token() {
+                        self.next_token();
+                        current_tok = self.current_token.clone();
+                        literal.push(' ');
+                    } else {
+                        break;
+                    }
+                }
+                Some(Expression::UnquotedLiteral(UnquotedLiteralExpression { value: literal }))
+            }
+            _ => None,
+        }
+    }
+
+    fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
+        let operator = match self.current_token.clone() {
+            Token::Plus => "+".to_string(),
+            Token::Minus => "-".to_string(),
+            Token::Asterisk => "*".to_string(),
+            Token::Slash => "/".to_string(),
+            Token::Percent => "%".to_string(),
+            Token::Power => "**".to_string(),
+            _ => return None,
+        };
+
+        let precedence = self.current_precedence();
+        self.next_token();
+        let right = self.parse_expression(precedence)?;
+
+        Some(Expression::Infix(InfixExpression {
+            left: Box::new(left),
+            operator,
+            right: Box::new(right),
+        }))
+    }
+
+    fn peek_precedence(&self) -> Precedence {
+        Self::token_to_precedence(&self.peek_token)
+    }
+
+    fn current_precedence(&self) -> Precedence {
+        Self::token_to_precedence(&self.current_token)
+    }
+
+    fn token_to_precedence(token: &Token) -> Precedence {
+        match token {
+            Token::Plus | Token::Minus => Precedence::Sum,
+            Token::Asterisk | Token::Slash | Token::Percent => Precedence::Product,
+            Token::Power => Precedence::Power,
+            _ => Precedence::Lowest,
+        }
     }
 
     fn current_token_is(&self, t: &Token) -> bool {
@@ -197,12 +252,12 @@ impl<'a> Parser<'a> {
         std::mem::discriminant(&self.peek_token) == std::mem::discriminant(t)
     }
 
-    fn is_unquoted_literal_token(&self) -> bool {
-        matches!(&self.current_token, Token::Identifier(_) | Token::Number(_))
+    fn is_unquoted_literal_token(&self, t: &Token) -> bool {
+        matches!(t, Token::Identifier(_) | Token::Number(_))
     }
 
     fn is_peek_unquoted_literal_token(&self) -> bool {
-        matches!(&self.peek_token, Token::Identifier(_) | Token::Number(_))
+        self.is_unquoted_literal_token(&self.peek_token)
     }
 
     fn expect_peek(&mut self, t: &Token) -> Option<()> {
@@ -268,6 +323,67 @@ mod tests {
             }
         } else {
             panic!("Expected ElementStatement");
+        }
+    }
+
+    #[test]
+    fn test_infix_expressions() {
+        let input = r#"
+        style {
+            width: 10 + 2 * 3 ** 2;
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(parser.errors.is_empty(), "Parser errors: {:?}", parser.errors);
+
+        let stmt = &program.statements[0];
+        if let Statement::Style(style_stmt) = stmt {
+            let attr_stmt = &style_stmt.body[0];
+            if let Statement::Attribute(attr) = attr_stmt {
+                assert_eq!(attr.name.value, "width");
+                if let Expression::Infix(infix_exp) = &attr.value {
+                    // 10 + (2 * (3 ** 2))
+                    assert_eq!(infix_exp.operator, "+");
+
+                    if let Expression::UnquotedLiteral(left) = &*infix_exp.left {
+                        assert_eq!(left.value, "10");
+                    } else {
+                        panic!("Expected UnquotedLiteral for left expression");
+                    }
+
+                    if let Expression::Infix(right_infix) = &*infix_exp.right {
+                        assert_eq!(right_infix.operator, "*");
+                        if let Expression::UnquotedLiteral(right_left) = &*right_infix.left {
+                             assert_eq!(right_left.value, "2");
+                        } else {
+                             panic!("Expected UnquotedLiteral for right-left expression");
+                        }
+
+                        if let Expression::Infix(power_infix) = &*right_infix.right {
+                            assert_eq!(power_infix.operator, "**");
+                            if let Expression::UnquotedLiteral(power_left) = &*power_infix.left {
+                                assert_eq!(power_left.value, "3");
+                            }
+                            if let Expression::UnquotedLiteral(power_right) = &*power_infix.right {
+                                assert_eq!(power_right.value, "2");
+                            }
+                        } else {
+                            panic!("Expected InfixExpression for power expression");
+                        }
+                    } else {
+                        panic!("Expected InfixExpression for right expression");
+                    }
+                } else {
+                    panic!("Expected InfixExpression");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
         }
     }
 }

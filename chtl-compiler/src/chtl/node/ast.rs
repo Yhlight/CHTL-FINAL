@@ -35,6 +35,14 @@ pub enum Expression {
     StringLiteral(StringLiteralExpression),
     NumberLiteral(NumberLiteralExpression),
     UnquotedLiteral(UnquotedLiteralExpression),
+    Infix(InfixExpression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct InfixExpression {
+    pub left: Box<Expression>,
+    pub operator: String,
+    pub right: Box<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

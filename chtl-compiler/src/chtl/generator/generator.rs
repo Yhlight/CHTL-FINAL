@@ -1,10 +1,16 @@
 use crate::chtl::node::ast::*;
+use crate::chtl::evaluator::evaluator::Evaluator;
+use crate::chtl::evaluator::object::Object;
 
-pub struct Generator {}
+pub struct Generator {
+    evaluator: Evaluator,
+}
 
 impl Generator {
     pub fn new() -> Self {
-        Generator {}
+        Generator {
+            evaluator: Evaluator::new(),
+        }
     }
 
     pub fn generate(&self, program: &Program) -> String {
@@ -38,13 +44,7 @@ impl Generator {
             match statement {
                 Statement::Attribute(attr) => {
                     if attr.name.value == "text" {
-                        let text_value = match &attr.value {
-                            Expression::Identifier(ident) => ident.value.clone(),
-                            Expression::StringLiteral(s) => s.value.clone(),
-                            Expression::NumberLiteral(n) => n.value.clone(),
-                            Expression::UnquotedLiteral(u) => u.value.clone(),
-                        };
-                        children.push_str(&text_value);
+                        children.push_str(&self.eval_expression_to_string(&attr.value));
                     } else {
                         attributes.push_str(&self.generate_attribute(attr));
                     }
@@ -72,12 +72,7 @@ impl Generator {
         let mut style_props = Vec::new();
         for statement in &style.body {
             if let Statement::Attribute(attr) = statement {
-                 let value = match &attr.value {
-                    Expression::Identifier(ident) => ident.value.clone(),
-                    Expression::StringLiteral(s) => s.value.clone(),
-                    Expression::NumberLiteral(n) => n.value.clone(),
-                    Expression::UnquotedLiteral(u) => u.value.clone(),
-                };
+                 let value = self.eval_expression_to_string(&attr.value);
                 style_props.push(format!("{}:{}", attr.name.value, value));
             }
         }
@@ -89,13 +84,19 @@ impl Generator {
     }
 
     fn generate_attribute(&self, attribute: &AttributeStatement) -> String {
-        let value = match &attribute.value {
-            Expression::Identifier(ident) => ident.value.clone(),
-            Expression::StringLiteral(s) => s.value.clone(),
-            Expression::NumberLiteral(n) => n.value.clone(),
-            Expression::UnquotedLiteral(u) => u.value.clone(),
-        };
+        let value = self.eval_expression_to_string(&attribute.value);
         format!(r#" {_name}="{_value}""#, _name = attribute.name.value, _value = value)
+    }
+
+    fn eval_expression_to_string(&self, expr: &Expression) -> String {
+        let value_obj = self.evaluator.eval(expr);
+        match value_obj {
+            Object::Error(e) => {
+                eprintln!("Evaluation Error: {}", e);
+                "".to_string()
+            }
+            _ => value_obj.to_string(),
+        }
     }
 }
 
@@ -179,6 +180,29 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<div class="my-class another-class">This is unquoted text</div>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_property_arithmetic() {
+        let input = r#"
+        div {
+            style {
+                width: 100px + 50;
+                height: 200.5em - 0.5em;
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
+
+        let generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<div style="width:150px;height:200em"></div>"#;
         assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
     }
 }

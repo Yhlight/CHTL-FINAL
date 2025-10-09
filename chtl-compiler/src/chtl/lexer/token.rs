@@ -12,6 +12,7 @@ pub enum Token {
     // Operators
     Colon,       // :
     Semicolon,   // ;
+    Question,    // ?
     LParen,      // (
     RParen,      // )
     LBrace,      // {
@@ -34,6 +35,7 @@ pub enum Token {
     Hash,        // #
 
     // Keywords
+    Text,
     Style,
     Script,
     Template,

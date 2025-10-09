@@ -8,17 +8,62 @@ impl Evaluator {
         Evaluator
     }
 
-    pub fn eval(&self, node: &Expression) -> Object {
+    pub fn eval(
+        &self,
+        node: &Expression,
+        context: &std::collections::HashMap<String, Object>,
+    ) -> Object {
         match node {
             Expression::StringLiteral(s) => Object::String(s.value.clone()),
-            Expression::UnquotedLiteral(u) => self.eval_unquoted_literal(u),
-            Expression::Infix(i) => self.eval_infix_expression(i),
-            Expression::Identifier(i) => Object::String(i.value.clone()),
-            Expression::NumberLiteral(n) => self.eval_unquoted_literal(&UnquotedLiteralExpression { value: n.value.clone() }),
+            Expression::UnquotedLiteral(u) => self.eval_unquoted_literal(u, context),
+            Expression::Infix(i) => self.eval_infix_expression(i, context),
+            Expression::Identifier(i) => {
+                if let Some(val) = context.get(&i.value) {
+                    return val.clone();
+                }
+                Object::String(i.value.clone())
+            }
+            Expression::NumberLiteral(n) => self.eval_unquoted_literal(
+                &UnquotedLiteralExpression {
+                    value: n.value.clone(),
+                },
+                context,
+            ),
+            Expression::Conditional(c) => self.eval_conditional_expression(c, context),
         }
     }
 
-    fn eval_unquoted_literal(&self, literal: &UnquotedLiteralExpression) -> Object {
+    fn eval_conditional_expression(
+        &self,
+        node: &ConditionalExpression,
+        context: &std::collections::HashMap<String, Object>,
+    ) -> Object {
+        let condition = self.eval(&node.condition, context);
+
+        match condition {
+            Object::Boolean(b) => {
+                if b {
+                    self.eval(&node.consequence, context)
+                } else if let Some(alt) = &node.alternative {
+                    self.eval(alt, context)
+                } else {
+                    Object::String("".to_string())
+                }
+            }
+            _ => Object::Error(
+                "Condition in conditional expression did not evaluate to a boolean".to_string(),
+            ),
+        }
+    }
+
+    fn eval_unquoted_literal(
+        &self,
+        literal: &UnquotedLiteralExpression,
+        context: &std::collections::HashMap<String, Object>,
+    ) -> Object {
+        if let Some(obj) = context.get(&literal.value) {
+            return obj.clone();
+        }
         // Heuristic: if it starts with a digit or dot, treat as a number. Otherwise, a string.
         if literal.value.chars().next().map_or(false, |c| c.is_ascii_digit() || c == '.') {
             let (val, unit) = self.parse_value_unit(&literal.value);
@@ -28,9 +73,13 @@ impl Evaluator {
         }
     }
 
-    fn eval_infix_expression(&self, node: &InfixExpression) -> Object {
-        let left = self.eval(&node.left);
-        let right = self.eval(&node.right);
+    fn eval_infix_expression(
+        &self,
+        node: &InfixExpression,
+        context: &std::collections::HashMap<String, Object>,
+    ) -> Object {
+        let left = self.eval(&node.left, context);
+        let right = self.eval(&node.right, context);
 
         match (left, right) {
             (Object::Number(left_val, left_unit), Object::Number(right_val, right_unit)) => {
@@ -47,6 +96,8 @@ impl Evaluator {
                     "/" => Object::Number(left_val / right_val, result_unit),
                     "**" => Object::Number(left_val.powf(right_val), result_unit),
                     "%" => Object::Number(left_val % right_val, result_unit),
+                    ">" => Object::Boolean(left_val > right_val),
+                    "<" => Object::Boolean(left_val < right_val),
                     _ => Object::Error(format!("Unknown operator: {}", node.operator)),
                 }
             }
@@ -77,10 +128,11 @@ mod tests {
         let program = parser.parse_program();
         let stmt = &program.statements[0];
         if let Statement::Style(style_stmt) = stmt {
-             let attr_stmt = &style_stmt.body[0];
+            let attr_stmt = &style_stmt.body[0];
             if let Statement::Attribute(attr) = attr_stmt {
                 let evaluator = Evaluator::new();
-                return evaluator.eval(&attr.value);
+                let context = std::collections::HashMap::new();
+                return evaluator.eval(&attr.value, &context);
             }
         }
         panic!("Invalid test input");
@@ -103,6 +155,68 @@ mod tests {
             let full_input = format!("style {{ {} }}", input);
             let result = test_eval(&full_input);
             assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_eval_conditional_expression() {
+        let tests = vec![
+            (
+                "background: 10 > 5 ? \"red\" : \"blue\";",
+                Object::String("red".to_string()),
+            ),
+            (
+                "background: 5 > 10 ? \"red\" : \"blue\";",
+                Object::String("blue".to_string()),
+            ),
+            (
+                "background: 10 > 5 ? 100px : 200px;",
+                Object::Number(100.0, "px".to_string()),
+            ),
+        ];
+
+        for (input, expected) in tests {
+            let full_input = format!("style {{ {} }}", input);
+            let result = test_eval(&full_input);
+            assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_eval_with_context() {
+        let input = r#"
+        style {
+            width: 100px;
+            height: width > 50px ? 200px : 50px;
+        }
+        "#;
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        let stmt = &program.statements[0];
+
+        if let Statement::Style(style_stmt) = stmt {
+            let evaluator = Evaluator::new();
+            let mut context = std::collections::HashMap::new();
+
+            // Manually evaluate the first attribute to populate context
+            if let Statement::Attribute(attr) = &style_stmt.body[0] {
+                let val = evaluator.eval(&attr.value, &context);
+                context.insert(attr.name.value.clone(), val);
+            } else {
+                panic!("Expected first statement to be an attribute");
+            }
+
+            // Evaluate the second attribute using the populated context
+            if let Statement::Attribute(attr) = &style_stmt.body[1] {
+                let result = evaluator.eval(&attr.value, &context);
+                assert_eq!(result, Object::Number(200.0, "px".to_string()));
+            } else {
+                panic!("Expected second statement to be an attribute");
+            }
+        } else {
+            panic!("Expected a style statement");
         }
     }
 }

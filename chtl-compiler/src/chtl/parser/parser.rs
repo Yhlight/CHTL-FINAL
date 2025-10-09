@@ -5,9 +5,11 @@ use crate::chtl::node::ast::*;
 #[derive(PartialEq, PartialOrd, Debug, Clone, Copy)]
 enum Precedence {
     Lowest,
-    Sum,     // + or -
-    Product, // * or /
-    Power,   // **
+    Conditional, // ?:
+    LessGreater, // > or <
+    Sum,         // + or -
+    Product,     // * or /
+    Power,       // **
 }
 
 pub struct Parser<'a> {
@@ -56,14 +58,25 @@ impl<'a> Parser<'a> {
 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.current_token.clone() {
-            Token::Identifier(name) => {
-                if name == "text" && self.peek_token_is(&Token::LBrace) {
-                    self.parse_text_statement()
-                } else if self.peek_token_is(&Token::LBrace) {
+            Token::Identifier(_) => {
+                if self.peek_token_is(&Token::LBrace) {
                     self.parse_element_statement()
                 } else if self.peek_token_is(&Token::Colon) {
                     self.parse_attribute_statement()
                 } else {
+                    None
+                }
+            }
+            Token::Text => {
+                if self.peek_token_is(&Token::LBrace) {
+                    self.parse_text_statement()
+                } else if self.peek_token_is(&Token::Colon) {
+                    self.parse_attribute_statement()
+                } else {
+                    self.errors.push(format!(
+                        "Unexpected token after 'text' keyword: {:?}",
+                        self.peek_token
+                    ));
                     None
                 }
             }
@@ -83,13 +96,100 @@ impl<'a> Parser<'a> {
 
         let mut body = Vec::new();
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
-            if let Some(stmt) = self.parse_statement() {
-                body.push(stmt);
+            let stmt = match self.current_token.clone() {
+                Token::Dot | Token::Hash | Token::Ampersand => self.parse_style_rule_statement(),
+                Token::Identifier(_) => {
+                    if self.peek_token_is(&Token::LBrace) {
+                        self.parse_style_rule_statement()
+                    } else if self.peek_token_is(&Token::Colon) {
+                        self.parse_attribute_statement()
+                    } else {
+                        self.errors.push(format!(
+                            "Unexpected token in style block: {:?}",
+                            self.peek_token
+                        ));
+                        None
+                    }
+                }
+                _ => {
+                    self.errors.push(format!(
+                        "Unexpected token in style block: {:?}",
+                        self.current_token
+                    ));
+                    None
+                }
+            };
+
+            if let Some(s) = stmt {
+                body.push(s);
             }
             self.next_token();
         }
 
         Some(Statement::Style(StyleStatement { body }))
+    }
+
+    fn parse_style_rule_statement(&mut self) -> Option<Statement> {
+        let mut selector = String::new();
+        let mut prev_token_was_identifier = false;
+
+        while !self.current_token_is(&Token::LBrace) {
+            if self.current_token_is(&Token::Eof) {
+                self.errors
+                    .push("Unexpected EOF while parsing style rule selector".to_string());
+                return None;
+            }
+
+            let (part, is_ident) =
+                if let Some(res) = self.token_to_string_for_selector(&self.current_token) {
+                    res
+                } else {
+                    self.errors.push(format!(
+                        "Unexpected token in selector: {:?}",
+                        self.current_token
+                    ));
+                    return None;
+                };
+
+            if prev_token_was_identifier && is_ident {
+                selector.push(' ');
+            }
+
+            selector.push_str(&part);
+            prev_token_was_identifier = is_ident;
+            self.next_token();
+        }
+
+        self.next_token(); // consume LBrace
+
+        let mut body = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(stmt) = self.parse_attribute_statement() {
+                body.push(stmt);
+            }
+            self.next_token();
+        }
+
+        Some(Statement::StyleRule(StyleRuleStatement { selector, body }))
+    }
+
+    fn parse_conditional_expression(&mut self, condition: Expression) -> Option<Expression> {
+        self.next_token(); // consume '?', current_token is now first token of consequence
+        let consequence = self.parse_expression(Precedence::Conditional)?; // parse consequence
+
+        let alternative = if self.peek_token_is(&Token::Colon) {
+            self.next_token(); // consume last token of consequence, current_token is now ':'
+            self.next_token(); // consume ':', current_token is now first token of alternative
+            Some(self.parse_expression(Precedence::Conditional)?)
+        } else {
+            None
+        };
+
+        Some(Expression::Conditional(ConditionalExpression {
+            condition: Box::new(condition),
+            consequence: Box::new(consequence),
+            alternative: alternative.map(Box::new),
+        }))
     }
 
     fn parse_element_statement(&mut self) -> Option<Statement> {
@@ -115,6 +215,7 @@ impl<'a> Parser<'a> {
     fn parse_attribute_statement(&mut self) -> Option<Statement> {
         let name = match self.current_token.clone() {
             Token::Identifier(name) => IdentifierExpression { value: name },
+            Token::Text => IdentifierExpression { value: "text".to_string() },
             _ => return None,
         };
 
@@ -149,12 +250,11 @@ impl<'a> Parser<'a> {
             if !first {
                 literal.push(' ');
             }
-            let s = match self.current_token.clone() {
-                Token::Identifier(s) => s,
-                Token::Number(s) => s,
-                _ => break,
-            };
-            literal.push_str(&s);
+            if let Some(s) = self.token_to_string_for_unquoted_literal(&self.current_token) {
+                literal.push_str(&s);
+            } else {
+                break;
+            }
             self.next_token();
             first = false;
         }
@@ -171,7 +271,11 @@ impl<'a> Parser<'a> {
 
         while !self.peek_token_is(&Token::Semicolon) && precedence < self.peek_precedence() {
             self.next_token();
-            left_exp = self.parse_infix_expression(left_exp)?;
+            left_exp = if self.current_token_is(&Token::Question) {
+                self.parse_conditional_expression(left_exp)?
+            } else {
+                self.parse_infix_expression(left_exp)?
+            };
         }
 
         Some(left_exp)
@@ -184,17 +288,22 @@ impl<'a> Parser<'a> {
                 let mut literal = String::new();
                 let mut current_tok = tok;
                 loop {
-                    let s_val = match current_tok {
-                        Token::Identifier(s) => s,
-                        Token::Number(s) => s,
-                        _ => unreachable!(),
-                    };
-                    literal.push_str(&s_val);
+                    if let Some(s_val) = self.token_to_string_for_unquoted_literal(&current_tok) {
+                        literal.push_str(&s_val);
+                    } else {
+                        break;
+                    }
 
                     if self.is_peek_unquoted_literal_token() {
+                        let is_current_number = matches!(current_tok, Token::Number(_));
+                        let is_peek_identifier = matches!(self.peek_token, Token::Identifier(_));
+
                         self.next_token();
                         current_tok = self.current_token.clone();
-                        literal.push(' ');
+
+                        if !(is_current_number && is_peek_identifier) {
+                            literal.push(' ');
+                        }
                     } else {
                         break;
                     }
@@ -213,6 +322,8 @@ impl<'a> Parser<'a> {
             Token::Slash => "/".to_string(),
             Token::Percent => "%".to_string(),
             Token::Power => "**".to_string(),
+            Token::Gt => ">".to_string(),
+            Token::Lt => "<".to_string(),
             _ => return None,
         };
 
@@ -240,6 +351,8 @@ impl<'a> Parser<'a> {
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Asterisk | Token::Slash | Token::Percent => Precedence::Product,
             Token::Power => Precedence::Power,
+            Token::Gt | Token::Lt => Precedence::LessGreater,
+            Token::Question => Precedence::Conditional,
             _ => Precedence::Lowest,
         }
     }
@@ -253,7 +366,7 @@ impl<'a> Parser<'a> {
     }
 
     fn is_unquoted_literal_token(&self, t: &Token) -> bool {
-        matches!(t, Token::Identifier(_) | Token::Number(_))
+        self.token_to_string_for_unquoted_literal(t).is_some()
     }
 
     fn is_peek_unquoted_literal_token(&self) -> bool {
@@ -276,6 +389,49 @@ impl<'a> Parser<'a> {
             t, self.peek_token
         );
         self.errors.push(msg);
+    }
+
+    fn token_to_string_for_selector(&self, token: &Token) -> Option<(String, bool)> {
+        match token.clone() {
+            Token::Identifier(s) => Some((s, true)),
+            Token::Dot => Some((".".to_string(), false)),
+            Token::Hash => Some(("#".to_string(), false)),
+            Token::Ampersand => Some(("&".to_string(), false)),
+            Token::Colon => Some((":".to_string(), false)),
+            Token::Before => Some(("before".to_string(), true)),
+            _ => None,
+        }
+    }
+
+    fn token_to_string_for_unquoted_literal(&self, token: &Token) -> Option<String> {
+        match token.clone() {
+            Token::Identifier(s) => Some(s),
+            Token::Number(s) => Some(s),
+            Token::Text => Some("text".to_string()),
+            Token::Style => Some("style".to_string()),
+            Token::Script => Some("script".to_string()),
+            Token::Template => Some("template".to_string()),
+            Token::Custom => Some("custom".to_string()),
+            Token::Origin => Some("origin".to_string()),
+            Token::Import => Some("import".to_string()),
+            Token::Namespace => Some("namespace".to_string()),
+            Token::Configuration => Some("configuration".to_string()),
+            Token::Use => Some("use".to_string()),
+            Token::If => Some("if".to_string()),
+            Token::Else => Some("else".to_string()),
+            Token::Except => Some("except".to_string()),
+            Token::Inherit => Some("inherit".to_string()),
+            Token::Delete => Some("delete".to_string()),
+            Token::Insert => Some("insert".to_string()),
+            Token::After => Some("after".to_string()),
+            Token::Before => Some("before".to_string()),
+            Token::Replace => Some("replace".to_string()),
+            Token::AtTop => Some("at top".to_string()),
+            Token::AtBottom => Some("at bottom".to_string()),
+            Token::From => Some("from".to_string()),
+            Token::As => Some("as".to_string()),
+            _ => None,
+        }
     }
 }
 
@@ -381,6 +537,204 @@ mod tests {
                 }
             } else {
                 panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
+        }
+    }
+
+    #[test]
+    fn test_conditional_expression() {
+        let input = r#"
+        style {
+            background-color: width > 50px ? "red" : "blue";
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Style(style_stmt) = stmt {
+            let attr_stmt = &style_stmt.body[0];
+            if let Statement::Attribute(attr) = attr_stmt {
+                if let Expression::Conditional(cond_expr) = &attr.value {
+                    // Check condition
+                    if let Expression::Infix(infix) = &*cond_expr.condition {
+                        assert_eq!(infix.operator, ">");
+                    } else {
+                        panic!("Expected InfixExpression for condition");
+                    }
+
+                    // Check consequence
+                    if let Expression::StringLiteral(s) = &*cond_expr.consequence {
+                        assert_eq!(s.value, "red");
+                    } else {
+                        panic!("Expected StringLiteral for consequence");
+                    }
+
+                    // Check alternative
+                    if let Some(alt) = &cond_expr.alternative {
+                        if let Expression::StringLiteral(s) = &**alt {
+                            assert_eq!(s.value, "blue");
+                        } else {
+                            panic!("Expected StringLiteral for alternative");
+                        }
+                    } else {
+                        panic!("Expected an alternative expression");
+                    }
+                } else {
+                    panic!("Expected ConditionalExpression");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
+        }
+    }
+
+    #[test]
+    fn test_context_deduction_in_style() {
+        let input = r#"
+        style {
+            .box {
+                color: "blue";
+            }
+            &:hover {
+                color: "red";
+            }
+            &::before {
+                content: "";
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        assert_eq!(program.statements.len(), 1);
+        let stmt = &program.statements[0];
+        if let Statement::Style(style_stmt) = stmt {
+            assert_eq!(style_stmt.body.len(), 3);
+
+            // Test &:hover
+            let rule2 = &style_stmt.body[1];
+            if let Statement::StyleRule(rule) = rule2 {
+                assert_eq!(rule.selector, "&:hover");
+            } else {
+                panic!("Expected StyleRuleStatement for &:hover");
+            }
+
+            // Test &::before
+            let rule3 = &style_stmt.body[2];
+            if let Statement::StyleRule(rule) = rule3 {
+                assert_eq!(rule.selector, "&::before");
+            } else {
+                panic!("Expected StyleRuleStatement for &::before");
+            }
+        } else {
+            panic!("Expected StyleStatement");
+        }
+    }
+
+    #[test]
+    fn test_style_rule_statement() {
+        let input = r#"
+        style {
+            .my-class {
+                color: "red";
+            }
+            #my-id {
+                font-size: 16px;
+            }
+            p {
+                margin: 0;
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors.is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors
+        );
+
+        assert_eq!(program.statements.len(), 1);
+        let stmt = &program.statements[0];
+        if let Statement::Style(style_stmt) = stmt {
+            assert_eq!(style_stmt.body.len(), 3);
+
+            // Test .my-class
+            let rule1 = &style_stmt.body[0];
+            if let Statement::StyleRule(rule) = rule1 {
+                assert_eq!(rule.selector, ".my-class");
+                assert_eq!(rule.body.len(), 1);
+                if let Statement::Attribute(attr) = &rule.body[0] {
+                    assert_eq!(attr.name.value, "color");
+                    if let Expression::StringLiteral(s) = &attr.value {
+                        assert_eq!(s.value, "red");
+                    } else {
+                        panic!("Expected StringLiteral for color value");
+                    }
+                } else {
+                    panic!("Expected AttributeStatement");
+                }
+            } else {
+                panic!("Expected StyleRuleStatement for .my-class");
+            }
+
+            // Test #my-id
+            let rule2 = &style_stmt.body[1];
+            if let Statement::StyleRule(rule) = rule2 {
+                assert_eq!(rule.selector, "#my-id");
+                assert_eq!(rule.body.len(), 1);
+                if let Statement::Attribute(attr) = &rule.body[0] {
+                    assert_eq!(attr.name.value, "font-size");
+                    if let Expression::UnquotedLiteral(s) = &attr.value {
+                        assert_eq!(s.value, "16px");
+                    } else {
+                        panic!("Expected UnquotedLiteral for font-size value");
+                    }
+                } else {
+                    panic!("Expected AttributeStatement");
+                }
+            } else {
+                panic!("Expected StyleRuleStatement for #my-id");
+            }
+
+            // Test p
+            let rule3 = &style_stmt.body[2];
+            if let Statement::StyleRule(rule) = rule3 {
+                assert_eq!(rule.selector, "p");
+                assert_eq!(rule.body.len(), 1);
+                if let Statement::Attribute(attr) = &rule.body[0] {
+                    assert_eq!(attr.name.value, "margin");
+                    if let Expression::UnquotedLiteral(s) = &attr.value {
+                        assert_eq!(s.value, "0");
+                    } else {
+                        panic!("Expected UnquotedLiteral for margin value");
+                    }
+                } else {
+                    panic!("Expected AttributeStatement");
+                }
+            } else {
+                panic!("Expected StyleRuleStatement for p");
             }
         } else {
             panic!("Expected StyleStatement");

@@ -2,6 +2,7 @@
 pub enum Object {
     Number(f64, String), // Value and unit
     String(String),
+    Boolean(bool),
     Error(String),
 }
 
@@ -10,6 +11,7 @@ impl std::fmt::Display for Object {
         match self {
             Object::Number(val, unit) => write!(f, "{}{}", val, unit),
             Object::String(s) => write!(f, "{}", s),
+            Object::Boolean(b) => write!(f, "{}", b),
             Object::Error(s) => write!(f, "Error: {}", s),
         }
     }

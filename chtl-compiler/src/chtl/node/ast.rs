@@ -11,11 +11,18 @@ pub struct Program {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct StyleRuleStatement {
+    pub selector: String,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Element(ElementStatement),
     Text(TextStatement),
     Attribute(AttributeStatement),
     Style(StyleStatement),
+    StyleRule(StyleRuleStatement),
     Comment(CommentStatement),
 }
 
@@ -30,12 +37,20 @@ pub struct StyleStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct ConditionalExpression {
+    pub condition: Box<Expression>,
+    pub consequence: Box<Expression>,
+    pub alternative: Option<Box<Expression>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Identifier(IdentifierExpression),
     StringLiteral(StringLiteralExpression),
     NumberLiteral(NumberLiteralExpression),
     UnquotedLiteral(UnquotedLiteralExpression),
     Infix(InfixExpression),
+    Conditional(ConditionalExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]

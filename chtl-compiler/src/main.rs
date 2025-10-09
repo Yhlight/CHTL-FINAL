@@ -34,7 +34,7 @@ fn main() {
         return;
     }
 
-    let generator = Generator::new();
+    let mut generator = Generator::new();
     let html = generator.generate(&program);
     println!("{}", html);
 }

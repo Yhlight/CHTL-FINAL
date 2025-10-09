@@ -27,6 +27,7 @@ impl<'a> Lexer<'a> {
         let tok = match self.ch {
             '=' | ':' => Token::Colon,
             ';' => Token::Semicolon,
+            '?' => Token::Question,
             '(' => Token::LParen,
             ')' => Token::RParen,
             '{' => Token::LBrace,
@@ -82,6 +83,7 @@ impl<'a> Lexer<'a> {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
                     return match literal.as_str() {
+                        "text" => Token::Text,
                         "style" => Token::Style,
                         "script" => Token::Script,
                         "template" => Token::Template,
@@ -241,7 +243,7 @@ mod tests {
             Token::Colon,
             Token::Identifier("welcome".to_string()),
             Token::Semicolon,
-            Token::Identifier("text".to_string()),
+            Token::Text,
             Token::LBrace,
             Token::String("Hello World".to_string()),
             Token::RBrace,
@@ -289,6 +291,24 @@ mod tests {
             Token::Colon,
             Token::Identifier("container".to_string()),
             Token::Semicolon,
+            Token::Eof,
+        ];
+
+        let mut lexer = Lexer::new(input);
+        for expected_token in tests {
+            let tok = lexer.next_token();
+            assert_eq!(tok, expected_token);
+        }
+    }
+
+    #[test]
+    fn test_text_keyword() {
+        let input = "text { \"some text\" }";
+        let tests = vec![
+            Token::Text,
+            Token::LBrace,
+            Token::String("some text".to_string()),
+            Token::RBrace,
             Token::Eof,
         ];
 

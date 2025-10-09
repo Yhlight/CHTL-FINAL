@@ -36,6 +36,7 @@ pub struct UseTemplateStatement {
     pub name: IdentifierExpression,
     pub template_type: IdentifierExpression,
     pub body: Option<Vec<Statement>>,
+    pub from: Option<IdentifierExpression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -47,6 +48,11 @@ pub struct DeleteStatement {
 pub struct IfStatement {
     pub condition: Expression,
     pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct NamespaceStatement {
+    pub name: IdentifierExpression,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -62,6 +68,7 @@ pub enum Statement {
     Import(ImportStatement),
     Delete(DeleteStatement),
     If(IfStatement),
+    Namespace(NamespaceStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]

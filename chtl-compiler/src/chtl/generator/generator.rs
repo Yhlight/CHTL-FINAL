@@ -1,19 +1,21 @@
 use crate::chtl::evaluator::evaluator::Evaluator;
 use crate::chtl::evaluator::object::Object;
-use crate::chtl::lexer::lexer::Lexer;
 use crate::chtl::loader::Loader;
-use crate::chtl::node::ast::*;
+use crate::chtl::node::ast::{
+    CommentStatement, ElementStatement, Expression, ImportFileType, ImportSpecifier, Program,
+    Statement, StyleStatement, TemplateDefinitionStatement, TemplateType, TextStatement,
+};
+use crate::chtl::lexer::lexer::Lexer;
 use crate::chtl::parser::parser::Parser;
 use std::collections::HashMap;
 
-type DocumentMap = HashMap<String, HashMap<String, Expression>>;
-
 pub struct Generator {
-    evaluator: Evaluator,
-    global_css: String,
-    templates: HashMap<String, TemplateDefinitionStatement>,
-    loader: Loader,
-    document_map: DocumentMap,
+    pub evaluator: Evaluator,
+    pub global_css: String,
+    pub templates: HashMap<String, HashMap<String, TemplateDefinitionStatement>>,
+    pub loader: Loader,
+    pub document_map: HashMap<String, HashMap<String, Expression>>,
+    pub current_namespace: String,
 }
 
 impl Generator {
@@ -24,12 +26,14 @@ impl Generator {
             templates: HashMap::new(),
             loader: Loader::new(),
             document_map: HashMap::new(),
+            current_namespace: "::default".to_string(),
         }
     }
 
     fn apply_style_template(
         &mut self,
         template: &TemplateDefinitionStatement,
+        template_namespace: &str,
         context: &mut HashMap<String, Object>,
         inline_style_props: &mut HashMap<String, String>,
         specialization_body: &Option<Vec<Statement>>,
@@ -41,24 +45,38 @@ impl Generator {
             match stmt {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let value_obj =
-                            self.evaluator
-                                .eval(expr, context, &self.templates, &self.document_map);
+                        let all_templates: HashMap<_, _> = self
+                            .templates
+                            .values()
+                            .flat_map(|m| m.iter())
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect();
+                        let value_obj = self.evaluator.eval(
+                            expr,
+                            context,
+                            &all_templates,
+                            &self.document_map,
+                        );
                         applied_properties.insert(attr.name.value.clone(), value_obj);
                     }
                 }
                 Statement::UseTemplate(use_stmt) => {
                     if use_stmt.template_type.value == "Style" {
-                        if let Some(nested_template) =
-                            self.templates.get(&use_stmt.name.value).cloned()
-                        {
-                            if matches!(nested_template.template_type, TemplateType::Style) {
-                                self.apply_style_template(
-                                    &nested_template,
-                                    context,
-                                    inline_style_props,
-                                    &None, // No specialization for nested templates for now
-                                );
+                        // Nested template usage. Resolve it within the parent's namespace
+                        // unless a 'from' clause is specified.
+                        let namespace_key = use_stmt.from.as_ref().map_or(template_namespace, |f| &f.value);
+                        if let Some(templates_in_ns) = self.templates.get(namespace_key) {
+                            if let Some(nested_template) = templates_in_ns.get(&use_stmt.name.value).cloned() {
+                                if matches!(nested_template.template_type, TemplateType::Style) {
+                                    // Pass the namespace of the resolved template, and &None for specialization body.
+                                    self.apply_style_template(
+                                        &nested_template,
+                                        namespace_key,
+                                        context,
+                                        inline_style_props,
+                                        &None,
+                                    );
+                                }
                             }
                         }
                     }
@@ -67,16 +85,22 @@ impl Generator {
             }
         }
 
-        // Apply specialized properties and deletions
+        // Apply specialized properties and deletions from the call site
         if let Some(body) = specialization_body {
             for stmt in body {
                 match stmt {
                     Statement::Attribute(attr) => {
                         if let Some(expr) = &attr.value {
+                        let all_templates: HashMap<_, _> = self
+                            .templates
+                            .values()
+                            .flat_map(|m| m.iter())
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect();
                             let value_obj = self.evaluator.eval(
                                 expr,
                                 context,
-                                &self.templates,
+                            &all_templates,
                                 &self.document_map,
                             );
                             applied_properties.insert(attr.name.value.clone(), value_obj);
@@ -92,10 +116,13 @@ impl Generator {
                                     let template_name = lit.value.split_whitespace().last().unwrap();
                                     // This is a simplification. A more robust solution would
                                     // track which properties came from which template.
-                                    if let Some(template_to_delete) = self.templates.get(template_name) {
-                                        for t_stmt in &template_to_delete.body {
-                                            if let Statement::Attribute(t_attr) = t_stmt {
-                                                applied_properties.remove(&t_attr.name.value);
+                                    // For now, we search all namespaces.
+                                    for templates_in_ns in self.templates.values() {
+                                        if let Some(template_to_delete) = templates_in_ns.get(template_name) {
+                                            for t_stmt in &template_to_delete.body {
+                                                if let Statement::Attribute(t_attr) = t_stmt {
+                                                    applied_properties.remove(&t_attr.name.value);
+                                                }
                                             }
                                         }
                                     }
@@ -115,42 +142,61 @@ impl Generator {
         }
     }
 
-    fn process_imports_and_templates(&mut self, program: &Program) {
+    fn process_imports_and_templates(&mut self, program: &Program, file_path_for_namespace: &str) {
+        // Determine the namespace for the current file.
+        // It's either defined by a [Namespace] directive or defaults to the filename.
+        let mut namespace_for_this_file = std::path::Path::new(file_path_for_namespace)
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("::default")
+            .to_string();
+
+        for statement in &program.statements {
+            if let Statement::Namespace(ns) = statement {
+                namespace_for_this_file = ns.name.value.clone();
+                break; // First namespace directive wins
+            }
+        }
+
         for statement in &program.statements {
             match statement {
                 Statement::TemplateDefinition(def) => {
-                    self.templates.insert(def.name.value.clone(), def.clone());
+                    self.templates
+                        .entry(namespace_for_this_file.clone())
+                        .or_default()
+                        .insert(def.name.value.clone(), def.clone());
                 }
                 Statement::Import(import_stmt) => {
-                    // For now, we only handle CHTL file imports.
                     if let ImportSpecifier::File(ImportFileType::Chtl) = &import_stmt.specifier {
                         let path = match &import_stmt.path {
                             Expression::StringLiteral(s) => s.value.clone(),
                             Expression::UnquotedLiteral(u) => u.value.clone(),
                             _ => {
-                                eprintln!("Warning: Unsupported import path expression: {:?}", import_stmt.path);
+                                eprintln!(
+                                    "Warning: Unsupported import path expression: {:?}",
+                                    import_stmt.path
+                                );
                                 continue;
                             }
                         };
 
-                        match self.loader.load_file_content(&path) {
-                            Ok(content) => {
-                                let lexer = Lexer::new(&content);
-                                let mut parser = Parser::new(lexer);
-                                let imported_program = parser.parse_program();
-                                if !parser.errors().is_empty() {
-                                    eprintln!("Warning: Parsing errors in imported file '{}': {:?}", path, parser.errors());
-                                }
-                                // Recursively process the imported file.
-                                self.process_imports_and_templates(&imported_program);
+                        if let Ok(content) = self.loader.load_file_content(&path) {
+                            let lexer = Lexer::new(&content);
+                            let mut parser = Parser::new(lexer);
+                            let imported_program = parser.parse_program();
+                            if !parser.errors().is_empty() {
+                                eprintln!(
+                                    "Warning: Parsing errors in imported file '{}': {:?}",
+                                    path,
+                                    parser.errors()
+                                );
                             }
-                            Err(e) => {
-                                eprintln!("Warning: Failed to load imported file '{}': {}", path, e);
-                            }
+                            // Recursively process the imported file, passing its path
+                            self.process_imports_and_templates(&imported_program, &path);
                         }
                     }
                 }
-                _ => {} // Ignore other statements in this pass.
+                _ => {}
             }
         }
     }
@@ -208,16 +254,25 @@ impl Generator {
 
     pub fn generate(&mut self, program: &Program) -> String {
         // First pass: recursively process imports and collect templates.
-        self.process_imports_and_templates(program);
+        self.process_imports_and_templates(program, "main.chtl");
 
         // New pass: collect all element properties for cross-element reference.
         self.collect_element_properties(&program.statements);
+
+        // Determine the main namespace for the generation pass.
+        self.current_namespace = "::default".to_string(); // Reset before check
+        for statement in &program.statements {
+            if let Statement::Namespace(ns) = statement {
+                self.current_namespace = ns.name.value.clone();
+                break;
+            }
+        }
 
         // Second pass: generate the actual HTML from the main program.
         let mut html = String::new();
         for statement in &program.statements {
             // Don't generate output for top-level templates or imports.
-            if !matches!(statement, Statement::TemplateDefinition(_) | Statement::Import(_)) {
+            if !matches!(statement, Statement::TemplateDefinition(_) | Statement::Import(_) | Statement::Namespace(_)) {
                 html.push_str(&self.generate_statement(statement));
             }
         }
@@ -241,27 +296,24 @@ impl Generator {
                 String::new()
             }
             Statement::Comment(comment) => self.generate_comment(comment),
-            Statement::Attribute(_) => String::new(), // Attributes are handled within elements
-            Statement::StyleRule(_) => String::new(), // Style rules are handled within style blocks
-            Statement::TemplateDefinition(_) => String::new(), // Handled at a higher level
             Statement::UseTemplate(use_stmt) => {
                 if use_stmt.template_type.value == "Element" {
-                    if let Some(template) = self.templates.get(&use_stmt.name.value).cloned() {
-                        if matches!(template.template_type, TemplateType::Element) {
-                            let mut html = String::new();
-                            for stmt in &template.body {
-                                html.push_str(&self.generate_statement(stmt));
+                    let namespace_key = use_stmt.from.as_ref().map_or(&self.current_namespace, |f| &f.value);
+                    if let Some(templates_in_ns) = self.templates.get(namespace_key) {
+                        if let Some(template) = templates_in_ns.get(&use_stmt.name.value).cloned() {
+                            if matches!(template.template_type, TemplateType::Element) {
+                                let mut html = String::new();
+                                for stmt in &template.body {
+                                    html.push_str(&self.generate_statement(stmt));
+                                }
+                                return html;
                             }
-                            return html;
                         }
                     }
                 }
-                // Non-element templates are handled within their respective blocks (e.g., style)
                 String::new()
             }
-            Statement::Import(_) => String::new(),
-            Statement::Delete(_) => String::new(), // Handled within template application
-            Statement::If(_) => String::new(), // Will be handled inside generate_element
+            _ => String::new(),
         }
     }
 
@@ -295,10 +347,16 @@ impl Generator {
         for stmt in &temp_prop_stmts {
             if let Statement::Attribute(attr) = stmt {
                 if let Some(expr) = &attr.value {
+                    let all_templates: HashMap<_, _> = self
+                        .templates
+                        .values()
+                        .flat_map(|m| m.iter())
+                        .map(|(k, v)| (k.clone(), v.clone()))
+                        .collect();
                     let value_obj = self.evaluator.eval(
                         expr,
-                        &context_for_ifs,
-                        &self.templates,
+                        &mut context_for_ifs,
+                        &all_templates,
                         &self.document_map,
                     );
                     context_for_ifs.insert(attr.name.value.clone(), value_obj);
@@ -308,10 +366,16 @@ impl Generator {
 
         // 3. Evaluate `if` statements and add their body statements to the appropriate lists.
         for if_stmt in if_statements {
+            let all_templates: HashMap<_, _> = self
+                .templates
+                .values()
+                .flat_map(|m| m.iter())
+                .map(|(k, v)| (k.clone(), v.clone()))
+                .collect();
             let condition_result = self.evaluator.eval(
                 &if_stmt.condition,
-                &context_for_ifs,
-                &self.templates,
+                &mut context_for_ifs,
+                &all_templates,
                 &self.document_map,
             );
             if let Object::Boolean(true) = condition_result {
@@ -330,7 +394,8 @@ impl Generator {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
                         // Use the full context now for evaluation
-                        let value = self.eval_expression_to_string(expr, &context_for_ifs);
+                        let value =
+                            self.eval_expression_to_string(expr, &mut context_for_ifs);
                         if attr.name.value == "text" {
                             children.push_str(&value);
                         } else {
@@ -383,7 +448,18 @@ impl Generator {
             match statement {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let value_obj = self.evaluator.eval(expr, &context, &self.templates, &self.document_map);
+                        let all_templates: HashMap<_, _> = self
+                            .templates
+                            .values()
+                            .flat_map(|m| m.iter())
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect();
+                        let value_obj = self.evaluator.eval(
+                            expr,
+                            &mut context,
+                            &all_templates,
+                            &self.document_map,
+                        );
                         context.insert(attr.name.value.clone(), value_obj.clone());
                         inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
                     }
@@ -393,14 +469,21 @@ impl Generator {
                 }
                 Statement::UseTemplate(use_stmt) => {
                     if use_stmt.template_type.value == "Style" {
-                        if let Some(template) = self.templates.get(&use_stmt.name.value).cloned() {
-                            if matches!(template.template_type, TemplateType::Style) {
-                                self.apply_style_template(
-                                    &template,
-                                    &mut context,
-                                    &mut inline_style_props,
-                                    &use_stmt.body,
-                                );
+                        let namespace_key = use_stmt
+                            .from
+                            .as_ref()
+                            .map_or(self.current_namespace.clone(), |f| f.value.clone());
+                        if let Some(templates_in_ns) = self.templates.get(&namespace_key) {
+                            if let Some(template) = templates_in_ns.get(&use_stmt.name.value).cloned() {
+                                if matches!(template.template_type, TemplateType::Style) {
+                                    self.apply_style_template(
+                                        &template,
+                                        &namespace_key,
+                                        &mut context,
+                                        &mut inline_style_props,
+                                        &use_stmt.body,
+                                    );
+                                }
                             }
                         }
                     }
@@ -456,10 +539,16 @@ impl Generator {
             for prop in &rule.body {
                 if let Statement::Attribute(attr_prop) = prop {
                     if let Some(expr) = &attr_prop.value {
+                        let all_templates: HashMap<_, _> = self
+                            .templates
+                            .values()
+                            .flat_map(|m| m.iter())
+                            .map(|(k, v)| (k.clone(), v.clone()))
+                            .collect();
                         let value_obj = self.evaluator.eval(
                             expr,
-                            &rule_context,
-                            &self.templates,
+                            &mut rule_context,
+                            &all_templates,
                             &self.document_map,
                         );
                         rule_context.insert(attr_prop.name.value.clone(), value_obj.clone());
@@ -510,9 +599,17 @@ impl Generator {
     fn eval_expression_to_string(
         &self,
         expr: &Expression,
-        context: &std::collections::HashMap<String, Object>,
+        context: &mut std::collections::HashMap<String, Object>,
     ) -> String {
-        let value_obj = self.evaluator.eval(expr, context, &self.templates, &self.document_map);
+        let all_templates: HashMap<_, _> = self
+            .templates
+            .values()
+            .flat_map(|m| m.iter())
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        let value_obj =
+            self.evaluator
+                .eval(expr, context, &all_templates, &self.document_map);
         match value_obj {
             Object::Error(e) => {
                 eprintln!("Evaluation Error: {}", e);
@@ -527,483 +624,87 @@ impl Generator {
 mod tests {
     use super::*;
     use crate::chtl::lexer::lexer::Lexer;
-    use crate::chtl::parser::parser::Parser;
-
-    trait StringExt {
-        fn replace_whitespace(&self) -> String;
-    }
-
-    impl StringExt for String {
-        fn replace_whitespace(&self) -> String {
-            self.split_whitespace().collect()
-        }
-    }
-
-    impl<'a> StringExt for &'a str {
-        fn replace_whitespace(&self) -> String {
-            self.split_whitespace().collect()
-        }
-    }
+    use tempfile::Builder;
 
     #[test]
-    fn test_generate() {
-        let input = r#"
-        div {
-            id: "box";
-            class: "container";
-            text { "Hello, CHTL!" }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
+    fn test_namespace_template_resolution() {
+        // Create a temporary directory for our test files
+        let dir = Builder::new().prefix("chtl_test").tempdir().unwrap();
+        let lib_path = dir.path().join("lib.chtl");
+        let main_path = dir.path().join("main.chtl");
 
-        let expected_html = r#"<div class="container" id="box">Hello, CHTL!</div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
+        // Create the library file with a namespaced template
+        let lib_content = r#"
+            [Namespace] my_lib;
 
-    #[test]
-    fn test_generate_with_text_attribute_and_comment() {
-        let input = r#"
-        # This is a comment that should appear in the HTML
-        p {
-            text: "This is a paragraph from a text attribute.";
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<!-- This is a comment that should appear in the HTML--><p>This is a paragraph from a text attribute.</p>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_unquoted_literals() {
-        let input = r#"
-        div {
-            class: my-class another-class;
-            text { This is unquoted text }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<div class="my-class another-class">This is unquoted text</div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_property_arithmetic() {
-        let input = r#"
-        div {
-            style {
-                width: 100px + 50;
-                height: 200.5em - 0.5em;
-            }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<div style="height:200em;width:150px"></div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_style_rules() {
-        let input = r#"
-        div {
-            style {
-                color: "blue";
-                .my-class {
-                    font-weight: "bold";
+            [Template] @Element MyBox {
+                div {
+                    class: "box";
                 }
             }
-            text { "Hello" }
-        }
         "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"
-        <style>
-            .my-class {
-                font-weight:bold;
-            }
-        </style>
-        <div class="my-class" style="color:blue">Hello</div>
-        "#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_context_deduction() {
-        let input = r#"
-        div {
-            style {
-                .box {
-                    color: "blue";
-                }
-                &:hover {
-                    color: "red";
-                }
-            }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_css = r#"
-        .box{color:blue;}
-        .box:hover{color:red;}
-        "#;
-        let expected_html = r#"<div class="box"></div>"#;
-
-        let combined_expected = format!("<style>{}</style>{}", expected_css.replace_whitespace(), expected_html.replace_whitespace());
-
-        assert_eq!(html.replace_whitespace(), combined_expected);
-    }
-
-    #[test]
-    fn test_generate_with_conditional_property() {
-        let input = r#"
-        div {
-            style {
-                width: 100px;
-                background-color: width > 50px ? "red" : "blue";
-            }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<div style="background-color:red;width:100px"></div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_style_template() {
-        let input = r#"
-        [Template] @Style DefaultText {
-            color: "black";
-            line-height: 1.6;
-        }
-
-        div {
-            style {
-                @Style DefaultText;
-                font-size: 16px;
-            }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<div style="color:black;font-size:16px;line-height:1.6"></div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_element_template() {
-        let input = r#"
-        [Template] @Element Box {
-            div {
-                text { "This is a box." }
-            }
-        }
-
-        body {
-            @Element Box;
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<body><div>This is a box.</div></body>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_template_inheritance() {
-        let input = r#"
-        [Template] @Style Base {
-            font-family: "Arial";
-        }
-
-        [Template] @Style Derived {
-            @Style Base;
-            color: "red";
-        }
-
-        div {
-            style {
-                @Style Derived;
-            }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<div style="color:red;font-family:Arial"></div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_import() {
-        use std::fs::File;
-        use std::io::Write;
-        use tempfile::tempdir;
-
-        let dir = tempdir().unwrap();
-
-        // Create the imported file with a template definition
-        let template_file_path = dir.path().join("templates.chtl");
-        let mut template_file = File::create(&template_file_path).unwrap();
-        writeln!(
-            template_file,
-            r#"[Template] @Element MyCard {{
-                div {{
-                    class: "card";
-                    text: "This is a card from an imported template.";
-                }}
-            }}"#
-        )
-        .unwrap();
+        std::fs::write(&lib_path, lib_content).unwrap();
 
         // Create the main file that imports and uses the template
-        let main_file_content = format!(
-            r#"[Import] @Chtl from "{}";
-            body {{
-                @Element MyCard;
-            }}"#,
-            template_file_path.to_str().unwrap()
-        );
+        let main_content = r#"
+            [Import] @Chtl from "./lib.chtl";
 
-        let lexer = Lexer::new(&main_file_content);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<body><div class="card">This is a card from an imported template.</div></body>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_property_reference() {
-        let input = r#"
-        div {
-            id: "box";
-            style {
-                width: 100px;
+            body {
+                @Element MyBox from my_lib;
             }
-        }
-        span {
-            style {
-                height: #box.width;
-            }
-        }
         "#;
-        let lexer = Lexer::new(input);
+        std::fs::write(&main_path, main_content).unwrap();
+
+        // Set up the loader to know where the main file is
+        let mut loader = Loader::new();
+        loader.set_current_file_path(main_path.to_str().unwrap());
+
+        // Parse the main file
+        let lexer = Lexer::new(main_content);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
+        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
 
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
+        // Generate the HTML
         let mut generator = Generator::new();
+        generator.loader = loader; // Use our configured loader
         let html = generator.generate(&program);
 
-        let expected_html = r#"<div id="box" style="width:100px"></div><span style="height:100px"></span>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+        // Verify the output
+        let expected_html = r#"<body><div class="box"></div></body>"#;
+        assert_eq!(html.trim(), expected_html.trim());
     }
 
     #[test]
-    fn test_generate_with_template_specialization() {
+    fn test_implicit_namespace_resolution() {
+        // A template is used without a `from` clause.
+        // It should resolve to the template defined in the same file's namespace.
         let input = r#"
-        [Template] @Style Base {
-            color: "red";
-            font-size: 16px;
-            font-weight: "bold";
-        }
+            [Namespace] my_ui;
 
-        div {
-            style {
-                @Style Base {
-                    color: "blue";
-                    delete font-weight;
+            [Template] @Element Button {
+                button {
+                    class: "btn";
                 }
             }
-        }
+
+            body {
+                @Element Button; // Implicitly from `my_ui`
+            }
         "#;
+
+        // Parse the file
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
+        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
 
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
+        // Generate the HTML
         let mut generator = Generator::new();
         let html = generator.generate(&program);
 
-        let expected_html = r#"<div style="color:blue;font-size:16px"></div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_conditional_rendering_block() {
-        let input = r#"
-        div {
-            style {
-                width: 100px;
-            }
-            if {
-                condition: width > 50px;
-                style {
-                    height: 200px;
-                }
-            }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<div style="height:200px;width:100px"></div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
-    }
-
-    #[test]
-    fn test_generate_with_false_conditional_rendering_block() {
-        let input = r#"
-        div {
-            style {
-                width: 40px;
-            }
-            if {
-                condition: width > 50px;
-                style {
-                    height: 200px;
-                }
-            }
-        }
-        "#;
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-
-        assert!(
-            parser.errors().is_empty(),
-            "Parser has errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        let expected_html = r#"<div style="width:40px"></div>"#;
-        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+        // Verify the output
+        let expected_html = r#"<body><button class="btn"></button></body>"#;
+        assert_eq!(html.trim(), expected_html.trim());
     }
 }

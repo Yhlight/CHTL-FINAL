@@ -1,16 +1,34 @@
 use std::fs;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
-pub struct Loader;
+#[derive(Debug, Clone)]
+pub struct Loader {
+    current_path: Option<PathBuf>,
+}
 
 impl Loader {
     pub fn new() -> Self {
-        Loader
+        Loader {
+            current_path: None,
+        }
+    }
+
+    pub fn set_current_file_path(&mut self, path: &str) {
+        self.current_path = Some(PathBuf::from(path));
     }
 
     pub fn load_file_content<P: AsRef<Path>>(&self, path: P) -> io::Result<String> {
-        fs::read_to_string(path)
+        let path_to_load = if let Some(current) = &self.current_path {
+            if let Some(parent) = current.parent() {
+                parent.join(path)
+            } else {
+                path.as_ref().to_path_buf()
+            }
+        } else {
+            path.as_ref().to_path_buf()
+        };
+        fs::read_to_string(path_to_load)
     }
 }
 

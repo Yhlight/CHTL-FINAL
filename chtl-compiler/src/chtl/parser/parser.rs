@@ -65,6 +65,8 @@ impl<'a> Parser<'a> {
                     return self.parse_template_definition_statement();
                 } else if self.peek_token_is(&Token::Import) {
                     return self.parse_import_statement();
+                } else if self.peek_token_is(&Token::Namespace) {
+                    return self.parse_namespace_statement();
                 }
                 None
             }
@@ -142,6 +144,29 @@ impl<'a> Parser<'a> {
                 .push("`if` block must contain a `condition` property".to_string());
             None
         }
+    }
+
+    fn parse_namespace_statement(&mut self) -> Option<Statement> {
+        // Current is `[`
+        self.expect_peek(&Token::Namespace)?; // consume `[`, current is `Namespace`
+        self.expect_peek(&Token::RBracket)?; // consume `Namespace`, current is `]`
+        self.next_token(); // consume `]`, current is now the namespace name
+
+        let name = if let Token::Identifier(n) = self.current_token.clone() {
+            IdentifierExpression { value: n }
+        } else {
+            self.errors.push(format!(
+                "Expected namespace name identifier, got {:?}",
+                self.current_token
+            ));
+            return None;
+        };
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::Namespace(NamespaceStatement { name }))
     }
 
     fn parse_delete_statement(&mut self) -> Option<Statement> {
@@ -563,11 +588,26 @@ impl<'a> Parser<'a> {
             ));
             return None;
         };
+        self.next_token(); // Consume template name
+
+        let mut from = None;
+        if self.current_token_is(&Token::From) {
+            self.next_token(); // consume 'from'
+            if let Token::Identifier(ns) = self.current_token.clone() {
+                from = Some(IdentifierExpression { value: ns });
+                self.next_token(); // consume namespace
+            } else {
+                self.errors.push(format!(
+                    "Expected namespace identifier after 'from', got {:?}",
+                    self.current_token
+                ));
+                return None;
+            }
+        }
 
         let mut body = None;
-        if self.peek_token_is(&Token::LBrace) {
-            self.next_token(); // consume name, current is `{`
-            self.next_token(); // consume `{`
+        if self.current_token_is(&Token::LBrace) {
+            self.next_token(); // consume '{'
 
             let mut stmts = Vec::new();
             while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
@@ -576,15 +616,17 @@ impl<'a> Parser<'a> {
                 }
                 self.next_token();
             }
+            // The loop consumes tokens up to the '}', but the outer parse_statement loop will consume the '}'
             body = Some(stmts);
-        } else if self.peek_token_is(&Token::Semicolon) {
-            self.next_token();
         }
+
+        // The semicolon is optional and is handled by the outer parse_statement loop advancing tokens.
 
         Some(Statement::UseTemplate(UseTemplateStatement {
             name,
             template_type,
             body,
+            from,
         }))
     }
 
@@ -1057,6 +1099,36 @@ mod tests {
             }
         } else {
             panic!("Expected IfStatement");
+        }
+    }
+
+    #[test]
+    fn test_namespace_statement_parsing() {
+        let input = "[Namespace] my_space;";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let stmt = parser.parse_statement().unwrap();
+
+        if let Statement::Namespace(ns_stmt) = stmt {
+            assert_eq!(ns_stmt.name.value, "my_space");
+        } else {
+            panic!("Expected NamespaceStatement");
+        }
+    }
+
+    #[test]
+    fn test_use_template_from_namespace() {
+        let input = "@Element MyTemplate from my_space;";
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let stmt = parser.parse_statement().unwrap();
+
+        if let Statement::UseTemplate(use_stmt) = stmt {
+            assert_eq!(use_stmt.name.value, "MyTemplate");
+            assert!(use_stmt.from.is_some());
+            assert_eq!(use_stmt.from.unwrap().value, "my_space");
+        } else {
+            panic!("Expected UseTemplateStatement");
         }
     }
 

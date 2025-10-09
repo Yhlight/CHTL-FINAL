@@ -1,0 +1,17 @@
+div {
+    id: "main-container";
+    class: "wrapper";
+
+    text {
+        "Welcome to CHTL!"
+    }
+
+    p {
+        style {
+            color: "blue";
+        }
+        text {
+            "This is a paragraph."
+        }
+    }
+}

@@ -28,6 +28,7 @@ pub struct TemplateDefinitionStatement {
     pub name: IdentifierExpression,
     pub template_type: TemplateType,
     pub body: Vec<Statement>,
+    pub is_custom: bool,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -111,7 +112,7 @@ pub struct TextStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct AttributeStatement {
     pub name: IdentifierExpression,
-    pub value: Expression,
+    pub value: Option<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

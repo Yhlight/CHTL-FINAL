@@ -49,10 +49,12 @@ impl Evaluator {
                         for stmt in &template.body {
                             if let Statement::Attribute(attr) = stmt {
                                 if attr.name.value == *var_name {
-                                    // Note: This does not support context within the var template itself.
-                                    // This is a simplification for now.
-                                    let empty_context = std::collections::HashMap::new();
-                                    return self.eval(&attr.value, &empty_context, templates);
+                                    if let Some(expr) = &attr.value {
+                                        // Note: This does not support context within the var template itself.
+                                        // This is a simplification for now.
+                                        let empty_context = std::collections::HashMap::new();
+                                        return self.eval(expr, &empty_context, templates);
+                                    }
                                 }
                             }
                         }
@@ -167,10 +169,12 @@ mod tests {
         if let Statement::Style(style_stmt) = stmt {
             let attr_stmt = &style_stmt.body[0];
             if let Statement::Attribute(attr) = attr_stmt {
-                let evaluator = Evaluator::new();
-                let context = std::collections::HashMap::new();
-                let templates = std::collections::HashMap::new();
-                return evaluator.eval(&attr.value, &context, &templates);
+                if let Some(expr) = &attr.value {
+                    let evaluator = Evaluator::new();
+                    let context = std::collections::HashMap::new();
+                    let templates = std::collections::HashMap::new();
+                    return evaluator.eval(expr, &context, &templates);
+                }
             }
         }
         panic!("Invalid test input");
@@ -241,16 +245,20 @@ mod tests {
 
             // Manually evaluate the first attribute to populate context
             if let Statement::Attribute(attr) = &style_stmt.body[0] {
-                let val = evaluator.eval(&attr.value, &context, &templates);
-                context.insert(attr.name.value.clone(), val);
+                if let Some(expr) = &attr.value {
+                    let val = evaluator.eval(expr, &context, &templates);
+                    context.insert(attr.name.value.clone(), val);
+                }
             } else {
                 panic!("Expected first statement to be an attribute");
             }
 
             // Evaluate the second attribute using the populated context
             if let Statement::Attribute(attr) = &style_stmt.body[1] {
-                let result = evaluator.eval(&attr.value, &context, &templates);
-                assert_eq!(result, Object::Number(200.0, "px".to_string()));
+                if let Some(expr) = &attr.value {
+                    let result = evaluator.eval(expr, &context, &templates);
+                    assert_eq!(result, Object::Number(200.0, "px".to_string()));
+                }
             } else {
                 panic!("Expected second statement to be an attribute");
             }
@@ -286,10 +294,12 @@ mod tests {
 
         if let Statement::Style(style) = style_stmt {
             if let Statement::Attribute(attr) = &style.body[0] {
-                let evaluator = Evaluator::new();
-                let context = std::collections::HashMap::new();
-                let result = evaluator.eval(&attr.value, &context, &templates);
-                assert_eq!(result, Object::String("rgb(255, 192, 203)".to_string()));
+                if let Some(expr) = &attr.value {
+                    let evaluator = Evaluator::new();
+                    let context = std::collections::HashMap::new();
+                    let result = evaluator.eval(expr, &context, &templates);
+                    assert_eq!(result, Object::String("rgb(255, 192, 203)".to_string()));
+                }
             } else {
                 panic!("Expected an attribute statement");
             }

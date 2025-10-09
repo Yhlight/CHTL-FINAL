@@ -27,9 +27,11 @@ impl Generator {
         for stmt in &template.body {
             match stmt {
                 Statement::Attribute(attr) => {
-                    let value_obj = self.evaluator.eval(&attr.value, context, &self.templates);
-                    context.insert(attr.name.value.clone(), value_obj.clone());
-                    inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
+                    if let Some(expr) = &attr.value {
+                        let value_obj = self.evaluator.eval(expr, context, &self.templates);
+                        context.insert(attr.name.value.clone(), value_obj.clone());
+                        inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
+                    }
                 }
                 Statement::UseTemplate(use_stmt) => {
                     if use_stmt.template_type.value == "Style" {
@@ -130,12 +132,14 @@ impl Generator {
         for statement in &other_statements {
             match statement {
                 Statement::Attribute(attr) => {
-                    let context = std::collections::HashMap::new();
-                    let value = self.eval_expression_to_string(&attr.value, &context);
-                    if attr.name.value == "text" {
-                        children.push_str(&value);
-                    } else {
-                        attributes.insert(attr.name.value.clone(), value);
+                    if let Some(expr) = &attr.value {
+                        let context = std::collections::HashMap::new();
+                        let value = self.eval_expression_to_string(expr, &context);
+                        if attr.name.value == "text" {
+                            children.push_str(&value);
+                        } else {
+                            attributes.insert(attr.name.value.clone(), value);
+                        }
                     }
                 }
                 _ => {
@@ -177,9 +181,11 @@ impl Generator {
         for statement in &style.body {
             match statement {
                 Statement::Attribute(attr) => {
-                    let value_obj = self.evaluator.eval(&attr.value, &context, &self.templates);
-                    context.insert(attr.name.value.clone(), value_obj.clone());
-                    inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
+                    if let Some(expr) = &attr.value {
+                        let value_obj = self.evaluator.eval(expr, &context, &self.templates);
+                        context.insert(attr.name.value.clone(), value_obj.clone());
+                        inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
+                    }
                 }
                 Statement::StyleRule(rule) => {
                     style_rules.push(rule);
@@ -247,11 +253,16 @@ impl Generator {
             let mut rule_context = context.clone();
             for prop in &rule.body {
                 if let Statement::Attribute(attr_prop) = prop {
-                    let value_obj =
-                        self.evaluator.eval(&attr_prop.value, &rule_context, &self.templates);
-                    rule_context.insert(attr_prop.name.value.clone(), value_obj.clone());
-                    rule_css_body
-                        .push_str(&format!("{}:{};", attr_prop.name.value, value_obj.to_string()));
+                    if let Some(expr) = &attr_prop.value {
+                        let value_obj =
+                            self.evaluator.eval(expr, &rule_context, &self.templates);
+                        rule_context.insert(attr_prop.name.value.clone(), value_obj.clone());
+                        rule_css_body.push_str(&format!(
+                            "{}:{};",
+                            attr_prop.name.value,
+                            value_obj.to_string()
+                        ));
+                    }
                 }
             }
 

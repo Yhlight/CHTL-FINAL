@@ -60,7 +60,7 @@ impl<'a> Parser<'a> {
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.current_token.clone() {
             Token::LBracket => {
-                if self.peek_token_is(&Token::Template) {
+                if self.peek_token_is(&Token::Template) || self.peek_token_is(&Token::Custom) {
                     return self.parse_template_definition_statement();
                 }
                 None
@@ -202,10 +202,38 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_template_definition_statement(&mut self) -> Option<Statement> {
-        // Current token is `[`, peek is `Template`
-        self.expect_peek(&Token::Template)?; // Consume `[`, current is `Template`
-        self.expect_peek(&Token::RBracket)?; // Consume `Template`, current is `]`
-        self.expect_peek(&Token::At)?; // Consume `]`, current is `@`
+        // Current token is `[`
+        let is_custom = self.peek_token_is(&Token::Custom);
+
+        // Consume `[`
+        self.next_token();
+
+        // current_token is now `Template` or `Custom`
+        let keyword_token = self.current_token.clone();
+        if !matches!(keyword_token, Token::Template | Token::Custom) {
+            self.errors.push(format!(
+                "Expected 'Template' or 'Custom' keyword, got {:?}",
+                keyword_token
+            ));
+            return None;
+        }
+
+        // Consume keyword, expect `]`
+        self.next_token();
+        if !self.current_token_is(&Token::RBracket) {
+            self.errors.push(format!(
+                "Expected ']' after template keyword, got {:?}",
+                self.current_token
+            ));
+            return None;
+        }
+
+        // Consume `]`, expect `@`
+        if self.expect_peek(&Token::At).is_none() {
+            return None;
+        }
+        // Now current token is `@`.
+
         self.next_token(); // Consume `@`, current is type keyword
 
         let template_type = match self.current_token.clone() {
@@ -248,6 +276,7 @@ impl<'a> Parser<'a> {
             name,
             template_type,
             body,
+            is_custom,
         }))
     }
 
@@ -320,16 +349,30 @@ impl<'a> Parser<'a> {
             _ => return None,
         };
 
-        self.expect_peek(&Token::Colon)?;
-        self.next_token();
+        if self.peek_token_is(&Token::Colon) {
+            self.next_token(); // consume name, current is ':'
+            self.next_token(); // consume ':', current is start of value
 
-        let value = self.parse_expression(Precedence::Lowest)?;
+            let value = self.parse_expression(Precedence::Lowest)?;
 
-        if self.peek_token_is(&Token::Semicolon) {
-            self.next_token();
+            if self.peek_token_is(&Token::Semicolon) {
+                self.next_token();
+            }
+
+            Some(Statement::Attribute(AttributeStatement {
+                name,
+                value: Some(value),
+            }))
+        } else {
+            // Valueless attribute
+            if self.peek_token_is(&Token::Semicolon) {
+                self.next_token();
+            } else if self.peek_token_is(&Token::Comma) {
+                self.next_token();
+            }
+
+            Some(Statement::Attribute(AttributeStatement { name, value: None }))
         }
-
-        Some(Statement::Attribute(AttributeStatement { name, value }))
     }
 
     fn parse_text_statement(&mut self) -> Option<Statement> {
@@ -610,7 +653,7 @@ mod tests {
             let attr_stmt = &element_stmt.body[0];
             if let Statement::Attribute(attr) = attr_stmt {
                 assert_eq!(attr.name.value, "id");
-                if let Expression::StringLiteral(s) = &attr.value {
+                if let Some(Expression::StringLiteral(s)) = &attr.value {
                     assert_eq!(s.value, "box");
                 } else {
                     panic!("Expected StringLiteral");
@@ -680,7 +723,7 @@ mod tests {
             let attr_stmt = &style_stmt.body[0];
             if let Statement::Attribute(attr) = attr_stmt {
                 assert_eq!(attr.name.value, "width");
-                if let Expression::Infix(infix_exp) = &attr.value {
+                if let Some(Expression::Infix(infix_exp)) = &attr.value {
                     // 10 + (2 * (3 ** 2))
                     assert_eq!(infix_exp.operator, "+");
 
@@ -744,7 +787,7 @@ mod tests {
         if let Statement::Style(style_stmt) = stmt {
             let attr_stmt = &style_stmt.body[0];
             if let Statement::Attribute(attr) = attr_stmt {
-                if let Expression::Conditional(cond_expr) = &attr.value {
+                if let Some(Expression::Conditional(cond_expr)) = &attr.value {
                     // Check condition
                     if let Expression::Infix(infix) = &*cond_expr.condition {
                         assert_eq!(infix.operator, ">");
@@ -867,7 +910,7 @@ mod tests {
                 assert_eq!(rule.body.len(), 1);
                 if let Statement::Attribute(attr) = &rule.body[0] {
                     assert_eq!(attr.name.value, "color");
-                    if let Expression::StringLiteral(s) = &attr.value {
+                    if let Some(Expression::StringLiteral(s)) = &attr.value {
                         assert_eq!(s.value, "red");
                     } else {
                         panic!("Expected StringLiteral for color value");
@@ -886,7 +929,7 @@ mod tests {
                 assert_eq!(rule.body.len(), 1);
                 if let Statement::Attribute(attr) = &rule.body[0] {
                     assert_eq!(attr.name.value, "font-size");
-                    if let Expression::UnquotedLiteral(s) = &attr.value {
+                    if let Some(Expression::UnquotedLiteral(s)) = &attr.value {
                         assert_eq!(s.value, "16px");
                     } else {
                         panic!("Expected UnquotedLiteral for font-size value");
@@ -905,7 +948,7 @@ mod tests {
                 assert_eq!(rule.body.len(), 1);
                 if let Statement::Attribute(attr) = &rule.body[0] {
                     assert_eq!(attr.name.value, "margin");
-                    if let Expression::UnquotedLiteral(s) = &attr.value {
+                    if let Some(Expression::UnquotedLiteral(s)) = &attr.value {
                         assert_eq!(s.value, "0");
                     } else {
                         panic!("Expected UnquotedLiteral for margin value");
@@ -996,7 +1039,7 @@ mod tests {
         if let Statement::Style(style) = style_stmt {
             let attr_stmt = &style.body[0];
             if let Statement::Attribute(attr) = attr_stmt {
-                if let Expression::FunctionCall(call) = &attr.value {
+                if let Some(Expression::FunctionCall(call)) = &attr.value {
                     if let Expression::Identifier(func_name) = &*call.function {
                         assert_eq!(func_name.value, "ThemeColor");
                     } else {

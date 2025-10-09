@@ -12,11 +12,12 @@ impl Evaluator {
         &self,
         node: &Expression,
         context: &std::collections::HashMap<String, Object>,
+        templates: &std::collections::HashMap<String, TemplateDefinitionStatement>,
     ) -> Object {
         match node {
             Expression::StringLiteral(s) => Object::String(s.value.clone()),
             Expression::UnquotedLiteral(u) => self.eval_unquoted_literal(u, context),
-            Expression::Infix(i) => self.eval_infix_expression(i, context),
+            Expression::Infix(i) => self.eval_infix_expression(i, context, templates),
             Expression::Identifier(i) => {
                 if let Some(val) = context.get(&i.value) {
                     return val.clone();
@@ -29,23 +30,58 @@ impl Evaluator {
                 },
                 context,
             ),
-            Expression::Conditional(c) => self.eval_conditional_expression(c, context),
+            Expression::Conditional(c) => self.eval_conditional_expression(c, context, templates),
+            Expression::FunctionCall(f) => self.eval_function_call_expression(f, templates),
         }
+    }
+
+    fn eval_function_call_expression(
+        &self,
+        node: &FunctionCallExpression,
+        templates: &std::collections::HashMap<String, TemplateDefinitionStatement>,
+    ) -> Object {
+        if let Expression::Identifier(ident) = &*node.function {
+            let template_name = &ident.value;
+            if let Some(template) = templates.get(template_name) {
+                if let TemplateType::Var = template.template_type {
+                    if let Some(Expression::Identifier(arg_ident)) = node.arguments.get(0) {
+                        let var_name = &arg_ident.value;
+                        for stmt in &template.body {
+                            if let Statement::Attribute(attr) = stmt {
+                                if attr.name.value == *var_name {
+                                    // Note: This does not support context within the var template itself.
+                                    // This is a simplification for now.
+                                    let empty_context = std::collections::HashMap::new();
+                                    return self.eval(&attr.value, &empty_context, templates);
+                                }
+                            }
+                        }
+                        return Object::Error(format!(
+                            "Variable '{}' not found in template '{}'",
+                            var_name, template_name
+                        ));
+                    }
+                }
+            }
+            return Object::Error(format!("Template '{}' not found", template_name));
+        }
+        Object::Error("Function call must be an identifier".to_string())
     }
 
     fn eval_conditional_expression(
         &self,
         node: &ConditionalExpression,
         context: &std::collections::HashMap<String, Object>,
+        templates: &std::collections::HashMap<String, TemplateDefinitionStatement>,
     ) -> Object {
-        let condition = self.eval(&node.condition, context);
+        let condition = self.eval(&node.condition, context, templates);
 
         match condition {
             Object::Boolean(b) => {
                 if b {
-                    self.eval(&node.consequence, context)
+                    self.eval(&node.consequence, context, templates)
                 } else if let Some(alt) = &node.alternative {
-                    self.eval(alt, context)
+                    self.eval(alt, context, templates)
                 } else {
                     Object::String("".to_string())
                 }
@@ -77,9 +113,10 @@ impl Evaluator {
         &self,
         node: &InfixExpression,
         context: &std::collections::HashMap<String, Object>,
+        templates: &std::collections::HashMap<String, TemplateDefinitionStatement>,
     ) -> Object {
-        let left = self.eval(&node.left, context);
-        let right = self.eval(&node.right, context);
+        let left = self.eval(&node.left, context, templates);
+        let right = self.eval(&node.right, context, templates);
 
         match (left, right) {
             (Object::Number(left_val, left_unit), Object::Number(right_val, right_unit)) => {
@@ -132,7 +169,8 @@ mod tests {
             if let Statement::Attribute(attr) = attr_stmt {
                 let evaluator = Evaluator::new();
                 let context = std::collections::HashMap::new();
-                return evaluator.eval(&attr.value, &context);
+                let templates = std::collections::HashMap::new();
+                return evaluator.eval(&attr.value, &context, &templates);
             }
         }
         panic!("Invalid test input");
@@ -199,10 +237,11 @@ mod tests {
         if let Statement::Style(style_stmt) = stmt {
             let evaluator = Evaluator::new();
             let mut context = std::collections::HashMap::new();
+            let templates = std::collections::HashMap::new();
 
             // Manually evaluate the first attribute to populate context
             if let Statement::Attribute(attr) = &style_stmt.body[0] {
-                let val = evaluator.eval(&attr.value, &context);
+                let val = evaluator.eval(&attr.value, &context, &templates);
                 context.insert(attr.name.value.clone(), val);
             } else {
                 panic!("Expected first statement to be an attribute");
@@ -210,10 +249,49 @@ mod tests {
 
             // Evaluate the second attribute using the populated context
             if let Statement::Attribute(attr) = &style_stmt.body[1] {
-                let result = evaluator.eval(&attr.value, &context);
+                let result = evaluator.eval(&attr.value, &context, &templates);
                 assert_eq!(result, Object::Number(200.0, "px".to_string()));
             } else {
                 panic!("Expected second statement to be an attribute");
+            }
+        } else {
+            panic!("Expected a style statement");
+        }
+    }
+
+    #[test]
+    fn test_eval_variable_group_template() {
+        let input = r#"
+        [Template] @Var ThemeColor {
+            tableColor: "rgb(255, 192, 203)";
+        }
+
+        style {
+            background-color: ThemeColor(tableColor);
+        }
+        "#;
+
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        let template_def = program.statements[0].clone();
+        let style_stmt = &program.statements[1];
+
+        let mut templates = std::collections::HashMap::new();
+        if let Statement::TemplateDefinition(def) = template_def {
+            templates.insert(def.name.value.clone(), def);
+        } else {
+            panic!("Expected a template definition");
+        }
+
+        if let Statement::Style(style) = style_stmt {
+            if let Statement::Attribute(attr) = &style.body[0] {
+                let evaluator = Evaluator::new();
+                let context = std::collections::HashMap::new();
+                let result = evaluator.eval(&attr.value, &context, &templates);
+                assert_eq!(result, Object::String("rgb(255, 192, 203)".to_string()));
+            } else {
+                panic!("Expected an attribute statement");
             }
         } else {
             panic!("Expected a style statement");

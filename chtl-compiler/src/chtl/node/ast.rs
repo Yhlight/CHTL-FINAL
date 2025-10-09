@@ -69,6 +69,12 @@ pub struct ConditionalExpression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct FunctionCallExpression {
+    pub function: Box<Expression>,
+    pub arguments: Vec<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
     Identifier(IdentifierExpression),
     StringLiteral(StringLiteralExpression),
@@ -76,6 +82,7 @@ pub enum Expression {
     UnquotedLiteral(UnquotedLiteralExpression),
     Infix(InfixExpression),
     Conditional(ConditionalExpression),
+    FunctionCall(FunctionCallExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]

@@ -18,6 +18,39 @@ impl Generator {
         }
     }
 
+    fn apply_style_template(
+        &self,
+        template: &TemplateDefinitionStatement,
+        context: &mut HashMap<String, Object>,
+        inline_style_props: &mut HashMap<String, String>,
+    ) {
+        for stmt in &template.body {
+            match stmt {
+                Statement::Attribute(attr) => {
+                    let value_obj = self.evaluator.eval(&attr.value, context, &self.templates);
+                    context.insert(attr.name.value.clone(), value_obj.clone());
+                    inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
+                }
+                Statement::UseTemplate(use_stmt) => {
+                    if use_stmt.template_type.value == "Style" {
+                        if let Some(nested_template) =
+                            self.templates.get(&use_stmt.name.value).cloned()
+                        {
+                            if matches!(nested_template.template_type, TemplateType::Style) {
+                                self.apply_style_template(
+                                    &nested_template,
+                                    context,
+                                    inline_style_props,
+                                );
+                            }
+                        }
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
+
     pub fn generate(&mut self, program: &Program) -> String {
         // First pass: collect all template definitions
         for statement in &program.statements {
@@ -56,7 +89,21 @@ impl Generator {
             Statement::Attribute(_) => String::new(), // Attributes are handled within elements
             Statement::StyleRule(_) => String::new(), // Style rules are handled within style blocks
             Statement::TemplateDefinition(_) => String::new(), // Handled at a higher level
-            Statement::UseTemplate(_) => String::new(), // Handled within style blocks
+            Statement::UseTemplate(use_stmt) => {
+                if use_stmt.template_type.value == "Element" {
+                    if let Some(template) = self.templates.get(&use_stmt.name.value).cloned() {
+                        if matches!(template.template_type, TemplateType::Element) {
+                            let mut html = String::new();
+                            for stmt in &template.body {
+                                html.push_str(&self.generate_statement(stmt));
+                            }
+                            return html;
+                        }
+                    }
+                }
+                // Non-element templates are handled within their respective blocks (e.g., style)
+                String::new()
+            }
         }
     }
 
@@ -130,7 +177,7 @@ impl Generator {
         for statement in &style.body {
             match statement {
                 Statement::Attribute(attr) => {
-                    let value_obj = self.evaluator.eval(&attr.value, &context);
+                    let value_obj = self.evaluator.eval(&attr.value, &context, &self.templates);
                     context.insert(attr.name.value.clone(), value_obj.clone());
                     inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
                 }
@@ -139,16 +186,13 @@ impl Generator {
                 }
                 Statement::UseTemplate(use_stmt) => {
                     if use_stmt.template_type.value == "Style" {
-                        if let Some(template) = self.templates.get(&use_stmt.name.value) {
+                        if let Some(template) = self.templates.get(&use_stmt.name.value).cloned() {
                             if matches!(template.template_type, TemplateType::Style) {
-                                for stmt in &template.body {
-                                    if let Statement::Attribute(attr) = stmt {
-                                        let value_obj = self.evaluator.eval(&attr.value, &context);
-                                        context.insert(attr.name.value.clone(), value_obj.clone());
-                                        inline_style_props
-                                            .insert(attr.name.value.clone(), value_obj.to_string());
-                                    }
-                                }
+                                self.apply_style_template(
+                                    &template,
+                                    &mut context,
+                                    &mut inline_style_props,
+                                );
                             }
                         }
                     }
@@ -203,7 +247,8 @@ impl Generator {
             let mut rule_context = context.clone();
             for prop in &rule.body {
                 if let Statement::Attribute(attr_prop) = prop {
-                    let value_obj = self.evaluator.eval(&attr_prop.value, &rule_context);
+                    let value_obj =
+                        self.evaluator.eval(&attr_prop.value, &rule_context, &self.templates);
                     rule_context.insert(attr_prop.name.value.clone(), value_obj.clone());
                     rule_css_body
                         .push_str(&format!("{}:{};", attr_prop.name.value, value_obj.to_string()));
@@ -250,7 +295,7 @@ impl Generator {
         expr: &Expression,
         context: &std::collections::HashMap<String, Object>,
     ) -> String {
-        let value_obj = self.evaluator.eval(expr, context);
+        let value_obj = self.evaluator.eval(expr, context, &self.templates);
         match value_obj {
             Object::Error(e) => {
                 eprintln!("Evaluation Error: {}", e);
@@ -498,6 +543,71 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<div style="color:black;font-size:16px;line-height:1.6"></div>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_generate_with_element_template() {
+        let input = r#"
+        [Template] @Element Box {
+            div {
+                text { "This is a box." }
+            }
+        }
+
+        body {
+            @Element Box;
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<body><div>This is a box.</div></body>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_generate_with_template_inheritance() {
+        let input = r#"
+        [Template] @Style Base {
+            font-family: "Arial";
+        }
+
+        [Template] @Style Derived {
+            @Style Base;
+            color: "red";
+        }
+
+        div {
+            style {
+                @Style Derived;
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<div style="color:red;font-family:Arial"></div>"#;
         assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
     }
 }

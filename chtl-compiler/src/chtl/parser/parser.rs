@@ -10,6 +10,7 @@ enum Precedence {
     Sum,         // + or -
     Product,     // * or /
     Power,       // **
+    Call,        // my_function(X)
 }
 
 pub struct Parser<'a> {
@@ -64,6 +65,7 @@ impl<'a> Parser<'a> {
                 }
                 None
             }
+            Token::At => return self.parse_use_template_statement(),
             Token::Identifier(_) => {
                 if self.peek_token_is(&Token::LBrace) {
                     self.parse_element_statement()
@@ -369,12 +371,16 @@ impl<'a> Parser<'a> {
         let mut left_exp = self.parse_prefix()?;
 
         while !self.peek_token_is(&Token::Semicolon) && precedence < self.peek_precedence() {
-            self.next_token();
-            left_exp = if self.current_token_is(&Token::Question) {
-                self.parse_conditional_expression(left_exp)?
+            if self.peek_token_is(&Token::LParen) {
+                self.next_token();
+                left_exp = self.parse_call_expression(left_exp)?;
+            } else if self.peek_token_is(&Token::Question) {
+                self.next_token();
+                left_exp = self.parse_conditional_expression(left_exp)?;
             } else {
-                self.parse_infix_expression(left_exp)?
-            };
+                self.next_token();
+                left_exp = self.parse_infix_expression(left_exp)?;
+            }
         }
 
         Some(left_exp)
@@ -384,6 +390,15 @@ impl<'a> Parser<'a> {
         match self.current_token.clone() {
             Token::String(s) => Some(Expression::StringLiteral(StringLiteralExpression { value: s })),
             tok if self.is_unquoted_literal_token(&tok) => {
+                if let Token::Identifier(s) = &tok {
+                    if !self.is_peek_unquoted_literal_token() {
+                        return Some(Expression::Identifier(IdentifierExpression {
+                            value: s.clone(),
+                        }));
+                    }
+                }
+
+                // Fallthrough for multi-word unquoted literals or numbers followed by units
                 let mut literal = String::new();
                 let mut current_tok = tok;
                 loop {
@@ -437,6 +452,39 @@ impl<'a> Parser<'a> {
         }))
     }
 
+    fn parse_call_expression(&mut self, function: Expression) -> Option<Expression> {
+        let arguments = self.parse_call_arguments()?;
+        Some(Expression::FunctionCall(FunctionCallExpression {
+            function: Box::new(function),
+            arguments,
+        }))
+    }
+
+    fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
+        let mut args = Vec::new();
+
+        if self.peek_token_is(&Token::RParen) {
+            self.next_token(); // Consume ')'
+            return Some(args);
+        }
+
+        self.next_token(); // Consume '('
+
+        args.push(self.parse_expression(Precedence::Lowest)?);
+
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+            args.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if self.expect_peek(&Token::RParen).is_none() {
+            return None;
+        }
+
+        Some(args)
+    }
+
     fn peek_precedence(&self) -> Precedence {
         Self::token_to_precedence(&self.peek_token)
     }
@@ -452,6 +500,7 @@ impl<'a> Parser<'a> {
             Token::Power => Precedence::Power,
             Token::Gt | Token::Lt => Precedence::LessGreater,
             Token::Question => Precedence::Conditional,
+            Token::LParen => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
@@ -575,6 +624,38 @@ mod tests {
                 assert_eq!(text.value.value, "Hello");
             } else {
                 panic!("Expected TextStatement");
+            }
+        } else {
+            panic!("Expected ElementStatement");
+        }
+    }
+
+    #[test]
+    fn test_element_template_usage_parsing() {
+        let input = r#"
+        body {
+            @Element Box;
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let body_stmt = &program.statements[0];
+        if let Statement::Element(element) = body_stmt {
+            assert_eq!(element.name.value, "body");
+            let use_template_stmt = &element.body[0];
+            if let Statement::UseTemplate(use_stmt) = use_template_stmt {
+                assert_eq!(use_stmt.name.value, "Box");
+                assert_eq!(use_stmt.template_type.value, "Element");
+            } else {
+                panic!("Expected UseTemplateStatement");
             }
         } else {
             panic!("Expected ElementStatement");
@@ -891,6 +972,50 @@ mod tests {
             }
         } else {
             panic!("Expected ElementStatement");
+        }
+    }
+
+    #[test]
+    fn test_variable_group_template_usage_parsing() {
+        let input = r#"
+        style {
+            color: ThemeColor(tableColor);
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let style_stmt = &program.statements[0];
+        if let Statement::Style(style) = style_stmt {
+            let attr_stmt = &style.body[0];
+            if let Statement::Attribute(attr) = attr_stmt {
+                if let Expression::FunctionCall(call) = &attr.value {
+                    if let Expression::Identifier(func_name) = &*call.function {
+                        assert_eq!(func_name.value, "ThemeColor");
+                    } else {
+                        panic!("Expected Identifier for function name");
+                    }
+                    assert_eq!(call.arguments.len(), 1);
+                    if let Expression::Identifier(arg) = &call.arguments[0] {
+                        assert_eq!(arg.value, "tableColor");
+                    } else {
+                        panic!("Expected Identifier for argument");
+                    }
+                } else {
+                    panic!("Expected FunctionCallExpression");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
         }
     }
 }

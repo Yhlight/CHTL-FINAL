@@ -94,7 +94,53 @@ impl<'a> Parser<'a> {
             Token::Style => self.parse_style_statement(),
             Token::GeneratorComment(value) => self.parse_comment_statement(value),
             Token::Delete => self.parse_delete_statement(),
+            Token::If => self.parse_if_statement(),
             _ => None,
+        }
+    }
+
+    fn parse_if_statement(&mut self) -> Option<Statement> {
+        // current token is `if`
+        self.expect_peek(&Token::LBrace)?; // consume `if`, current is `{`
+        self.next_token(); // consume `{`
+
+        let mut stmts = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(stmt) = self.parse_statement() {
+                stmts.push(stmt);
+            }
+            self.next_token();
+        }
+
+        // Now, find the condition and separate it from the body
+        let mut condition: Option<Expression> = None;
+        let mut body: Vec<Statement> = Vec::new();
+        let mut condition_found = false;
+
+        for stmt in stmts {
+            if !condition_found {
+                if let Statement::Attribute(attr) = &stmt {
+                    if attr.name.value == "condition" {
+                        if let Some(expr) = attr.value.clone() {
+                            condition = Some(expr);
+                            condition_found = true;
+                            continue; // Don't add the condition attribute to the body
+                        }
+                    }
+                }
+            }
+            body.push(stmt);
+        }
+
+        if let Some(cond) = condition {
+            Some(Statement::If(IfStatement {
+                condition: cond,
+                body,
+            }))
+        } else {
+            self.errors
+                .push("`if` block must contain a `condition` property".to_string());
+            None
         }
     }
 
@@ -974,6 +1020,43 @@ mod tests {
             }
         } else {
             panic!("Expected DeleteStatement");
+        }
+    }
+
+    #[test]
+    fn test_if_statement_parsing() {
+        let input = r#"
+        if {
+            condition: a > b;
+            display: "block";
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let stmt = parser.parse_statement().unwrap();
+
+        if let Statement::If(if_stmt) = stmt {
+            // Check the condition
+            if let Expression::Infix(infix) = &if_stmt.condition {
+                assert_eq!(infix.operator, ">");
+            } else {
+                panic!("Expected InfixExpression for condition");
+            }
+
+            // Check the body
+            assert_eq!(if_stmt.body.len(), 1);
+            if let Statement::Attribute(attr) = &if_stmt.body[0] {
+                assert_eq!(attr.name.value, "display");
+                if let Some(Expression::StringLiteral(s)) = &attr.value {
+                    assert_eq!(s.value, "block");
+                } else {
+                    panic!("Expected StringLiteral for display value");
+                }
+            } else {
+                panic!("Expected AttributeStatement in if body");
+            }
+        } else {
+            panic!("Expected IfStatement");
         }
     }
 

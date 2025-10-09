@@ -44,6 +44,12 @@ pub struct DeleteStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct IfStatement {
+    pub condition: Expression,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Element(ElementStatement),
     Text(TextStatement),
@@ -55,6 +61,7 @@ pub enum Statement {
     UseTemplate(UseTemplateStatement),
     Import(ImportStatement),
     Delete(DeleteStatement),
+    If(IfStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]

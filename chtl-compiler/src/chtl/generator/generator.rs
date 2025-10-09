@@ -261,6 +261,7 @@ impl Generator {
             }
             Statement::Import(_) => String::new(),
             Statement::Delete(_) => String::new(), // Handled within template application
+            Statement::If(_) => String::new(), // Will be handled inside generate_element
         }
     }
 
@@ -273,23 +274,63 @@ impl Generator {
         let mut attributes: HashMap<String, String> = HashMap::new();
         let mut children = String::new();
 
-        let mut style_statements = Vec::new();
-        let mut other_statements = Vec::new();
+        // 1. Separate statements into different categories
+        let mut style_statements: Vec<_> = Vec::new();
+        let mut if_statements: Vec<_> = Vec::new();
+        let mut other_statements: Vec<_> = Vec::new();
 
         for statement in &element.body {
-            if let Statement::Style(s) = statement {
-                style_statements.push(s);
-            } else {
-                other_statements.push(statement);
+            match statement {
+                Statement::Style(s) => style_statements.push(s.clone()),
+                Statement::If(i) => if_statements.push(i.clone()),
+                _ => other_statements.push(statement.clone()),
             }
         }
 
+        // 2. Build a context for evaluating `if` conditions.
+        let mut context_for_ifs = HashMap::new();
+        let mut temp_prop_stmts = other_statements.clone();
+        temp_prop_stmts.extend(style_statements.iter().flat_map(|s| s.body.clone()));
+
+        for stmt in &temp_prop_stmts {
+            if let Statement::Attribute(attr) = stmt {
+                if let Some(expr) = &attr.value {
+                    let value_obj = self.evaluator.eval(
+                        expr,
+                        &context_for_ifs,
+                        &self.templates,
+                        &self.document_map,
+                    );
+                    context_for_ifs.insert(attr.name.value.clone(), value_obj);
+                }
+            }
+        }
+
+        // 3. Evaluate `if` statements and add their body statements to the appropriate lists.
+        for if_stmt in if_statements {
+            let condition_result = self.evaluator.eval(
+                &if_stmt.condition,
+                &context_for_ifs,
+                &self.templates,
+                &self.document_map,
+            );
+            if let Object::Boolean(true) = condition_result {
+                for stmt in if_stmt.body {
+                    match stmt {
+                        Statement::Style(s) => style_statements.push(s),
+                        _ => other_statements.push(stmt),
+                    }
+                }
+            }
+        }
+
+        // 4. Process all "other" statements (including those from applied `if`s)
         for statement in &other_statements {
             match statement {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let context = std::collections::HashMap::new();
-                        let value = self.eval_expression_to_string(expr, &context);
+                        // Use the full context now for evaluation
+                        let value = self.eval_expression_to_string(expr, &context_for_ifs);
                         if attr.name.value == "text" {
                             children.push_str(&value);
                         } else {
@@ -303,9 +344,14 @@ impl Generator {
             }
         }
 
+        // 5. Process style statements (including those from applied `if`s)
+        // Merge all style statements into a single one to ensure deterministic property order.
+        let mut merged_style_body = Vec::new();
         for style in style_statements {
-            self.generate_style(style, &mut attributes);
+            merged_style_body.extend(style.body);
         }
+        let merged_style_statement = StyleStatement { body: merged_style_body };
+        self.generate_style(&merged_style_statement, &mut attributes);
 
         let mut attrs_str = String::new();
         let mut sorted_attributes: Vec<_> = attributes.iter().collect();
@@ -894,6 +940,70 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<div style="color:blue;font-size:16px"></div>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_generate_with_conditional_rendering_block() {
+        let input = r#"
+        div {
+            style {
+                width: 100px;
+            }
+            if {
+                condition: width > 50px;
+                style {
+                    height: 200px;
+                }
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<div style="height:200px;width:100px"></div>"#;
+        assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
+    }
+
+    #[test]
+    fn test_generate_with_false_conditional_rendering_block() {
+        let input = r#"
+        div {
+            style {
+                width: 40px;
+            }
+            if {
+                condition: width > 50px;
+                style {
+                    height: 200px;
+                }
+            }
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<div style="width:40px"></div>"#;
         assert_eq!(html.replace_whitespace(), expected_html.replace_whitespace());
     }
 }

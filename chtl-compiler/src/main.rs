@@ -1,5 +1,7 @@
-use std::env;
 use std::fs;
+use std::path::Path;
+
+use clap::Parser as ClapParser;
 
 pub mod chtl;
 use chtl::config_manager::ConfigManager;
@@ -8,14 +10,22 @@ use chtl::lexer::lexer::Lexer;
 use chtl::node::ast::Statement;
 use chtl::parser::parser::Parser;
 
-fn main() {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("Usage: chtl-compiler <file>");
-        return;
-    }
+/// A simple CHTL compiler
+#[derive(ClapParser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    /// The CHTL file to compile
+    input: String,
 
-    let filename = &args[1];
+    /// The output file path
+    #[arg(short, long)]
+    output: Option<String>,
+}
+
+fn main() {
+    let cli = Cli::parse();
+
+    let filename = &cli.input;
     let source = match fs::read_to_string(filename) {
         Ok(s) => s,
         Err(e) => {
@@ -48,7 +58,6 @@ fn main() {
     }
 
     // --- Main parsing pass ---
-    // Now, create the main lexer with the potentially updated configuration.
     let lexer = Lexer::new(&source, &config_manager);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
@@ -63,5 +72,19 @@ fn main() {
 
     let mut generator = Generator::new();
     let html = generator.generate(&program);
-    println!("{}", html);
+
+    // Determine the output path
+    let output_path = match cli.output {
+        Some(path) => path,
+        None => {
+            let path = Path::new(filename);
+            path.with_extension("html").to_str().unwrap().to_string()
+        }
+    };
+
+    // Write the output
+    match fs::write(&output_path, html) {
+        Ok(_) => println!("Successfully compiled {} to {}", filename, output_path),
+        Err(e) => eprintln!("Error writing to file '{}': {}", output_path, e),
+    }
 }

@@ -6,5 +6,6 @@ edition = "2021"
 [dependencies]
 zip = "0.6"
 tempfile = "3.3.0"
+clap = { version = "4.0", features = ["derive"] }
 
 [dev-dependencies]

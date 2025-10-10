@@ -1,9 +1,6 @@
 use crate::chtl::evaluator::object::Object;
 use crate::chtl::node::ast::*;
 use std::collections::HashMap;
-use crate::chtl::config_manager::ConfigManager;
-use crate::chtl::lexer::lexer::Lexer;
-use crate::chtl::parser::parser::Parser;
 
 pub type DocumentMap = HashMap<String, HashMap<String, Expression>>;
 

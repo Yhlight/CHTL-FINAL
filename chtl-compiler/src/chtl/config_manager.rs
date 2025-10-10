@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use crate::chtl::node::ast::{AttributeStatement, ConfigurationStatement, Expression};
+use crate::chtl::node::ast::{ConfigurationStatement, Expression};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct KeywordConfig {

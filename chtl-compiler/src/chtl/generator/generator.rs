@@ -215,9 +215,16 @@ impl Generator {
 
                         match self.loader.resolve_path(&path_str) {
                             Ok(resolved_path) => {
-                                if let Ok(content) =
-                                    self.loader.load_file_content(resolved_path.to_str().unwrap())
-                                {
+                                let path_to_load = resolved_path.to_str().unwrap_or_else(|| {
+                                    eprintln!("Warning: Could not convert resolved path to string");
+                                    ""
+                                });
+
+                                if path_to_load.is_empty() {
+                                    continue;
+                                }
+
+                                if let Ok(content) = self.loader.load_file_content(path_to_load) {
                                     let config = ConfigManager::new();
                                     let lexer = Lexer::new(&content, &config);
                                     let mut parser = Parser::new(lexer);
@@ -225,19 +232,19 @@ impl Generator {
                                     if !parser.errors().is_empty() {
                                         eprintln!(
                                             "Warning: Parsing errors in imported file '{}': {:?}",
-                                            resolved_path.display(),
+                                            path_to_load,
                                             parser.errors()
                                         );
                                     }
                                     // Recursively process the imported file, passing its path
                                     self.process_imports_and_templates(
                                         &imported_program,
-                                        resolved_path.to_str().unwrap(),
+                                        path_to_load,
                                     );
                                 } else {
                                     eprintln!(
                                         "Warning: Could not load content from resolved path '{}'",
-                                        resolved_path.display()
+                                        path_to_load
                                     );
                                 }
                             }
@@ -678,7 +685,22 @@ mod tests {
     use super::*;
     use crate::chtl::config_manager::ConfigManager;
     use crate::chtl::lexer::lexer::Lexer;
+    use std::fs::File;
+    use std::io::Write;
     use tempfile::Builder;
+    use zip::write::{FileOptions, ZipWriter};
+
+    fn create_cmod_file(path: &std::path::Path, module_name: &str, content: &str) {
+        let file = File::create(path).unwrap();
+        let mut zip = ZipWriter::new(file);
+        let options = FileOptions::default().compression_method(zip::CompressionMethod::Stored);
+
+        zip.add_directory("src/", options).unwrap();
+        zip.start_file(format!("src/{}.chtl", module_name), options)
+            .unwrap();
+        zip.write_all(content.as_bytes()).unwrap();
+        zip.finish().unwrap();
+    }
 
     fn generate_html(input: &str) -> String {
         let config = ConfigManager::new();
@@ -956,5 +978,52 @@ mod tests {
         assert!(html.contains("<script>"));
         assert!(html.contains(r#"console.log("Hello from script!");"#));
         assert!(html.contains("</script>"));
+    }
+
+    #[test]
+    fn test_cmod_import_and_template_use() {
+        let dir = Builder::new().prefix("cmod_import_test").tempdir().unwrap();
+        let cmod_path = dir.path().join("my_mod.cmod");
+        let main_path = dir.path().join("main.chtl");
+
+        let cmod_content = r#"
+            [namespace] cmod_lib;
+            [template] @element CmodComponent {
+                p {
+                    text: "Hello from CMOD!";
+                }
+            }
+        "#;
+        create_cmod_file(&cmod_path, "my_mod", cmod_content);
+
+        let main_content = format!(
+            r#"
+            [import] @chtl from "{}";
+
+            body {{
+                @element CmodComponent from cmod_lib;
+            }}
+        "#,
+            cmod_path.to_str().unwrap()
+        );
+        std::fs::write(&main_path, &main_content).unwrap();
+
+        // The generator will read the file from disk, so we don't need to pass the content directly.
+        let source = std::fs::read_to_string(&main_path).unwrap();
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(&source, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(
+            parser.errors().is_empty(),
+            "Parser errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = Generator::new(Some(main_path.to_str().unwrap()));
+        let html = generator.generate(&program);
+
+        let expected_html = r#"<body><p>Hello from CMOD!</p></body>"#;
+        assert_eq!(html.trim(), expected_html.trim());
     }
 }

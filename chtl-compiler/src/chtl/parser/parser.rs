@@ -75,10 +75,10 @@ impl<'a> Parser<'a> {
             Token::Identifier(_) => {
                 if self.peek_token_is(&Token::LBrace) {
                     self.parse_element_statement()
-                } else if self.peek_token_is(&Token::Colon) {
-                    self.parse_attribute_statement()
                 } else {
-                    None
+                    // If it's not an element, it must be an attribute.
+                    // The attribute parsing function can determine if it has a value or not.
+                    self.parse_attribute_statement()
                 }
             }
             Token::Text => {

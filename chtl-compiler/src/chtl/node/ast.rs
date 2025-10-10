@@ -79,6 +79,17 @@ pub struct ExportItem {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct NameBlock {
+    pub settings: Vec<AttributeStatement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ConfigurationStatement {
+    pub name: Option<IdentifierExpression>,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Element(ElementStatement),
     Text(TextStatement),
@@ -95,6 +106,8 @@ pub enum Statement {
     Namespace(NamespaceStatement),
     Info(InfoStatement),
     Export(ExportStatement),
+    Configuration(ConfigurationStatement),
+    NameBlock(NameBlock),
 }
 
 #[derive(Debug, PartialEq, Clone)]

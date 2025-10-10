@@ -1,6 +1,9 @@
 use crate::chtl::evaluator::object::Object;
 use crate::chtl::node::ast::*;
 use std::collections::HashMap;
+use crate::chtl::config_manager::ConfigManager;
+use crate::chtl::lexer::lexer::Lexer;
+use crate::chtl::parser::parser::Parser;
 
 pub type DocumentMap = HashMap<String, HashMap<String, Expression>>;
 
@@ -200,11 +203,13 @@ impl Evaluator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chtl::config_manager::ConfigManager;
     use crate::chtl::lexer::lexer::Lexer;
     use crate::chtl::parser::parser::Parser;
 
     fn test_eval(input: &str) -> Object {
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         let stmt = &program.statements[0];
@@ -276,7 +281,8 @@ mod tests {
         }
         "#;
 
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         let stmt = &program.statements[0];
@@ -323,7 +329,8 @@ mod tests {
         }
         "#;
 
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         let template_def = program.statements[0].clone();

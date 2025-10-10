@@ -71,6 +71,10 @@ impl<'a> Parser<'a> {
                     return self.parse_info_statement();
                 } else if self.peek_token_is(&Token::Export) {
                     return self.parse_export_statement();
+                } else if self.peek_token_is(&Token::Configuration) {
+                    return self.parse_configuration_statement();
+                } else if self.peek_token_is(&Token::Name) {
+                    return self.parse_name_block();
                 }
                 None
             }
@@ -109,16 +113,115 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_configuration_statement(&mut self) -> Option<Statement> {
+        self.expect_peek(&Token::Configuration)?;
+        self.expect_peek(&Token::RBracket)?;
+        self.next_token();
+
+        let mut name = None;
+        if self.current_token_is(&Token::At) {
+            self.next_token();
+            if !self.current_token_is(&Token::Config) {
+                self.errors.push(format!("Expected 'Config' after '@' in configuration, got {:?}", self.current_token));
+                return None;
+            }
+            self.next_token();
+
+            if let Token::Identifier(config_name) = self.current_token.clone() {
+                name = Some(IdentifierExpression { value: config_name });
+            } else {
+                self.errors.push(format!("Expected identifier for configuration name, got {:?}", self.current_token));
+                return None;
+            }
+            self.next_token();
+        }
+
+        if !self.current_token_is(&Token::LBrace) {
+            self.errors.push(format!("Expected '{{' to start configuration body, got {:?}", self.current_token));
+            return None;
+        }
+        self.next_token();
+
+        let mut body = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            let stmt = match self.current_token.clone() {
+                Token::LBracket if self.peek_token_is(&Token::Name) => self.parse_name_block(),
+                _ => self.parse_attribute_statement(),
+            };
+
+            if let Some(s) = stmt {
+                body.push(s);
+            } else {
+                self.errors.push(format!("Unexpected token in configuration body: {:?}", self.current_token));
+                self.next_token();
+            }
+        }
+
+        Some(Statement::Configuration(ConfigurationStatement { name, body }))
+    }
+
+    fn parse_name_block(&mut self) -> Option<Statement> {
+        self.expect_peek(&Token::Name)?;
+        self.expect_peek(&Token::RBracket)?;
+        self.expect_peek(&Token::LBrace)?;
+        self.next_token();
+
+        let mut settings = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(Statement::Attribute(attr)) = self.parse_attribute_statement() {
+                settings.push(attr);
+            } else {
+                self.errors.push(format!("Expected attribute statement in [Name] block, got {:?}", self.current_token));
+                self.next_token();
+            }
+        }
+        Some(Statement::NameBlock(NameBlock { settings }))
+    }
+
+    fn parse_info_statement(&mut self) -> Option<Statement> {
+        self.expect_peek(&Token::Info)?;
+        self.expect_peek(&Token::RBracket)?;
+        self.expect_peek(&Token::LBrace)?;
+        self.next_token();
+
+        let mut attributes = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(Statement::Attribute(attr)) = self.parse_attribute_statement() {
+                attributes.push(attr);
+            } else {
+                self.errors.push(format!("Expected attribute statement in [Info] block, got {:?}", self.current_token));
+            }
+            self.next_token();
+        }
+        Some(Statement::Info(InfoStatement { attributes }))
+    }
+
+    fn parse_export_statement(&mut self) -> Option<Statement> {
+        self.expect_peek(&Token::Export)?;
+        self.expect_peek(&Token::RBracket)?;
+        self.expect_peek(&Token::LBrace)?;
+        self.next_token();
+
+        let mut items = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(item) = self.parse_export_item() {
+                items.push(item);
+            } else {
+                self.errors.push(format!("Expected export item in [Export] block, got {:?}", self.current_token));
+            }
+            self.next_token();
+        }
+        Some(Statement::Export(ExportStatement { items }))
+    }
+
     fn parse_if_statement(&mut self) -> Option<Statement> {
-        // Assumes current_token is `if`.
         if !self.peek_token_is(&Token::LBrace) {
             self.errors.push(format!("Expected '{{' after 'if', got {:?}", self.peek_token));
             return None;
         }
-        self.next_token(); // consume `if`, current_token is now `{`
-        self.next_token(); // consume `{`
+        self.next_token();
+        self.next_token();
 
-        // --- Parse the `if` block contents ---
         let mut stmts = Vec::new();
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
             if let Some(stmt) = self.parse_statement() {
@@ -126,9 +229,7 @@ impl<'a> Parser<'a> {
             }
             self.next_token();
         }
-        // After this loop, current_token is `}`.
 
-        // --- Extract condition and consequence from statements ---
         let mut condition: Option<Expression> = None;
         let mut consequence: Vec<Statement> = Vec::new();
         let mut condition_found = false;
@@ -140,7 +241,7 @@ impl<'a> Parser<'a> {
                         if let Some(expr) = attr.value.clone() {
                             condition = Some(expr);
                             condition_found = true;
-                            continue; // Don't add the condition attribute to the consequence
+                            continue;
                         }
                     }
                 }
@@ -155,17 +256,16 @@ impl<'a> Parser<'a> {
             return None;
         };
 
-        // --- Parse alternative (`else` or `else if`) ---
         let mut alternative: Option<Box<Statement>> = None;
         if self.peek_token_is(&Token::Else) {
-            self.next_token(); // consume `}`. current_token is `else`.
+            self.next_token();
 
             if self.peek_token_is(&Token::If) {
-                self.next_token(); // consume `else`. current_token is `if`.
+                self.next_token();
                 alternative = self.parse_if_statement().map(Box::new);
             } else if self.peek_token_is(&Token::LBrace) {
-                self.next_token(); // consume `else`. current_token is `{`.
-                self.next_token(); // consume `{`.
+                self.next_token();
+                self.next_token();
 
                 let mut else_consequence = Vec::new();
                 while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
@@ -174,7 +274,6 @@ impl<'a> Parser<'a> {
                     }
                     self.next_token();
                 }
-                // After loop, current_token is `}`.
                 let else_stmt = ElseStatement { consequence: else_consequence };
                 alternative = Some(Box::new(Statement::Else(else_stmt)));
             } else {
@@ -193,10 +292,9 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_namespace_statement(&mut self) -> Option<Statement> {
-        // Current is `[`
-        self.expect_peek(&Token::Namespace)?; // consume `[`, current is `Namespace`
-        self.expect_peek(&Token::RBracket)?; // consume `Namespace`, current is `]`
-        self.next_token(); // consume `]`, current is now the namespace name
+        self.expect_peek(&Token::Namespace)?;
+        self.expect_peek(&Token::RBracket)?;
+        self.next_token();
 
         let name = if let Token::Identifier(n) = self.current_token.clone() {
             IdentifierExpression { value: n }
@@ -216,13 +314,13 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_delete_statement(&mut self) -> Option<Statement> {
-        self.next_token(); // consume `delete`
+        self.next_token();
 
         let mut targets = Vec::new();
 
         loop {
             let expr = if self.current_token_is(&Token::At) {
-                self.next_token(); // consume `@`
+                self.next_token();
                 let type_name =
                     if let Some(s) = self.token_to_string_for_unquoted_literal(&self.current_token)
                     {
@@ -234,7 +332,7 @@ impl<'a> Parser<'a> {
                         ));
                         return None;
                     };
-                self.next_token(); // consume type_name
+                self.next_token();
 
                 let template_name = if let Token::Identifier(s) = self.current_token.clone() {
                     s
@@ -263,8 +361,8 @@ impl<'a> Parser<'a> {
             }
 
             if self.peek_token_is(&Token::Comma) {
-                self.next_token(); // consume expression's last token
-                self.next_token(); // consume comma
+                self.next_token();
+                self.next_token();
             } else {
                 break;
             }
@@ -352,7 +450,7 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
 
-        self.next_token(); // consume LBrace
+        self.next_token();
 
         let mut body = Vec::new();
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
@@ -366,12 +464,12 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_conditional_expression(&mut self, condition: Expression) -> Option<Expression> {
-        self.next_token(); // consume '?', current_token is now first token of consequence
-        let consequence = self.parse_expression(Precedence::Conditional)?; // parse consequence
+        self.next_token();
+        let consequence = self.parse_expression(Precedence::Conditional)?;
 
         let alternative = if self.peek_token_is(&Token::Colon) {
-            self.next_token(); // consume last token of consequence, current_token is now ':'
-            self.next_token(); // consume ':', current_token is now first token of alternative
+            self.next_token();
+            self.next_token();
             Some(self.parse_expression(Precedence::Conditional)?)
         } else {
             None
@@ -385,13 +483,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_template_definition_statement(&mut self) -> Option<Statement> {
-        // Current token is `[`
         let is_custom = self.peek_token_is(&Token::Custom);
 
-        // Consume `[`
         self.next_token();
 
-        // current_token is now `Template` or `Custom`
         let keyword_token = self.current_token.clone();
         if !matches!(keyword_token, Token::Template | Token::Custom) {
             self.errors.push(format!(
@@ -401,7 +496,6 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        // Consume keyword, expect `]`
         self.next_token();
         if !self.current_token_is(&Token::RBracket) {
             self.errors.push(format!(
@@ -411,13 +505,11 @@ impl<'a> Parser<'a> {
             return None;
         }
 
-        // Consume `]`, expect `@`
         if self.expect_peek(&Token::At).is_none() {
             return None;
         }
-        // Now current token is `@`.
 
-        self.next_token(); // Consume `@`, current is type keyword
+        self.next_token();
 
         let template_type = match self.current_token.clone() {
             Token::Style => TemplateType::Style,
@@ -432,7 +524,7 @@ impl<'a> Parser<'a> {
             }
         };
 
-        self.next_token(); // Consume type keyword, current is template name
+        self.next_token();
 
         let name = if let Token::Identifier(n) = self.current_token.clone() {
             IdentifierExpression { value: n }
@@ -444,8 +536,8 @@ impl<'a> Parser<'a> {
             return None;
         };
 
-        self.expect_peek(&Token::LBrace)?; // Consume name, current is `{`
-        self.next_token(); // Consume `{`
+        self.expect_peek(&Token::LBrace)?;
+        self.next_token();
 
         let mut body = Vec::new();
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
@@ -464,12 +556,10 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_import_statement(&mut self) -> Option<Statement> {
-        // Current is `[`.
-        self.expect_peek(&Token::Import)?;     // consume `[`, current is `Import`
-        self.expect_peek(&Token::RBracket)?;  // consume `Import`, current is `]`
-        self.next_token();                   // consume `]`, current is now specifier start
+        self.expect_peek(&Token::Import)?;
+        self.expect_peek(&Token::RBracket)?;
+        self.next_token();
 
-        // Case 1: File import like `[Import] @Chtl from ...`
         if self.current_token_is(&Token::At) {
              if let Some(file_type) = match self.peek_token.clone() {
                 Token::Chtl => Some(ImportFileType::Chtl),
@@ -480,17 +570,16 @@ impl<'a> Parser<'a> {
                 Token::Config => Some(ImportFileType::Config),
                 _ => None,
             } {
-                self.next_token(); // consume `@`
-                self.next_token(); // consume file type
+                self.next_token();
+                self.next_token();
                 let specifier = ImportSpecifier::File(file_type);
                 return self.parse_import_from_path_alias(specifier);
             }
         }
 
-        // Case 2: Item import like `[Import] [Custom] @Element ...`
         let mut category: Option<ImportItemCategory> = None;
         if self.current_token_is(&Token::LBracket) {
-            self.next_token(); // consume `[`
+            self.next_token();
             category = match self.current_token.clone() {
                 Token::Custom => Some(ImportItemCategory::Custom),
                 Token::Template => Some(ImportItemCategory::Template),
@@ -501,20 +590,20 @@ impl<'a> Parser<'a> {
                     return None;
                 }
             };
-            self.next_token(); // consume category
+            self.next_token();
             if !self.current_token_is(&Token::RBracket) {
                  self.errors.push(format!("Expected ']' after import category, got {:?}", self.current_token));
                  return None;
             }
-            self.next_token(); // consume `]`
+            self.next_token();
         }
 
         let mut item_type: Option<IdentifierExpression> = None;
         if self.current_token_is(&Token::At) {
-            self.next_token(); // consume `@`
+            self.next_token();
             if let Some(type_str) = self.token_to_string_for_unquoted_literal(&self.current_token) {
                 item_type = Some(IdentifierExpression { value: type_str });
-                self.next_token(); // consume item type
+                self.next_token();
             } else {
                 self.errors.push(format!("Expected item type after @, got {:?}", self.current_token));
                 return None;
@@ -524,7 +613,7 @@ impl<'a> Parser<'a> {
         let mut name: Option<IdentifierExpression> = None;
         if let Token::Identifier(n) = self.current_token.clone() {
             name = Some(IdentifierExpression { value: n });
-            self.next_token(); // consume name
+            self.next_token();
         }
 
         let specifier = ImportSpecifier::Item(ImportItemSpecifier {
@@ -576,7 +665,7 @@ impl<'a> Parser<'a> {
             self.errors.push(format!("Expected 'from' after import specifier, got {:?}", self.current_token));
             return None;
         }
-        self.next_token(); // consume `from`
+        self.next_token();
 
         let path = self.parse_path_expression()?;
 
@@ -604,8 +693,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_use_template_statement(&mut self) -> Option<Statement> {
-        // Current token is `@`
-        self.next_token(); // Consume `@`, current is type keyword (e.g. Style)
+        self.next_token();
 
         let template_type_str = match self.current_token.clone() {
             Token::Style => "Style",
@@ -623,7 +711,7 @@ impl<'a> Parser<'a> {
             value: template_type_str.to_string(),
         };
 
-        self.next_token(); // Consume type keyword, current is template name
+        self.next_token();
 
         let name = if let Token::Identifier(n) = self.current_token.clone() {
             IdentifierExpression { value: n }
@@ -634,14 +722,14 @@ impl<'a> Parser<'a> {
             ));
             return None;
         };
-        self.next_token(); // Consume template name
+        self.next_token();
 
         let mut from = None;
         if self.current_token_is(&Token::From) {
-            self.next_token(); // consume 'from'
+            self.next_token();
             if let Token::Identifier(ns) = self.current_token.clone() {
                 from = Some(IdentifierExpression { value: ns });
-                self.next_token(); // consume namespace
+                self.next_token();
             } else {
                 self.errors.push(format!(
                     "Expected namespace identifier after 'from', got {:?}",
@@ -653,7 +741,7 @@ impl<'a> Parser<'a> {
 
         let mut body = None;
         if self.current_token_is(&Token::LBrace) {
-            self.next_token(); // consume '{'
+            self.next_token();
 
             let mut stmts = Vec::new();
             while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
@@ -662,11 +750,8 @@ impl<'a> Parser<'a> {
                 }
                 self.next_token();
             }
-            // The loop consumes tokens up to the '}', but the outer parse_statement loop will consume the '}'
             body = Some(stmts);
         }
-
-        // The semicolon is optional and is handled by the outer parse_statement loop advancing tokens.
 
         Some(Statement::UseTemplate(UseTemplateStatement {
             name,
@@ -700,12 +785,13 @@ impl<'a> Parser<'a> {
         let name = match self.current_token.clone() {
             Token::Identifier(name) => IdentifierExpression { value: name },
             Token::Text => IdentifierExpression { value: "text".to_string() },
+            Token::Name => IdentifierExpression { value: "name".to_string() },
             _ => return None,
         };
 
         if self.peek_token_is(&Token::Colon) {
-            self.next_token(); // consume name, current is ':'
-            self.next_token(); // consume ':', current is start of value
+            self.next_token();
+            self.next_token();
 
             let value = self.parse_expression(Precedence::Lowest)?;
 
@@ -718,7 +804,6 @@ impl<'a> Parser<'a> {
                 value: Some(value),
             }))
         } else {
-            // Valueless attribute
             if self.peek_token_is(&Token::Semicolon) {
                 self.next_token();
             } else if self.peek_token_is(&Token::Comma) {
@@ -799,7 +884,7 @@ impl<'a> Parser<'a> {
                 } else {
                     ".".to_string()
                 };
-                self.next_token(); // consume # or .
+                self.next_token();
                 if let Token::Identifier(name) = self.current_token.clone() {
                     selector.push_str(&name);
                     Some(Expression::UnquotedLiteral(UnquotedLiteralExpression {
@@ -820,7 +905,6 @@ impl<'a> Parser<'a> {
                     }
                 }
 
-                // Fallthrough for multi-word unquoted literals
                 let mut literal = String::new();
                 let mut current_tok = tok;
                 loop {
@@ -877,7 +961,6 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_property_access_expression(&mut self, object: Expression) -> Option<Expression> {
-        // current_token is '.'
         if !self.peek_token_is(&Token::Identifier("".to_string())) {
             self.errors.push(format!(
                 "Expected property name after '.', got {:?}",
@@ -885,7 +968,7 @@ impl<'a> Parser<'a> {
             ));
             return None;
         }
-        self.next_token(); // consume '.', current_token is now the property identifier
+        self.next_token();
 
         let property = if let Token::Identifier(name) = self.current_token.clone() {
             IdentifierExpression { value: name }
@@ -903,11 +986,11 @@ impl<'a> Parser<'a> {
         let mut args = Vec::new();
 
         if self.peek_token_is(&Token::RParen) {
-            self.next_token(); // Consume ')'
+            self.next_token();
             return Some(args);
         }
 
-        self.next_token(); // Consume '('
+        self.next_token();
 
         args.push(self.parse_expression(Precedence::Lowest)?);
 
@@ -1031,52 +1114,17 @@ impl<'a> Parser<'a> {
             Token::Chtl => Some("Chtl".to_string()),
             Token::CjMod => Some("CJmod".to_string()),
             Token::Config => Some("Config".to_string()),
+            Token::Name => Some("Name".to_string()),
             _ => None,
         }
     }
 
-    fn parse_info_statement(&mut self) -> Option<Statement> {
-        // current is `[`
-        self.expect_peek(&Token::Info)?;      // consume `[`, current is `Info`
-        self.expect_peek(&Token::RBracket)?; // consume `Info`, current is `]`
-        self.expect_peek(&Token::LBrace)?;   // consume `]`, current is `{`
-        self.next_token();                  // consume `{`
-
-        let mut attributes = Vec::new();
-        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
-            if let Some(Statement::Attribute(attr)) = self.parse_attribute_statement() {
-                attributes.push(attr);
-            }
-            self.next_token();
-        }
-
-        Some(Statement::Info(InfoStatement { attributes }))
-    }
-
-    fn parse_export_statement(&mut self) -> Option<Statement> {
-        // current is `[`
-        self.expect_peek(&Token::Export)?;   // consume `[`, current is `Export`
-        self.expect_peek(&Token::RBracket)?; // consume `Export`, current is `]`
-        self.expect_peek(&Token::LBrace)?;   // consume `]`, current is `{`
-        self.next_token();                  // consume `{`
-
-        let mut items = Vec::new();
-        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
-            if let Some(item) = self.parse_export_item() {
-                items.push(item);
-            }
-            self.next_token();
-        }
-        Some(Statement::Export(ExportStatement { items }))
-    }
-
     fn parse_export_item(&mut self) -> Option<ExportItem> {
-        // [Custom] @Style ChthollyStyle, ChthollyCard;
         if !self.current_token_is(&Token::LBracket) {
             self.errors.push(format!("Expected '[' at start of export item, got {:?}", self.current_token));
             return None;
         }
-        self.next_token(); // consume `[`
+        self.next_token();
 
         let category = match self.current_token.clone() {
             Token::Custom => ImportItemCategory::Custom,
@@ -1088,19 +1136,19 @@ impl<'a> Parser<'a> {
                 return None;
             }
         };
-        self.next_token(); // consume category
+        self.next_token();
 
         if !self.current_token_is(&Token::RBracket) {
             self.errors.push(format!("Expected ']' after export category, got {:?}", self.current_token));
             return None;
         }
-        self.next_token(); // consume `]`
+        self.next_token();
 
         if !self.current_token_is(&Token::At) {
             self.errors.push(format!("Expected '@' after export category, got {:?}", self.current_token));
             return None;
         }
-        self.next_token(); // consume `@`
+        self.next_token();
 
         let item_type = if let Some(type_str) = self.token_to_string_for_unquoted_literal(&self.current_token) {
             IdentifierExpression { value: type_str }
@@ -1108,7 +1156,7 @@ impl<'a> Parser<'a> {
             self.errors.push(format!("Expected item type after @, got {:?}", self.current_token));
             return None;
         };
-        self.next_token(); // consume item type
+        self.next_token();
 
         let mut names = Vec::new();
         loop {
@@ -1122,12 +1170,11 @@ impl<'a> Parser<'a> {
             self.next_token();
 
             if self.current_token_is(&Token::Comma) {
-                self.next_token(); // consume comma
+                self.next_token();
                 continue;
             } else if self.current_token_is(&Token::Semicolon) {
                 break;
             } else {
-                // If there's no comma, we assume the list is done and the semicolon is optional.
                 break;
             }
         }
@@ -1143,6 +1190,7 @@ impl<'a> Parser<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chtl::config_manager::ConfigManager;
     use crate::chtl::lexer::lexer::Lexer;
 
     #[test]
@@ -1152,7 +1200,8 @@ mod tests {
             width: #box.width;
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1188,7 +1237,8 @@ mod tests {
     #[test]
     fn test_delete_statement_parsing() {
         let input = "delete font-size, @Style Base, some-other-prop;";
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let stmt = parser.parse_statement().unwrap();
 
@@ -1222,7 +1272,8 @@ mod tests {
             display: "block";
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let stmt = parser.parse_statement().unwrap();
 
@@ -1264,7 +1315,8 @@ mod tests {
             color: "blue";
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let stmt = parser.parse_statement().unwrap();
 
@@ -1301,7 +1353,8 @@ mod tests {
             color: "blue";
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let stmt = parser.parse_statement().unwrap();
 
@@ -1331,7 +1384,8 @@ mod tests {
     #[test]
     fn test_namespace_statement_parsing() {
         let input = "[Namespace] my_space;";
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let stmt = parser.parse_statement().unwrap();
 
@@ -1345,7 +1399,8 @@ mod tests {
     #[test]
     fn test_use_template_from_namespace() {
         let input = "@Element MyTemplate from my_space;";
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let stmt = parser.parse_statement().unwrap();
 
@@ -1368,7 +1423,8 @@ mod tests {
             }
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1426,7 +1482,8 @@ mod tests {
             text { "Hello" }
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1467,7 +1524,8 @@ mod tests {
             @Element Box;
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1499,7 +1557,8 @@ mod tests {
             width: 10 + 2 * 3 ** 2;
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1564,7 +1623,8 @@ mod tests {
             background-color: width > 50px ? "red" : "blue";
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1629,7 +1689,8 @@ mod tests {
             }
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1679,7 +1740,8 @@ mod tests {
             }
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1771,7 +1833,8 @@ mod tests {
             }
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1818,7 +1881,8 @@ mod tests {
             color: ThemeColor(tableColor);
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1863,7 +1927,8 @@ mod tests {
             version: "1.0.0";
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 
@@ -1891,7 +1956,8 @@ mod tests {
             [Template] @Element Box;
         }
         "#;
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
 

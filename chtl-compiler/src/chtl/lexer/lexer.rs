@@ -1,3 +1,4 @@
+use crate::chtl::config_manager::ConfigManager;
 use crate::chtl::lexer::token::Token;
 use std::iter::Peekable;
 use std::str::Chars;
@@ -5,13 +6,15 @@ use std::str::Chars;
 pub struct Lexer<'a> {
     input: Peekable<Chars<'a>>,
     ch: char,
+    config: &'a ConfigManager,
 }
 
 impl<'a> Lexer<'a> {
-    pub fn new(input: &'a str) -> Self {
+    pub fn new(input: &'a str, config: &'a ConfigManager) -> Self {
         let mut l = Lexer {
             input: input.chars().peekable(),
             ch: ' ',
+            config,
         };
         l.read_char();
         l
@@ -82,59 +85,7 @@ impl<'a> Lexer<'a> {
             _ => {
                 if is_letter(self.ch) {
                     let literal = self.read_identifier();
-                    return match literal.to_lowercase().as_str() {
-                        "text" => Token::Text,
-                        "style" => Token::Style,
-                        "script" => Token::Script,
-                        "template" => Token::Template,
-                        "element" => Token::Element,
-                        "var" => Token::Var,
-                        "custom" => Token::Custom,
-                        "origin" => Token::Origin,
-                        "import" => Token::Import,
-                        "namespace" => Token::Namespace,
-                        "configuration" => Token::Configuration,
-                        "use" => Token::Use,
-                        "if" => Token::If,
-                        "else" => Token::Else,
-                        "except" => Token::Except,
-                        "inherit" => Token::Inherit,
-                        "delete" => Token::Delete,
-                        "insert" => Token::Insert,
-                        "after" => Token::After,
-                        "before" => Token::Before,
-                        "replace" => Token::Replace,
-                        "at" => {
-                            let start_ch = self.ch;
-                            let start_input = self.input.clone();
-                            self.skip_whitespace();
-                            if !is_letter(self.ch) {
-                                self.ch = start_ch;
-                                self.input = start_input;
-                                return Token::Identifier(literal);
-                            }
-                            let next_word = self.read_identifier();
-                            if next_word.to_lowercase() == "top" {
-                                Token::AtTop
-                            } else if next_word.to_lowercase() == "bottom" {
-                                Token::AtBottom
-                            } else {
-                                self.ch = start_ch;
-                                self.input = start_input;
-                                Token::Identifier(literal)
-                            }
-                        }
-                        "from" => Token::From,
-                        "as" => Token::As,
-                        "html" => Token::Html,
-                        "javascript" => Token::JavaScript,
-                        "chtl" => Token::Chtl,
-                        "cjmod" => Token::CjMod,
-                        "config" => Token::Config,
-                        "info" => Token::Info,
-                        "export" => Token::Export,
-                        _ => Token::Identifier(literal),
-                    };
+                    return self.lookup_ident(&literal);
                 } else if is_digit(self.ch) {
                     return self.read_number();
                 } else {
@@ -222,6 +173,14 @@ impl<'a> Lexer<'a> {
         self.read_char(); // consume '/'
         comment
     }
+
+    fn lookup_ident(&self, ident: &str) -> Token {
+        self.config
+            .keyword_tokens
+            .get(&ident.to_lowercase())
+            .cloned()
+            .unwrap_or_else(|| Token::Identifier(ident.to_string()))
+    }
 }
 
 fn is_letter(ch: char) -> bool {
@@ -236,6 +195,38 @@ fn is_digit(ch: char) -> bool {
 mod tests {
     use super::*;
     use crate::chtl::lexer::token::Token;
+
+    use crate::chtl::node::ast::Statement;
+    use crate::chtl::parser::parser::Parser;
+
+    #[test]
+    fn test_custom_keyword_from_config() {
+        let config_input = r#"
+        [Configuration] {
+            [Name] {
+                KEYWORD_IF: "my_if";
+            }
+        }
+        "#;
+        let mut config = ConfigManager::new();
+        let config_lexer = Lexer::new(config_input, &config);
+        let mut config_parser = Parser::new(config_lexer);
+        let config_program = config_parser.parse_program();
+        if let Some(Statement::Configuration(config_stmt)) = config_program.statements.get(0) {
+            config.apply_config(config_stmt);
+        } else {
+            panic!("Failed to parse configuration statement");
+        }
+
+        let chtl_input = "my_if condition;";
+        let mut lexer = Lexer::new(chtl_input, &config);
+
+        let first_token = lexer.next_token();
+        assert_eq!(first_token, Token::If);
+
+        let second_token = lexer.next_token();
+        assert_eq!(second_token, Token::Identifier("condition".to_string()));
+    }
 
     #[test]
     fn test_next_token() {
@@ -295,7 +286,8 @@ mod tests {
             Token::Eof,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let mut lexer = Lexer::new(input, &config);
 
         for expected_token in tests {
             let tok = lexer.next_token();
@@ -318,7 +310,8 @@ mod tests {
             Token::Eof,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let mut lexer = Lexer::new(input, &config);
         for expected_token in tests {
             let tok = lexer.next_token();
             assert_eq!(tok, expected_token);
@@ -336,7 +329,8 @@ mod tests {
             Token::Eof,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let mut lexer = Lexer::new(input, &config);
         for expected_token in tests {
             let tok = lexer.next_token();
             assert_eq!(tok, expected_token);
@@ -354,7 +348,8 @@ mod tests {
             Token::Eof,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let mut lexer = Lexer::new(input, &config);
         for expected_token in tests {
             let tok = lexer.next_token();
             assert_eq!(tok, expected_token);
@@ -430,7 +425,8 @@ mod tests {
             Token::Eof,
         ];
 
-        let mut lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let mut lexer = Lexer::new(input, &config);
 
         for expected_token in tests {
             let tok = lexer.next_token();

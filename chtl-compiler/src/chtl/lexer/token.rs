@@ -69,6 +69,7 @@ pub enum Token {
     Config,
     Info,
     Export,
+    Name,
 
     // Comments
     SingleLineComment(String),

@@ -1,3 +1,4 @@
+use crate::chtl::config_manager::ConfigManager;
 use crate::chtl::evaluator::evaluator::Evaluator;
 use crate::chtl::evaluator::object::Object;
 use crate::chtl::loader::Loader;
@@ -195,7 +196,7 @@ impl Generator {
                 }
                 Statement::Import(import_stmt) => {
                     if let ImportSpecifier::File(ImportFileType::Chtl) = &import_stmt.specifier {
-                        let path = match &import_stmt.path {
+                        let path_str = match &import_stmt.path {
                             Expression::StringLiteral(s) => s.value.clone(),
                             Expression::UnquotedLiteral(u) => u.value.clone(),
                             _ => {
@@ -207,19 +208,40 @@ impl Generator {
                             }
                         };
 
-                        if let Ok(content) = self.loader.load_file_content(&path) {
-                            let lexer = Lexer::new(&content);
-                            let mut parser = Parser::new(lexer);
-                            let imported_program = parser.parse_program();
-                            if !parser.errors().is_empty() {
+                        match self.loader.resolve_path(&path_str) {
+                            Ok(resolved_path) => {
+                                if let Ok(content) =
+                                    self.loader.load_file_content(resolved_path.to_str().unwrap())
+                                {
+                                    let config = ConfigManager::new();
+                                    let lexer = Lexer::new(&content, &config);
+                                    let mut parser = Parser::new(lexer);
+                                    let imported_program = parser.parse_program();
+                                    if !parser.errors().is_empty() {
+                                        eprintln!(
+                                            "Warning: Parsing errors in imported file '{}': {:?}",
+                                            resolved_path.display(),
+                                            parser.errors()
+                                        );
+                                    }
+                                    // Recursively process the imported file, passing its path
+                                    self.process_imports_and_templates(
+                                        &imported_program,
+                                        resolved_path.to_str().unwrap(),
+                                    );
+                                } else {
+                                    eprintln!(
+                                        "Warning: Could not load content from resolved path '{}'",
+                                        resolved_path.display()
+                                    );
+                                }
+                            }
+                            Err(e) => {
                                 eprintln!(
-                                    "Warning: Parsing errors in imported file '{}': {:?}",
-                                    path,
-                                    parser.errors()
+                                    "Warning: Could not resolve import path '{}': {}",
+                                    path_str, e
                                 );
                             }
-                            // Recursively process the imported file, passing its path
-                            self.process_imports_and_templates(&imported_program, &path);
                         }
                     }
                 }
@@ -322,7 +344,8 @@ impl Generator {
                 // For a global style block, there are no element attributes to modify.
                 // We pass a dummy map and only the global_css will be affected.
                 let mut dummy_attrs = std::collections::HashMap::new();
-                self.generate_style(style, &mut dummy_attrs);
+                let mut dummy_context = std::collections::HashMap::new();
+                self.generate_style(style, &mut dummy_attrs, &mut dummy_context);
                 String::new()
             }
             Statement::Comment(comment) => self.generate_comment(comment),
@@ -362,79 +385,47 @@ impl Generator {
         format!("<!--{}-->", comment.value)
     }
 
-    fn generate_element(&mut self, element: &ElementStatement) -> String {
-        use std::collections::HashMap;
-        let mut attributes: HashMap<String, String> = HashMap::new();
-        let mut children = String::new();
-
-        // 1. Separate statements into different categories
-        let mut style_statements: Vec<StyleStatement> = Vec::new();
-        let mut if_statements: Vec<IfStatement> = Vec::new();
-        let mut other_statements: Vec<Statement> = Vec::new();
-
-        for statement in &element.body {
-            match statement {
-                Statement::Style(s) => style_statements.push(s.clone()),
-                Statement::If(i) => if_statements.push(i.clone()),
-                _ => other_statements.push(statement.clone()),
-            }
-        }
-
-        // 2. Build a context for evaluating `if` conditions from non-conditional statements.
-        let mut context = HashMap::new();
-        let mut temp_prop_stmts: Vec<Statement> = other_statements.iter().cloned().collect();
-        temp_prop_stmts.extend(style_statements.iter().flat_map(|s| s.body.clone()));
-
-        for stmt in &temp_prop_stmts {
-            if let Statement::Attribute(attr) = stmt {
-                if let Some(expr) = &attr.value {
-                    let value_obj = self.eval_expression_to_object(expr, &mut context);
-                    context.insert(attr.name.value.clone(), value_obj);
-                }
-            }
-        }
-
-        // 3. Evaluate `if` statement chains and add their body statements to the appropriate lists.
-        for if_stmt in if_statements {
-            let statements_to_add = self.evaluate_if_chain(&if_stmt, &mut context);
-            for stmt in statements_to_add {
-                match stmt {
-                    Statement::Style(s) => style_statements.push(s),
-                    _ => other_statements.push(stmt),
-                }
-            }
-        }
-
-        // 4. Process all "other" statements (including those from applied `if`s)
-        for statement in &other_statements {
+    fn process_element_body(
+        &mut self,
+        statements: &[Statement],
+        context: &mut HashMap<String, Object>,
+        attributes: &mut HashMap<String, String>,
+        children: &mut String,
+    ) {
+        for statement in statements {
             match statement {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        // Use the full context now for evaluation
-                        let value = self.eval_expression_to_string(expr, &mut context);
+                        let value_obj = self.eval_expression_to_object(expr, context);
+                        let value_str = value_obj.to_string();
+                        context.insert(attr.name.value.clone(), value_obj);
                         if attr.name.value == "text" {
-                            children.push_str(&value);
+                            children.push_str(&value_str);
                         } else {
-                            attributes.insert(attr.name.value.clone(), value);
+                            attributes.insert(attr.name.value.clone(), value_str);
                         }
                     }
+                }
+                Statement::Style(style) => {
+                    self.generate_style(style, attributes, context);
+                }
+                Statement::If(if_stmt) => {
+                    let statements_to_add = self.evaluate_if_chain(if_stmt, context);
+                    self.process_element_body(&statements_to_add, context, attributes, children);
                 }
                 _ => {
                     children.push_str(&self.generate_statement(statement));
                 }
             }
         }
+    }
 
-        // 5. Process style statements (including those from applied `if`s)
-        // Merge all style statements into a single one to ensure deterministic property order.
-        let mut merged_style_body = Vec::new();
-        for style in style_statements {
-            merged_style_body.extend(style.body);
-        }
-        let merged_style_statement = StyleStatement {
-            body: merged_style_body,
-        };
-        self.generate_style(&merged_style_statement, &mut attributes);
+    fn generate_element(&mut self, element: &ElementStatement) -> String {
+        let mut attributes: HashMap<String, String> = HashMap::new();
+        let mut children = String::new();
+        let mut context = HashMap::new();
+
+        self.process_element_body(&element.body, &mut context, &mut attributes, &mut children);
 
         let mut attrs_str = String::new();
         let mut sorted_attributes: Vec<_> = attributes.iter().collect();
@@ -456,28 +447,16 @@ impl Generator {
         &mut self,
         style: &StyleStatement,
         attributes: &mut std::collections::HashMap<String, String>,
+        context: &mut HashMap<String, Object>,
     ) {
         let mut inline_style_props = std::collections::HashMap::new();
         let mut style_rules = Vec::new();
-        let mut context = std::collections::HashMap::new();
 
-        // 1. Separate inline properties and style rules
         for statement in &style.body {
             match statement {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let all_templates: HashMap<_, _> = self
-                            .templates
-                            .values()
-                            .flat_map(|m| m.iter())
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect();
-                        let value_obj = self.evaluator.eval(
-                            expr,
-                            &mut context,
-                            &all_templates,
-                            &self.document_map,
-                        );
+                        let value_obj = self.eval_expression_to_object(expr, context);
                         context.insert(attr.name.value.clone(), value_obj.clone());
                         inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
                     }
@@ -512,7 +491,7 @@ impl Generator {
                                     self.apply_style_template(
                                         &template,
                                         &namespace_key,
-                                        &mut context,
+                                        context,
                                         &mut inline_style_props,
                                         &use_stmt.body,
                                     );
@@ -525,7 +504,6 @@ impl Generator {
             }
         }
 
-        // 2. Add classes/IDs from rules to the element's attributes
         for rule in &style_rules {
             if rule.selector.starts_with('.') {
                 let class_name = &rule.selector[1..];
@@ -546,7 +524,6 @@ impl Generator {
             }
         }
 
-        // 3. Determine the context selector for '&' replacement (class > id)
         let context_selector = style_rules
             .iter()
             .find(|r| r.selector.starts_with('.'))
@@ -565,25 +542,13 @@ impl Generator {
             .or_else(|| attributes.get("id").map(|i| format!("#{}", i)))
             .unwrap_or_default();
 
-        // 4. Generate CSS for all rules and add to global_css
         for rule in &style_rules {
             let mut rule_css_body = String::new();
             let mut rule_context = context.clone();
             for prop in &rule.body {
                 if let Statement::Attribute(attr_prop) = prop {
                     if let Some(expr) = &attr_prop.value {
-                        let all_templates: HashMap<_, _> = self
-                            .templates
-                            .values()
-                            .flat_map(|m| m.iter())
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect();
-                        let value_obj = self.evaluator.eval(
-                            expr,
-                            &mut rule_context,
-                            &all_templates,
-                            &self.document_map,
-                        );
+                        let value_obj = self.eval_expression_to_object(expr, &mut rule_context);
                         rule_context.insert(attr_prop.name.value.clone(), value_obj.clone());
                         rule_css_body.push_str(&format!(
                             "{}:{};",
@@ -604,7 +569,6 @@ impl Generator {
                 .push_str(&format!("{}{{{}}}{}", final_selector, rule_css_body, "\n"));
         }
 
-        // 5. Add inline styles to the 'style' attribute
         if !inline_style_props.is_empty() {
             let mut sorted_props: Vec<_> = inline_style_props.iter().collect();
             sorted_props.sort_by_key(|a| a.0);
@@ -627,21 +591,6 @@ impl Generator {
 
     fn generate_text(&self, text: &TextStatement) -> String {
         text.value.value.clone()
-    }
-
-    fn eval_expression_to_string(
-        &mut self,
-        expr: &Expression,
-        context: &mut std::collections::HashMap<String, Object>,
-    ) -> String {
-        let value_obj = self.eval_expression_to_object(expr, context);
-        match value_obj {
-            Object::Error(e) => {
-                eprintln!("Evaluation Error: {}", e);
-                "".to_string()
-            }
-            _ => value_obj.to_string(),
-        }
     }
 
     fn eval_expression_to_object(
@@ -712,11 +661,13 @@ impl Generator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::chtl::config_manager::ConfigManager;
     use crate::chtl::lexer::lexer::Lexer;
     use tempfile::Builder;
 
     fn generate_html(input: &str) -> String {
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         assert!(
@@ -834,7 +785,8 @@ mod tests {
         loader.set_current_file_path(main_path.to_str().unwrap());
 
         // Parse the main file
-        let lexer = Lexer::new(main_content);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(main_content, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         assert!(
@@ -872,7 +824,8 @@ mod tests {
         "#;
 
         // Parse the file
-        let lexer = Lexer::new(input);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         assert!(
@@ -918,7 +871,8 @@ mod tests {
         let mut loader = Loader::new();
         loader.set_current_file_path(main_path.to_str().unwrap());
 
-        let lexer = Lexer::new(main_content);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(main_content, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         assert!(parser.errors().is_empty());
@@ -958,7 +912,8 @@ mod tests {
         let mut loader = Loader::new();
         loader.set_current_file_path(main_path.to_str().unwrap());
 
-        let lexer = Lexer::new(main_content);
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(main_content, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         assert!(parser.errors().is_empty());

@@ -97,15 +97,24 @@ impl<'a> Parser<'a> {
             Token::GeneratorComment(value) => self.parse_comment_statement(value),
             Token::Delete => self.parse_delete_statement(),
             Token::If => self.parse_if_statement(),
+            Token::Else => {
+                self.errors.push("`else` without a preceding `if`".to_string());
+                None
+            }
             _ => None,
         }
     }
 
     fn parse_if_statement(&mut self) -> Option<Statement> {
-        // current token is `if`
-        self.expect_peek(&Token::LBrace)?; // consume `if`, current is `{`
+        // Assumes current_token is `if`.
+        if !self.peek_token_is(&Token::LBrace) {
+            self.errors.push(format!("Expected '{{' after 'if', got {:?}", self.peek_token));
+            return None;
+        }
+        self.next_token(); // consume `if`, current_token is now `{`
         self.next_token(); // consume `{`
 
+        // --- Parse the `if` block contents ---
         let mut stmts = Vec::new();
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
             if let Some(stmt) = self.parse_statement() {
@@ -113,10 +122,11 @@ impl<'a> Parser<'a> {
             }
             self.next_token();
         }
+        // After this loop, current_token is `}`.
 
-        // Now, find the condition and separate it from the body
+        // --- Extract condition and consequence from statements ---
         let mut condition: Option<Expression> = None;
-        let mut body: Vec<Statement> = Vec::new();
+        let mut consequence: Vec<Statement> = Vec::new();
         let mut condition_found = false;
 
         for stmt in stmts {
@@ -126,24 +136,56 @@ impl<'a> Parser<'a> {
                         if let Some(expr) = attr.value.clone() {
                             condition = Some(expr);
                             condition_found = true;
-                            continue; // Don't add the condition attribute to the body
+                            continue; // Don't add the condition attribute to the consequence
                         }
                     }
                 }
             }
-            body.push(stmt);
+            consequence.push(stmt);
         }
 
-        if let Some(cond) = condition {
-            Some(Statement::If(IfStatement {
-                condition: cond,
-                body,
-            }))
+        let cond = if let Some(c) = condition {
+            c
         } else {
-            self.errors
-                .push("`if` block must contain a `condition` property".to_string());
-            None
+            self.errors.push("`if` block must contain a `condition` property".to_string());
+            return None;
+        };
+
+        // --- Parse alternative (`else` or `else if`) ---
+        let mut alternative: Option<Box<Statement>> = None;
+        if self.peek_token_is(&Token::Else) {
+            self.next_token(); // consume `}`. current_token is `else`.
+
+            if self.peek_token_is(&Token::If) {
+                self.next_token(); // consume `else`. current_token is `if`.
+                alternative = self.parse_if_statement().map(Box::new);
+            } else if self.peek_token_is(&Token::LBrace) {
+                self.next_token(); // consume `else`. current_token is `{`.
+                self.next_token(); // consume `{`.
+
+                let mut else_consequence = Vec::new();
+                while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+                    if let Some(stmt) = self.parse_statement() {
+                        else_consequence.push(stmt);
+                    }
+                    self.next_token();
+                }
+                // After loop, current_token is `}`.
+                let else_stmt = ElseStatement { consequence: else_consequence };
+                alternative = Some(Box::new(Statement::Else(else_stmt)));
+            } else {
+                self.errors.push(format!(
+                    "Expected 'if' or '{{' after 'else', got {:?}",
+                    self.peek_token
+                ));
+            }
         }
+
+        Some(Statement::If(IfStatement {
+            condition: cond,
+            consequence,
+            alternative,
+        }))
     }
 
     fn parse_namespace_statement(&mut self) -> Option<Statement> {
@@ -1085,9 +1127,9 @@ mod tests {
                 panic!("Expected InfixExpression for condition");
             }
 
-            // Check the body
-            assert_eq!(if_stmt.body.len(), 1);
-            if let Statement::Attribute(attr) = &if_stmt.body[0] {
+            // Check the consequence
+            assert_eq!(if_stmt.consequence.len(), 1);
+            if let Statement::Attribute(attr) = &if_stmt.consequence[0] {
                 assert_eq!(attr.name.value, "display");
                 if let Some(Expression::StringLiteral(s)) = &attr.value {
                     assert_eq!(s.value, "block");
@@ -1095,7 +1137,84 @@ mod tests {
                     panic!("Expected StringLiteral for display value");
                 }
             } else {
-                panic!("Expected AttributeStatement in if body");
+                panic!("Expected AttributeStatement in if consequence");
+            }
+
+            // Check that there is no alternative
+            assert!(if_stmt.alternative.is_none());
+        } else {
+            panic!("Expected IfStatement");
+        }
+    }
+
+    #[test]
+    fn test_if_else_statement_parsing() {
+        let input = r#"
+        if {
+            condition: x > y;
+            color: "red";
+        } else {
+            color: "blue";
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let stmt = parser.parse_statement().unwrap();
+
+        if let Statement::If(if_stmt) = stmt {
+            // Check the alternative
+            assert!(if_stmt.alternative.is_some());
+            if let Some(else_stmt_node) = &if_stmt.alternative {
+                if let Statement::Else(else_stmt) = &**else_stmt_node {
+                    assert_eq!(else_stmt.consequence.len(), 1);
+                    if let Statement::Attribute(attr) = &else_stmt.consequence[0] {
+                        assert_eq!(attr.name.value, "color");
+                    } else {
+                        panic!("Expected AttributeStatement in else consequence");
+                    }
+                } else {
+                    panic!("Expected ElseStatement");
+                }
+            }
+        } else {
+            panic!("Expected IfStatement");
+        }
+    }
+
+    #[test]
+    fn test_if_else_if_else_statement_parsing() {
+        let input = r#"
+        if {
+            condition: x > y;
+            color: "red";
+        } else if {
+            condition: x < y;
+            color: "green";
+        } else {
+            color: "blue";
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let stmt = parser.parse_statement().unwrap();
+
+        if let Statement::If(if_stmt) = stmt {
+            // Check the first `else if`
+            assert!(if_stmt.alternative.is_some());
+            if let Some(else_if_node) = &if_stmt.alternative {
+                if let Statement::If(else_if_stmt) = &**else_if_node {
+                    // Check the second `else`
+                    assert!(else_if_stmt.alternative.is_some());
+                    if let Some(else_node) = &else_if_stmt.alternative {
+                        if let Statement::Else(_) = &**else_node {
+                            // Correct
+                        } else {
+                            panic!("Expected ElseStatement at the end");
+                        }
+                    }
+                } else {
+                    panic!("Expected IfStatement for the else-if block");
+                }
             }
         } else {
             panic!("Expected IfStatement");

@@ -47,7 +47,13 @@ pub struct DeleteStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct IfStatement {
     pub condition: Expression,
-    pub body: Vec<Statement>,
+    pub consequence: Vec<Statement>,
+    pub alternative: Option<Box<Statement>>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ElseStatement {
+    pub consequence: Vec<Statement>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -68,6 +74,7 @@ pub enum Statement {
     Import(ImportStatement),
     Delete(DeleteStatement),
     If(IfStatement),
+    Else(ElseStatement),
     Namespace(NamespaceStatement),
 }
 

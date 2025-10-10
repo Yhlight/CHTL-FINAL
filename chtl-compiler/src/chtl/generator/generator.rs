@@ -2,8 +2,8 @@ use crate::chtl::evaluator::evaluator::Evaluator;
 use crate::chtl::evaluator::object::Object;
 use crate::chtl::loader::Loader;
 use crate::chtl::node::ast::{
-    CommentStatement, ElementStatement, Expression, ImportFileType, ImportSpecifier, Program,
-    Statement, StyleStatement, TemplateDefinitionStatement, TemplateType, TextStatement,
+    CommentStatement, ElementStatement, Expression, IfStatement, ImportFileType, ImportSpecifier,
+    Program, Statement, StyleStatement, TemplateDefinitionStatement, TemplateType, TextStatement,
 };
 use crate::chtl::lexer::lexer::Lexer;
 use crate::chtl::parser::parser::Parser;
@@ -64,9 +64,12 @@ impl Generator {
                     if use_stmt.template_type.value == "Style" {
                         // Nested template usage. Resolve it within the parent's namespace
                         // unless a 'from' clause is specified.
-                        let namespace_key = use_stmt.from.as_ref().map_or(template_namespace, |f| &f.value);
+                        let namespace_key =
+                            use_stmt.from.as_ref().map_or(template_namespace, |f| &f.value);
                         if let Some(templates_in_ns) = self.templates.get(namespace_key) {
-                            if let Some(nested_template) = templates_in_ns.get(&use_stmt.name.value).cloned() {
+                            if let Some(nested_template) =
+                                templates_in_ns.get(&use_stmt.name.value).cloned()
+                            {
                                 if matches!(nested_template.template_type, TemplateType::Style) {
                                     // Pass the namespace of the resolved template, and &None for specialization body.
                                     self.apply_style_template(
@@ -91,16 +94,16 @@ impl Generator {
                 match stmt {
                     Statement::Attribute(attr) => {
                         if let Some(expr) = &attr.value {
-                        let all_templates: HashMap<_, _> = self
-                            .templates
-                            .values()
-                            .flat_map(|m| m.iter())
-                            .map(|(k, v)| (k.clone(), v.clone()))
-                            .collect();
+                            let all_templates: HashMap<_, _> = self
+                                .templates
+                                .values()
+                                .flat_map(|m| m.iter())
+                                .map(|(k, v)| (k.clone(), v.clone()))
+                                .collect();
                             let value_obj = self.evaluator.eval(
                                 expr,
                                 context,
-                            &all_templates,
+                                &all_templates,
                                 &self.document_map,
                             );
                             applied_properties.insert(attr.name.value.clone(), value_obj);
@@ -118,7 +121,9 @@ impl Generator {
                                     // track which properties came from which template.
                                     // For now, we search all namespaces.
                                     for templates_in_ns in self.templates.values() {
-                                        if let Some(template_to_delete) = templates_in_ns.get(template_name) {
+                                        if let Some(template_to_delete) =
+                                            templates_in_ns.get(template_name)
+                                        {
                                             for t_stmt in &template_to_delete.body {
                                                 if let Statement::Attribute(t_attr) = t_stmt {
                                                     applied_properties.remove(&t_attr.name.value);
@@ -272,7 +277,10 @@ impl Generator {
         let mut html = String::new();
         for statement in &program.statements {
             // Don't generate output for top-level templates or imports.
-            if !matches!(statement, Statement::TemplateDefinition(_) | Statement::Import(_) | Statement::Namespace(_)) {
+            if !matches!(
+                statement,
+                Statement::TemplateDefinition(_) | Statement::Import(_) | Statement::Namespace(_)
+            ) {
                 html.push_str(&self.generate_statement(statement));
             }
         }
@@ -298,9 +306,11 @@ impl Generator {
             Statement::Comment(comment) => self.generate_comment(comment),
             Statement::UseTemplate(use_stmt) => {
                 if use_stmt.template_type.value == "Element" {
-                    let namespace_key = use_stmt.from.as_ref().map_or(&self.current_namespace, |f| &f.value);
+                    let namespace_key =
+                        use_stmt.from.as_ref().map_or(&self.current_namespace, |f| &f.value);
                     if let Some(templates_in_ns) = self.templates.get(namespace_key) {
-                        if let Some(template) = templates_in_ns.get(&use_stmt.name.value).cloned() {
+                        if let Some(template) = templates_in_ns.get(&use_stmt.name.value).cloned()
+                        {
                             if matches!(template.template_type, TemplateType::Element) {
                                 let mut html = String::new();
                                 for stmt in &template.body {
@@ -327,9 +337,9 @@ impl Generator {
         let mut children = String::new();
 
         // 1. Separate statements into different categories
-        let mut style_statements: Vec<_> = Vec::new();
-        let mut if_statements: Vec<_> = Vec::new();
-        let mut other_statements: Vec<_> = Vec::new();
+        let mut style_statements: Vec<StyleStatement> = Vec::new();
+        let mut if_statements: Vec<IfStatement> = Vec::new();
+        let mut other_statements: Vec<Statement> = Vec::new();
 
         for statement in &element.body {
             match statement {
@@ -339,51 +349,27 @@ impl Generator {
             }
         }
 
-        // 2. Build a context for evaluating `if` conditions.
-        let mut context_for_ifs = HashMap::new();
-        let mut temp_prop_stmts = other_statements.clone();
+        // 2. Build a context for evaluating `if` conditions from non-conditional statements.
+        let mut context = HashMap::new();
+        let mut temp_prop_stmts: Vec<Statement> = other_statements.iter().cloned().collect();
         temp_prop_stmts.extend(style_statements.iter().flat_map(|s| s.body.clone()));
 
         for stmt in &temp_prop_stmts {
             if let Statement::Attribute(attr) = stmt {
                 if let Some(expr) = &attr.value {
-                    let all_templates: HashMap<_, _> = self
-                        .templates
-                        .values()
-                        .flat_map(|m| m.iter())
-                        .map(|(k, v)| (k.clone(), v.clone()))
-                        .collect();
-                    let value_obj = self.evaluator.eval(
-                        expr,
-                        &mut context_for_ifs,
-                        &all_templates,
-                        &self.document_map,
-                    );
-                    context_for_ifs.insert(attr.name.value.clone(), value_obj);
+                    let value_obj = self.eval_expression_to_object(expr, &mut context);
+                    context.insert(attr.name.value.clone(), value_obj);
                 }
             }
         }
 
-        // 3. Evaluate `if` statements and add their body statements to the appropriate lists.
+        // 3. Evaluate `if` statement chains and add their body statements to the appropriate lists.
         for if_stmt in if_statements {
-            let all_templates: HashMap<_, _> = self
-                .templates
-                .values()
-                .flat_map(|m| m.iter())
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
-            let condition_result = self.evaluator.eval(
-                &if_stmt.condition,
-                &mut context_for_ifs,
-                &all_templates,
-                &self.document_map,
-            );
-            if let Object::Boolean(true) = condition_result {
-                for stmt in if_stmt.body {
-                    match stmt {
-                        Statement::Style(s) => style_statements.push(s),
-                        _ => other_statements.push(stmt),
-                    }
+            let statements_to_add = self.evaluate_if_chain(&if_stmt, &mut context);
+            for stmt in statements_to_add {
+                match stmt {
+                    Statement::Style(s) => style_statements.push(s),
+                    _ => other_statements.push(stmt),
                 }
             }
         }
@@ -394,8 +380,7 @@ impl Generator {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
                         // Use the full context now for evaluation
-                        let value =
-                            self.eval_expression_to_string(expr, &mut context_for_ifs);
+                        let value = self.eval_expression_to_string(expr, &mut context);
                         if attr.name.value == "text" {
                             children.push_str(&value);
                         } else {
@@ -415,7 +400,9 @@ impl Generator {
         for style in style_statements {
             merged_style_body.extend(style.body);
         }
-        let merged_style_statement = StyleStatement { body: merged_style_body };
+        let merged_style_statement = StyleStatement {
+            body: merged_style_body,
+        };
         self.generate_style(&merged_style_statement, &mut attributes);
 
         let mut attrs_str = String::new();
@@ -474,7 +461,9 @@ impl Generator {
                             .as_ref()
                             .map_or(self.current_namespace.clone(), |f| f.value.clone());
                         if let Some(templates_in_ns) = self.templates.get(&namespace_key) {
-                            if let Some(template) = templates_in_ns.get(&use_stmt.name.value).cloned() {
+                            if let Some(template) =
+                                templates_in_ns.get(&use_stmt.name.value).cloned()
+                            {
                                 if matches!(template.template_type, TemplateType::Style) {
                                     self.apply_style_template(
                                         &template,
@@ -597,19 +586,11 @@ impl Generator {
     }
 
     fn eval_expression_to_string(
-        &self,
+        &mut self,
         expr: &Expression,
         context: &mut std::collections::HashMap<String, Object>,
     ) -> String {
-        let all_templates: HashMap<_, _> = self
-            .templates
-            .values()
-            .flat_map(|m| m.iter())
-            .map(|(k, v)| (k.clone(), v.clone()))
-            .collect();
-        let value_obj =
-            self.evaluator
-                .eval(expr, context, &all_templates, &self.document_map);
+        let value_obj = self.eval_expression_to_object(expr, context);
         match value_obj {
             Object::Error(e) => {
                 eprintln!("Evaluation Error: {}", e);
@@ -618,6 +599,55 @@ impl Generator {
             _ => value_obj.to_string(),
         }
     }
+
+    fn eval_expression_to_object(
+        &mut self,
+        expr: &Expression,
+        context: &mut std::collections::HashMap<String, Object>,
+    ) -> Object {
+        let all_templates: HashMap<_, _> = self
+            .templates
+            .values()
+            .flat_map(|m| m.iter())
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect();
+        self.evaluator
+            .eval(expr, context, &all_templates, &self.document_map)
+    }
+
+    fn is_truthy(&self, object: &Object) -> bool {
+        match object {
+            Object::Boolean(b) => *b,
+            Object::Number(n, _) => *n != 0.0,
+            Object::String(s) => !s.is_empty(),
+            _ => false, // Errors, etc. are not truthy
+        }
+    }
+
+    fn evaluate_if_chain(
+        &mut self,
+        if_stmt: &IfStatement,
+        context: &mut HashMap<String, Object>,
+    ) -> Vec<Statement> {
+        let condition_result = self.eval_expression_to_object(&if_stmt.condition, context);
+
+        if self.is_truthy(&condition_result) {
+            return if_stmt.consequence.clone();
+        } else if let Some(alternative) = &if_stmt.alternative {
+            match &**alternative {
+                Statement::If(next_if_stmt) => {
+                    return self.evaluate_if_chain(next_if_stmt, context);
+                }
+                Statement::Else(else_stmt) => {
+                    return else_stmt.consequence.clone();
+                }
+                _ => {
+                    return vec![];
+                }
+            }
+        }
+        vec![]
+    }
 }
 
 #[cfg(test)]
@@ -625,6 +655,91 @@ mod tests {
     use super::*;
     use crate::chtl::lexer::lexer::Lexer;
     use tempfile::Builder;
+
+    fn generate_html(input: &str) -> String {
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(
+            parser.errors().is_empty(),
+            "Parser errors: {:?}",
+            parser.errors()
+        );
+        let mut generator = Generator::new();
+        generator.generate(&program)
+    }
+
+    #[test]
+    fn test_simple_if_true() {
+        let input = r#"
+        div {
+            width: 100;
+            if {
+                condition: width > 50;
+                height: 200;
+            }
+        }
+        "#;
+        let html = generate_html(input);
+        assert!(html.contains(r#" height="200""#));
+        assert!(html.contains(r#" width="100""#));
+    }
+
+    #[test]
+    fn test_simple_if_false() {
+        let input = r#"
+        div {
+            width: 40;
+            if {
+                condition: width > 50;
+                height: 200;
+            }
+        }
+        "#;
+        let html = generate_html(input);
+        assert!(!html.contains(r#"height"#));
+        assert!(html.contains(r#" width="40""#));
+    }
+
+    #[test]
+    fn test_if_else_statement() {
+        let input = r#"
+        div {
+            width: 40;
+            if {
+                condition: width > 50;
+                height: 200;
+            } else {
+                height: 100;
+            }
+        }
+        "#;
+        let html = generate_html(input);
+        assert!(html.contains(r#" height="100""#));
+        assert!(!html.contains(r#"height="200""#));
+    }
+
+    #[test]
+    fn test_if_else_if_else_statement() {
+        let input = r#"
+        div {
+            width: 80;
+            if {
+                condition: width > 100;
+                height: 300;
+            } else if {
+                condition: width > 70;
+                height: 200;
+            } else {
+                height: 100;
+            }
+        }
+        "#;
+        let html = generate_html(input);
+        assert!(html.contains(r#" height="200""#));
+        assert!(!html.contains(r#"height="300""#));
+        assert!(!html.contains(r#"height="100""#));
+    }
 
     #[test]
     fn test_namespace_template_resolution() {
@@ -663,7 +778,11 @@ mod tests {
         let lexer = Lexer::new(main_content);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
-        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
+        assert!(
+            parser.errors().is_empty(),
+            "Parser errors: {:?}",
+            parser.errors()
+        );
 
         // Generate the HTML
         let mut generator = Generator::new();
@@ -697,7 +816,11 @@ mod tests {
         let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
-        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
+        assert!(
+            parser.errors().is_empty(),
+            "Parser errors: {:?}",
+            parser.errors()
+        );
 
         // Generate the HTML
         let mut generator = Generator::new();

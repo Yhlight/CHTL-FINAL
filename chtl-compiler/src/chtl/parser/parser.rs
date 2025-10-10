@@ -68,6 +68,8 @@ impl<'a> Parser<'a> {
                     return self.parse_import_statement();
                 } else if self.peek_token_is(&Token::Namespace) {
                     return self.parse_namespace_statement();
+                } else if self.peek_token_is(&Token::Configuration) {
+                    return self.parse_configuration_statement();
                 }
                 None
             }
@@ -115,6 +117,47 @@ impl<'a> Parser<'a> {
             Token::Config => Some("Config".to_string()),
             _ => None,
         }
+    }
+
+    fn parse_configuration_statement(&mut self) -> Option<Statement> {
+        // Current is `[`
+        self.expect_peek(&Token::Configuration)?; // consume `[`, current is `Configuration`
+        self.expect_peek(&Token::RBracket)?;    // consume `Configuration`, current is `]`
+        self.next_token(); // consume `]`. current is now `@` or `{`.
+
+        let name = if self.current_token_is(&Token::At) {
+            self.next_token(); // consume `@`. current is now the identifier.
+            if let Token::Identifier(n) = self.current_token.clone() {
+                let ident = IdentifierExpression { value: format!("@{}", n) };
+                self.next_token(); // consume name identifier. current is now `{`.
+                Some(ident)
+            } else {
+                self.errors.push(format!("Expected identifier after @ in configuration name, got {:?}", self.current_token));
+                return None;
+            }
+        } else {
+            None
+        };
+
+        // At this point, current_token should be `{`.
+        if !self.current_token_is(&Token::LBrace) {
+            self.errors.push(format!("Expected '{{' after configuration name or ']', got {:?}", self.current_token));
+            return None;
+        }
+        self.next_token(); // consume `{`
+
+        let mut settings = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(Statement::Attribute(attr)) = self.parse_attribute_statement() {
+                settings.push(attr);
+            }
+            self.next_token();
+        }
+
+        Some(Statement::Configuration(ConfigurationStatement {
+            name,
+            settings,
+        }))
     }
 
     fn parse_if_statement(&mut self) -> Option<Statement> {
@@ -1765,6 +1808,51 @@ mod tests {
             }
         } else {
             panic!("Expected StyleStatement");
+        }
+    }
+
+    #[test]
+    fn test_configuration_statement_parsing() {
+        let input = r#"
+        [Configuration] @MyConfig {
+            INDEX_INITIAL_COUNT = 1;
+            DEBUG_MODE = true;
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Configuration(config_stmt) = stmt {
+            assert!(config_stmt.name.is_some());
+            assert_eq!(config_stmt.name.as_ref().unwrap().value, "@MyConfig");
+            assert_eq!(config_stmt.settings.len(), 2);
+
+            let setting1 = &config_stmt.settings[0];
+            assert_eq!(setting1.name.value, "INDEX_INITIAL_COUNT");
+            if let Some(Expression::NumberLiteral(num)) = &setting1.value {
+                assert_eq!(num.value, "1");
+            } else {
+                panic!("Expected number literal for setting value");
+            }
+
+            let setting2 = &config_stmt.settings[1];
+            assert_eq!(setting2.name.value, "DEBUG_MODE");
+             if let Some(Expression::Identifier(ident)) = &setting2.value {
+                assert_eq!(ident.value, "true");
+            } else {
+                panic!("Expected identifier for setting value");
+            }
+
+        } else {
+            panic!("Expected ConfigurationStatement");
         }
     }
 }

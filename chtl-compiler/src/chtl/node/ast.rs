@@ -56,6 +56,12 @@ pub struct NamespaceStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct ConfigurationStatement {
+    pub name: Option<IdentifierExpression>,
+    pub settings: Vec<AttributeStatement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Element(ElementStatement),
     Text(TextStatement),
@@ -69,6 +75,7 @@ pub enum Statement {
     Delete(DeleteStatement),
     If(IfStatement),
     Namespace(NamespaceStatement),
+    Configuration(ConfigurationStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]

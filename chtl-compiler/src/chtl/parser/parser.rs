@@ -6,6 +6,7 @@ use crate::chtl::node::ast::*;
 enum Precedence {
     Lowest,
     Conditional, // ?:
+    Logic,       // && or ||
     LessGreater, // > or <
     Sum,         // + or -
     Product,     // * or /
@@ -962,6 +963,8 @@ impl<'a> Parser<'a> {
             Token::Power => "**".to_string(),
             Token::Gt => ">".to_string(),
             Token::Lt => "<".to_string(),
+            Token::And => "&&".to_string(),
+            Token::Or => "||".to_string(),
             _ => return None,
         };
 
@@ -1045,6 +1048,7 @@ impl<'a> Parser<'a> {
             Token::Asterisk | Token::Slash | Token::Percent => Precedence::Product,
             Token::Power => Precedence::Power,
             Token::Gt | Token::Lt => Precedence::LessGreater,
+            Token::And | Token::Or => Precedence::Logic,
             Token::Question => Precedence::Conditional,
             Token::LParen => Precedence::Call,
             Token::Dot => Precedence::PropertyAccess,
@@ -2036,6 +2040,49 @@ mod tests {
             assert_eq!(item2.names[0].value, "Box");
         } else {
             panic!("Expected ExportStatement, got {:?}", stmt);
+        }
+    }
+
+    #[test]
+    fn test_logical_or_expression() {
+        let input = r#"
+        if {
+            condition: a > b || c < d;
+            width: 100px;
+        }
+        "#;
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::If(if_stmt) = stmt {
+            if let Expression::Infix(infix_exp) = &if_stmt.condition {
+                assert_eq!(infix_exp.operator, "||");
+
+                if let Expression::Infix(left_infix) = &*infix_exp.left {
+                    assert_eq!(left_infix.operator, ">");
+                } else {
+                    panic!("Expected InfixExpression for left side of ||");
+                }
+
+                if let Expression::Infix(right_infix) = &*infix_exp.right {
+                    assert_eq!(right_infix.operator, "<");
+                } else {
+                    panic!("Expected InfixExpression for right side of ||");
+                }
+            } else {
+                panic!("Expected InfixExpression for if condition, got {:?}", if_stmt.condition);
+            }
+        } else {
+            panic!("Expected IfStatement, got {:?}", stmt);
         }
     }
 }

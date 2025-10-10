@@ -67,7 +67,22 @@ impl<'a> Lexer<'a> {
             '>' => Token::Gt,
             '<' => Token::Lt,
             '!' => Token::Bang,
-            '&' => Token::Ampersand,
+            '&' => {
+                if let Some(&'&') = self.input.peek() {
+                    self.read_char();
+                    Token::And
+                } else {
+                    Token::Ampersand
+                }
+            }
+            '|' => {
+                if let Some(&'|') = self.input.peek() {
+                    self.read_char();
+                    Token::Or
+                } else {
+                    Token::Illegal
+                }
+            }
             '@' => Token::At,
             '#' => {
                 if let Some(&' ') = self.input.peek() {

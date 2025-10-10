@@ -2,7 +2,7 @@ use crate::chtl::evaluator::object::Object;
 use crate::chtl::node::ast::*;
 use std::collections::HashMap;
 
-pub type DocumentMap = HashMap<String, HashMap<String, Expression>>;
+pub type DocumentMap = HashMap<String, Vec<(String, Expression)>>;
 
 pub struct Evaluator;
 
@@ -52,7 +52,7 @@ impl Evaluator {
         templates: &HashMap<String, TemplateDefinitionStatement>,
         document_map: &DocumentMap,
     ) -> Object {
-        let selector = match self.eval(&node.object, context, templates, document_map) {
+        let object_selector = match self.eval(&node.object, context, templates, document_map) {
             Object::String(s) => s,
             _ => {
                 return Object::Error(format!(
@@ -62,20 +62,21 @@ impl Evaluator {
             }
         };
 
-        let element_id = selector.trim_start_matches(|c| c == '#' || c == '.');
+        let element_id = object_selector.trim_start_matches(|c| c == '#' || c == '.');
         let property_name = &node.property.value;
 
         if let Some(properties) = document_map.get(element_id) {
-            if let Some(property_expr) = properties.get(property_name) {
-                // Evaluate the referenced property.
-                // For now, we use an empty context, which means the referenced property
-                // cannot depend on other properties of its own element.
-                // This is a simplification to avoid circular dependencies.
-                let empty_context = HashMap::new();
-                return self.eval(property_expr, &empty_context, templates, document_map);
+            let mut referenced_context = HashMap::new();
+            for (p_name, p_expr) in properties {
+                let value = self.eval(p_expr, &referenced_context, templates, document_map);
+                referenced_context.insert(p_name.clone(), value);
+            }
+
+            if let Some(final_value) = referenced_context.get(property_name) {
+                return final_value.clone();
             } else {
                 return Object::Error(format!(
-                    "Property '{}' not found on element '{}'",
+                    "Property '{}' not found on element '{}' after evaluation",
                     property_name, element_id
                 ));
             }
@@ -83,7 +84,7 @@ impl Evaluator {
 
         Object::Error(format!(
             "Element with selector '{}' not found in document map",
-            selector
+            object_selector
         ))
     }
 
@@ -309,6 +310,52 @@ mod tests {
         } else {
             panic!("Expected a style statement");
         }
+    }
+
+    #[test]
+    fn test_eval_property_access_expression() {
+        // 1. Setup: Create a DocumentMap that simulates a parsed document.
+        let mut document_map = DocumentMap::new();
+        let box1_props = vec![
+            (
+                "width".to_string(),
+                Expression::NumberLiteral(NumberLiteralExpression {
+                    value: "100".to_string(),
+                    unit: Some("px".to_string()),
+                }),
+            ),
+            (
+                "height".to_string(),
+                Expression::Identifier(IdentifierExpression {
+                    value: "width".to_string(),
+                }),
+            ),
+        ];
+        document_map.insert("box1".to_string(), box1_props);
+
+        // 2. Create the expression we want to evaluate: `#box1.height`
+        let property_access_expr = Expression::PropertyAccess(PropertyAccessExpression {
+            object: Box::new(Expression::UnquotedLiteral(UnquotedLiteralExpression {
+                value: "#box1".to_string(),
+            })),
+            property: IdentifierExpression {
+                value: "height".to_string(),
+            },
+        });
+
+        // 3. Evaluate the expression.
+        let evaluator = Evaluator::new();
+        let context = HashMap::new();
+        let templates = HashMap::new();
+        let result = evaluator.eval(
+            &property_access_expr,
+            &context,
+            &templates,
+            &document_map,
+        );
+
+        // 4. Assert the result. The evaluator should resolve `#box1.height` to `#box1.width`, which is `100px`.
+        assert_eq!(result, Object::Number(100.0, "px".to_string()));
     }
 
     #[test]

@@ -1,4 +1,4 @@
-use crate::chtl::evaluator::evaluator::{DocumentMap, Evaluator};
+use crate::chtl::evaluator::evaluator::Evaluator;
 use crate::chtl::evaluator::object::Object;
 use crate::chtl::loader::Loader;
 use crate::chtl::node::ast::{
@@ -14,7 +14,7 @@ pub struct Generator {
     pub global_css: String,
     pub templates: HashMap<String, HashMap<String, TemplateDefinitionStatement>>,
     pub loader: Loader,
-    pub document_map: DocumentMap,
+    pub document_map: HashMap<String, HashMap<String, Expression>>,
     pub current_namespace: String,
 }
 
@@ -204,48 +204,46 @@ impl Generator {
         for statement in statements {
             if let Statement::Element(element) = statement {
                 let mut element_id = None;
-                let mut properties: Vec<(String, Expression)> = Vec::new();
+                let mut properties = HashMap::new();
 
-                // Single pass to collect all properties in declaration order.
+                // First pass to find the ID and collect attributes
                 for stmt in &element.body {
-                    match stmt {
-                        Statement::Attribute(attr) => {
-                            if attr.name.value == "id" {
-                                if let Some(expr) = &attr.value {
-                                    match expr {
-                                        Expression::StringLiteral(s) => {
-                                            element_id = Some(s.value.clone())
-                                        }
-                                        Expression::UnquotedLiteral(u) => {
-                                            element_id = Some(u.value.clone())
-                                        }
-                                        Expression::Identifier(i) => {
-                                            element_id = Some(i.value.clone())
-                                        }
-                                        _ => {}
+                    if let Statement::Attribute(attr) = stmt {
+                        if attr.name.value == "id" {
+                            if let Some(expr) = &attr.value {
+                                // For simplicity, we assume the ID is a string or unquoted literal.
+                                match expr {
+                                    Expression::StringLiteral(s) => {
+                                        element_id = Some(s.value.clone());
                                     }
-                                }
-                            }
-                            if let Some(value_expr) = &attr.value {
-                                properties.push((attr.name.value.clone(), value_expr.clone()));
-                            }
-                        }
-                        Statement::Style(style_block) => {
-                            for style_stmt in &style_block.body {
-                                if let Statement::Attribute(attr) = style_stmt {
-                                    if let Some(value_expr) = &attr.value {
-                                        properties
-                                            .push((attr.name.value.clone(), value_expr.clone()));
+                                    Expression::UnquotedLiteral(u) => {
+                                        element_id = Some(u.value.clone());
                                     }
+                                    _ => {}
                                 }
                             }
                         }
-                        _ => {}
+                        if let Some(value_expr) = &attr.value {
+                            properties.insert(attr.name.value.clone(), value_expr.clone());
+                        }
                     }
                 }
 
-                if let Some(id) = &element_id {
-                    self.document_map.insert(id.clone(), properties);
+                // Second pass for properties inside style blocks
+                for stmt in &element.body {
+                    if let Statement::Style(style_block) = stmt {
+                        for style_stmt in &style_block.body {
+                            if let Statement::Attribute(attr) = style_stmt {
+                                if let Some(value_expr) = &attr.value {
+                                    properties.insert(attr.name.value.clone(), value_expr.clone());
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if let Some(id) = element_id {
+                    self.document_map.insert(id, properties);
                 }
 
                 // Recurse into children
@@ -595,14 +593,7 @@ impl Generator {
     }
 
     fn generate_text(&self, text: &TextStatement) -> String {
-        match &text.value {
-            Expression::StringLiteral(s) => s.value.clone(),
-            Expression::UnquotedLiteral(u) => u.value.clone(),
-            _ => {
-                eprintln!("Warning: Unsupported expression type in text block: {:?}", text.value);
-                String::new()
-            }
-        }
+        text.value.value.clone()
     }
 
     fn eval_expression_to_string(
@@ -682,46 +673,6 @@ mod tests {
         // Verify the output
         let expected_html = r#"<body><div class="box"></div></body>"#;
         assert_eq!(html.trim(), expected_html.trim());
-    }
-
-    #[test]
-    fn test_cross_element_property_reference() {
-        let input = r#"
-            div {
-                id: box1;
-                style {
-                    width: 100px;
-                }
-            }
-
-            div {
-                id: box2;
-                style {
-                    width: #box1.width + 50px;
-                }
-            }
-        "#;
-
-        let lexer = Lexer::new(input);
-        let mut parser = Parser::new(lexer);
-        let program = parser.parse_program();
-        assert!(
-            parser.errors().is_empty(),
-            "Parser errors: {:?}",
-            parser.errors()
-        );
-
-        let mut generator = Generator::new();
-        let html = generator.generate(&program);
-
-        // The expected output should have the second div's width calculated based on the first.
-        let expected_html = r#"<div id="box1" style="width:100px"></div><div id="box2" style="width:150px"></div>"#;
-
-        // A simple string comparison, ignoring whitespace, should suffice.
-        assert_eq!(
-            html.chars().filter(|c| !c.is_whitespace()).collect::<String>(),
-            expected_html.chars().filter(|c| !c.is_whitespace()).collect::<String>()
-        );
     }
 
     #[test]

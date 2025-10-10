@@ -174,13 +174,47 @@ impl Evaluator {
 
         match (left, right) {
             (Object::Number(left_val, left_unit), Object::Number(right_val, right_unit)) => {
-                if !left_unit.is_empty() && !right_unit.is_empty() && left_unit != right_unit {
-                    return Object::Error(format!("Unit mismatch: {} and {}", left_unit, right_unit));
+                let op = node.operator.as_str();
+
+                // Special handling for percentages with additive/subtractive operations
+                if op == "+" || op == "-" {
+                    if left_unit != "%" && right_unit == "%" && !left_unit.is_empty() {
+                        // Case: 100px + 10%
+                        let new_right_val = left_val * (right_val / 100.0);
+                        let result = if op == "+" {
+                            left_val + new_right_val
+                        } else {
+                            left_val - new_right_val
+                        };
+                        return Object::Number(result, left_unit);
+                    }
+                    if left_unit == "%" && right_unit != "%" && !right_unit.is_empty() {
+                        // Case: 10% + 100px
+                        let new_left_val = right_val * (left_val / 100.0);
+                        let result = if op == "+" {
+                            new_left_val + right_val
+                        } else {
+                            new_left_val - right_val
+                        };
+                        return Object::Number(result, right_unit);
+                    }
                 }
 
-                let result_unit = if !left_unit.is_empty() { left_unit } else { right_unit };
+                // Standard non-percentage logic
+                if !left_unit.is_empty() && !right_unit.is_empty() && left_unit != right_unit {
+                    return Object::Error(format!(
+                        "Unit mismatch: {} and {}",
+                        left_unit, right_unit
+                    ));
+                }
 
-                match node.operator.as_str() {
+                let result_unit = if !left_unit.is_empty() {
+                    left_unit
+                } else {
+                    right_unit
+                };
+
+                match op {
                     "+" => Object::Number(left_val + right_val, result_unit),
                     "-" => Object::Number(left_val - right_val, result_unit),
                     "*" => Object::Number(left_val * right_val, result_unit),
@@ -236,6 +270,34 @@ mod tests {
             ("width: 10 % 3;", Object::Number(1.0, "".to_string())),
             ("width: 10px + 5px;", Object::Number(15.0, "px".to_string())),
             ("width: 10 + 5px;", Object::Number(15.0, "px".to_string())),
+        ];
+
+        for (input, expected) in tests {
+            let full_input = format!("style {{ {} }}", input);
+            let result = test_eval(&full_input);
+            assert_eq!(result, expected);
+        }
+    }
+
+    #[test]
+    fn test_eval_percentage_arithmetic() {
+        let tests = vec![
+            (
+                "width: 100px + 10%;",
+                Object::Number(110.0, "px".to_string()),
+            ),
+            (
+                "width: 100px - 20%;",
+                Object::Number(80.0, "px".to_string()),
+            ),
+            (
+                "width: 50% + 200em;",
+                Object::Number(300.0, "em".to_string()),
+            ),
+            (
+                "width: 100vw - 50%;",
+                Object::Number(50.0, "vw".to_string()),
+            ),
         ];
 
         for (input, expected) in tests {

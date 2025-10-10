@@ -70,8 +70,8 @@ fn main() {
         return;
     }
 
-    let mut generator = Generator::new(Some(filename));
-    let html = generator.generate(&program, filename);
+    let mut generator = Generator::new();
+    let html = generator.generate(&program);
 
     // Determine the output path
     let output_path = match cli.output {

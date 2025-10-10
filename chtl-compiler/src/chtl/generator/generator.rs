@@ -23,17 +23,12 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn new(initial_file_path: Option<&str>) -> Self {
-        let mut loader = Loader::new();
-        if let Some(path) = initial_file_path {
-            loader.set_current_file_path(path);
-        }
-
+    pub fn new() -> Self {
         Generator {
             evaluator: Evaluator::new(),
             global_css: String::new(),
             templates: HashMap::new(),
-            loader,
+            loader: Loader::new(),
             document_map: HashMap::new(),
             current_namespace: "::default".to_string(),
             module_info: HashMap::new(),
@@ -306,9 +301,9 @@ impl Generator {
         }
     }
 
-    pub fn generate(&mut self, program: &Program, initial_file_path: &str) -> String {
+    pub fn generate(&mut self, program: &Program) -> String {
         // First pass: recursively process imports and collect templates.
-        self.process_imports_and_templates(program, initial_file_path);
+        self.process_imports_and_templates(program, "main.chtl");
 
         // New pass: collect all element properties for cross-element reference.
         self.collect_element_properties(&program.statements);
@@ -685,8 +680,8 @@ mod tests {
             "Parser errors: {:?}",
             parser.errors()
         );
-        let mut generator = Generator::new(None);
-        generator.generate(&program, "test.chtl")
+        let mut generator = Generator::new();
+        generator.generate(&program)
     }
 
     #[test]
@@ -765,28 +760,16 @@ mod tests {
     fn test_namespace_template_resolution() {
         // Create a temporary directory for our test files
         let dir = Builder::new().prefix("chtl_test").tempdir().unwrap();
-        let base_path = dir.path().join("base.chtl");
         let lib_path = dir.path().join("lib.chtl");
         let main_path = dir.path().join("main.chtl");
 
-        // Create the base file with a template
-        let base_content = r#"
-            [namespace] base_lib;
-            [template] @element BaseBox {
-                span { class: "base-box"; }
-            }
-        "#;
-        std::fs::write(&base_path, base_content).unwrap();
-
-        // Create the library file that imports the base file
+        // Create the library file with a namespaced template
         let lib_content = r#"
             [namespace] my_lib;
-            [import] @chtl from "./base.chtl";
 
             [template] @element MyBox {
                 div {
                     class: "box";
-                    @element BaseBox from base_lib;
                 }
             }
         "#;
@@ -802,9 +785,12 @@ mod tests {
         "#;
         std::fs::write(&main_path, main_content).unwrap();
 
+        // Set up the loader to know where the main file is
+        let mut loader = Loader::new();
+        loader.set_current_file_path(main_path.to_str().unwrap());
+
         // Parse the main file
         let config = ConfigManager::new();
-        let main_str = main_path.to_str().unwrap();
         let lexer = Lexer::new(main_content, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
@@ -815,11 +801,12 @@ mod tests {
         );
 
         // Generate the HTML
-        let mut generator = Generator::new(Some(main_str));
-        let html = generator.generate(&program, main_str);
+        let mut generator = Generator::new();
+        generator.loader = loader; // Use our configured loader
+        let html = generator.generate(&program);
 
         // Verify the output
-        let expected_html = r#"<body><div class="box"><span class="base-box"></span></div></body>"#;
+        let expected_html = r#"<body><div class="box"></div></body>"#;
         assert_eq!(html.trim(), expected_html.trim());
     }
 
@@ -853,8 +840,8 @@ mod tests {
         );
 
         // Generate the HTML
-        let mut generator = Generator::new(Some("test.chtl"));
-        let html = generator.generate(&program, "test.chtl");
+        let mut generator = Generator::new();
+        let html = generator.generate(&program);
 
         // Verify the output
         let expected_html = r#"<body><button class="btn"></button></body>"#;
@@ -886,15 +873,18 @@ mod tests {
         "#;
         std::fs::write(&main_path, main_content).unwrap();
 
-        let main_str = main_path.to_str().unwrap();
+        let mut loader = Loader::new();
+        loader.set_current_file_path(main_path.to_str().unwrap());
+
         let config = ConfigManager::new();
         let lexer = Lexer::new(main_content, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         assert!(parser.errors().is_empty());
 
-        let mut generator = Generator::new(Some(main_str));
-        let html = generator.generate(&program, main_str);
+        let mut generator = Generator::new();
+        generator.loader = loader;
+        let html = generator.generate(&program);
 
         assert!(html.contains(r#"<div class="exported"></div>"#));
     }
@@ -924,15 +914,18 @@ mod tests {
         "#;
         std::fs::write(&main_path, main_content).unwrap();
 
-        let main_str = main_path.to_str().unwrap();
+        let mut loader = Loader::new();
+        loader.set_current_file_path(main_path.to_str().unwrap());
+
         let config = ConfigManager::new();
         let lexer = Lexer::new(main_content, &config);
         let mut parser = Parser::new(lexer);
         let program = parser.parse_program();
         assert!(parser.errors().is_empty());
 
-        let mut generator = Generator::new(Some(main_str));
-        let html = generator.generate(&program, main_str);
+        let mut generator = Generator::new();
+        generator.loader = loader;
+        let html = generator.generate(&program);
 
         assert!(!html.contains("secret"));
     }

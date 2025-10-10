@@ -4,3 +4,4 @@ pub mod parser;
 pub mod generator;
 pub mod evaluator;
 pub mod loader;
+pub mod config_manager;

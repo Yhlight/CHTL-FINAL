@@ -24,6 +24,12 @@ impl Loader {
         self.current_path = Some(PathBuf::from(path));
     }
 
+    pub fn get_current_file_path(&self) -> Option<String> {
+        self.current_path
+            .as_ref()
+            .and_then(|p| p.to_str().map(|s| s.to_string()))
+    }
+
     pub fn set_official_module_path(&mut self, path: PathBuf) {
         self.official_module_path = Some(path);
     }

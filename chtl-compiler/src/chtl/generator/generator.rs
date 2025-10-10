@@ -23,12 +23,17 @@ pub struct Generator {
 }
 
 impl Generator {
-    pub fn new() -> Self {
+    pub fn new(initial_file_path: Option<&str>) -> Self {
+        let mut loader = Loader::new();
+        if let Some(path) = initial_file_path {
+            loader.set_current_file_path(path);
+        }
+
         Generator {
             evaluator: Evaluator::new(),
             global_css: String::new(),
             templates: HashMap::new(),
-            loader: Loader::new(),
+            loader,
             document_map: HashMap::new(),
             current_namespace: "::default".to_string(),
             module_info: HashMap::new(),
@@ -303,7 +308,12 @@ impl Generator {
 
     pub fn generate(&mut self, program: &Program) -> String {
         // First pass: recursively process imports and collect templates.
-        self.process_imports_and_templates(program, "main.chtl");
+        // Use the initial file path stored in the loader.
+        let initial_path = self
+            .loader
+            .get_current_file_path()
+            .unwrap_or_else(|| "::memory".to_string());
+        self.process_imports_and_templates(program, &initial_path);
 
         // New pass: collect all element properties for cross-element reference.
         self.collect_element_properties(&program.statements);
@@ -680,7 +690,7 @@ mod tests {
             "Parser errors: {:?}",
             parser.errors()
         );
-        let mut generator = Generator::new();
+        let mut generator = Generator::new(None);
         generator.generate(&program)
     }
 
@@ -801,7 +811,7 @@ mod tests {
         );
 
         // Generate the HTML
-        let mut generator = Generator::new();
+        let mut generator = Generator::new(Some(main_path.to_str().unwrap()));
         generator.loader = loader; // Use our configured loader
         let html = generator.generate(&program);
 
@@ -840,7 +850,7 @@ mod tests {
         );
 
         // Generate the HTML
-        let mut generator = Generator::new();
+        let mut generator = Generator::new(None);
         let html = generator.generate(&program);
 
         // Verify the output
@@ -882,7 +892,7 @@ mod tests {
         let program = parser.parse_program();
         assert!(parser.errors().is_empty());
 
-        let mut generator = Generator::new();
+        let mut generator = Generator::new(Some(main_path.to_str().unwrap()));
         generator.loader = loader;
         let html = generator.generate(&program);
 
@@ -923,7 +933,7 @@ mod tests {
         let program = parser.parse_program();
         assert!(parser.errors().is_empty());
 
-        let mut generator = Generator::new();
+        let mut generator = Generator::new(Some(main_path.to_str().unwrap()));
         generator.loader = loader;
         let html = generator.generate(&program);
 

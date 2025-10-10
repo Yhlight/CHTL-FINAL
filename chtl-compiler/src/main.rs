@@ -70,7 +70,7 @@ fn main() {
         return;
     }
 
-    let mut generator = Generator::new();
+    let mut generator = Generator::new(Some(filename));
     let html = generator.generate(&program);
 
     // Determine the output path

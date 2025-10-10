@@ -720,9 +720,9 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         let template_type_str = match self.current_token.clone() {
-            Token::Style => "Style",
-            Token::Element => "Element",
-            Token::Var => "Var",
+            Token::Style => "style",
+            Token::Element => "element",
+            Token::Var => "var",
             _ => {
                 self.errors.push(format!(
                     "Expected template type keyword after @, got {:?}",
@@ -1109,16 +1109,16 @@ impl<'a> Parser<'a> {
                 }
             }
             Token::Text => Some("text".to_string()),
-            Token::Style => Some("Style".to_string()),
+            Token::Style => Some("style".to_string()),
             Token::Script => Some("script".to_string()),
-            Token::Template => Some("Template".to_string()),
-            Token::Element => Some("Element".to_string()),
-            Token::Var => Some("Var".to_string()),
-            Token::Custom => Some("Custom".to_string()),
-            Token::Origin => Some("Origin".to_string()),
-            Token::Import => Some("Import".to_string()),
-            Token::Namespace => Some("Namespace".to_string()),
-            Token::Configuration => Some("Configuration".to_string()),
+            Token::Template => Some("template".to_string()),
+            Token::Element => Some("element".to_string()),
+            Token::Var => Some("var".to_string()),
+            Token::Custom => Some("custom".to_string()),
+            Token::Origin => Some("origin".to_string()),
+            Token::Import => Some("import".to_string()),
+            Token::Namespace => Some("namespace".to_string()),
+            Token::Configuration => Some("configuration".to_string()),
             Token::Use => Some("use".to_string()),
             Token::If => Some("if".to_string()),
             Token::Else => Some("else".to_string()),
@@ -1133,12 +1133,12 @@ impl<'a> Parser<'a> {
             Token::AtBottom => Some("at bottom".to_string()),
             Token::From => Some("from".to_string()),
             Token::As => Some("as".to_string()),
-            Token::Html => Some("Html".to_string()),
-            Token::JavaScript => Some("JavaScript".to_string()),
-            Token::Chtl => Some("Chtl".to_string()),
-            Token::CjMod => Some("CJmod".to_string()),
-            Token::Config => Some("Config".to_string()),
-            Token::Name => Some("Name".to_string()),
+            Token::Html => Some("html".to_string()),
+            Token::JavaScript => Some("javascript".to_string()),
+            Token::Chtl => Some("chtl".to_string()),
+            Token::CjMod => Some("cjmod".to_string()),
+            Token::Config => Some("config".to_string()),
+            Token::Name => Some("name".to_string()),
             _ => None,
         }
     }
@@ -1286,7 +1286,7 @@ mod tests {
 
     #[test]
     fn test_delete_statement_parsing() {
-        let input = "delete font-size, @Style Base, some-other-prop;";
+        let input = "delete font-size, @style Base, some-other-prop;";
         let config = ConfigManager::new();
         let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
@@ -1300,7 +1300,7 @@ mod tests {
                 panic!("Expected Identifier for first delete target");
             }
             if let Expression::UnquotedLiteral(lit) = &del_stmt.targets[1] {
-                assert_eq!(lit.value, "@Style Base");
+                assert_eq!(lit.value, "@style Base");
             } else {
                 panic!("Expected UnquotedLiteral for second delete target");
             }
@@ -1433,7 +1433,7 @@ mod tests {
 
     #[test]
     fn test_namespace_statement_parsing() {
-        let input = "[Namespace] my_space;";
+        let input = "[namespace] my_space;";
         let config = ConfigManager::new();
         let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
@@ -1448,7 +1448,7 @@ mod tests {
 
     #[test]
     fn test_use_template_from_namespace() {
-        let input = "@Element MyTemplate from my_space;";
+        let input = "@element MyTemplate from my_space;";
         let config = ConfigManager::new();
         let lexer = Lexer::new(input, &config);
         let mut parser = Parser::new(lexer);
@@ -1458,6 +1458,7 @@ mod tests {
             assert_eq!(use_stmt.name.value, "MyTemplate");
             assert!(use_stmt.from.is_some());
             assert_eq!(use_stmt.from.unwrap().value, "my_space");
+            assert_eq!(use_stmt.template_type.value, "element");
         } else {
             panic!("Expected UseTemplateStatement");
         }
@@ -1467,9 +1468,9 @@ mod tests {
     fn test_use_template_with_specialization() {
         let input = r#"
         style {
-            @Style MyTemplate {
+            @style MyTemplate {
                 color: "blue";
-                delete font-size, @Style Base;
+                delete font-size, @style Base;
             }
         }
         "#;
@@ -1509,7 +1510,7 @@ mod tests {
                         panic!("Expected Identifier for first delete target");
                     }
                     if let Expression::UnquotedLiteral(lit) = &del_stmt.targets[1] {
-                        assert_eq!(lit.value, "@Style Base");
+                        assert_eq!(lit.value, "@style Base");
                     } else {
                         panic!("Expected UnquotedLiteral for second delete target");
                     }
@@ -1571,7 +1572,7 @@ mod tests {
     fn test_element_template_usage_parsing() {
         let input = r#"
         body {
-            @Element Box;
+            @element Box;
         }
         "#;
         let config = ConfigManager::new();
@@ -1591,7 +1592,7 @@ mod tests {
             let use_template_stmt = &element.body[0];
             if let Statement::UseTemplate(use_stmt) = use_template_stmt {
                 assert_eq!(use_stmt.name.value, "Box");
-                assert_eq!(use_stmt.template_type.value, "Element");
+                assert_eq!(use_stmt.template_type.value, "element");
             } else {
                 panic!("Expected UseTemplateStatement");
             }
@@ -1872,14 +1873,14 @@ mod tests {
     #[test]
     fn test_template_parsing() {
         let input = r#"
-        [Template] @Style DefaultText {
+        [template] @style DefaultText {
             color: "black";
             line-height: 1.6;
         }
 
         div {
             style {
-                @Style DefaultText;
+                @style DefaultText;
             }
         }
         "#;
@@ -1912,7 +1913,7 @@ mod tests {
                 let use_template_stmt = &style.body[0];
                 if let Statement::UseTemplate(use_stmt) = use_template_stmt {
                     assert_eq!(use_stmt.name.value, "DefaultText");
-                    assert_eq!(use_stmt.template_type.value, "Style");
+                    assert_eq!(use_stmt.template_type.value, "style");
                 } else {
                     panic!("Expected UseTemplateStatement");
                 }
@@ -1972,7 +1973,7 @@ mod tests {
     #[test]
     fn test_parse_info_statement() {
         let input = r#"
-        [Info] {
+        [info] {
             name: "my-module";
             version: "1.0.0";
         }
@@ -2001,9 +2002,9 @@ mod tests {
     #[test]
     fn test_parse_export_statement() {
         let input = r#"
-        [Export] {
-            [Custom] @Style ChthollyStyle, ChthollyCard;
-            [Template] @Element Box;
+        [export] {
+            [custom] @style ChthollyStyle, ChthollyCard;
+            [template] @element Box;
         }
         "#;
         let config = ConfigManager::new();
@@ -2023,14 +2024,14 @@ mod tests {
 
             let item1 = &export_stmt.items[0];
             assert!(matches!(item1.category, ImportItemCategory::Custom));
-            assert_eq!(item1.item_type.value, "Style");
+            assert_eq!(item1.item_type.value, "style");
             assert_eq!(item1.names.len(), 2);
             assert_eq!(item1.names[0].value, "ChthollyStyle");
             assert_eq!(item1.names[1].value, "ChthollyCard");
 
             let item2 = &export_stmt.items[1];
             assert!(matches!(item2.category, ImportItemCategory::Template));
-            assert_eq!(item2.item_type.value, "Element");
+            assert_eq!(item2.item_type.value, "element");
             assert_eq!(item2.names.len(), 1);
             assert_eq!(item2.names[0].value, "Box");
         } else {

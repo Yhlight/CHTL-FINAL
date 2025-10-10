@@ -67,13 +67,13 @@ impl Generator {
                     }
                 }
                 Statement::UseTemplate(use_stmt) => {
-                    if use_stmt.template_type.value == "Style" {
+                    if use_stmt.template_type.value == "style" {
                         // Nested template usage. Resolve it within the parent's namespace
                         // unless a 'from' clause is specified.
                         let namespace_key =
                             use_stmt.from.as_ref().map_or(template_namespace, |f| &f.value);
 
-                        if !self.is_symbol_exported(namespace_key, &use_stmt.name.value, "Style") {
+                        if !self.is_symbol_exported(namespace_key, &use_stmt.name.value, "style") {
                             eprintln!(
                                 "Warning: Attempt to use non-exported template Style '{}' from namespace '{}'",
                                 use_stmt.name.value, namespace_key
@@ -351,11 +351,11 @@ impl Generator {
             }
             Statement::Comment(comment) => self.generate_comment(comment),
             Statement::UseTemplate(use_stmt) => {
-                if use_stmt.template_type.value == "Element" {
+                if use_stmt.template_type.value == "element" {
                     let namespace_key =
                         use_stmt.from.as_ref().map_or(&self.current_namespace, |f| &f.value);
 
-                    if !self.is_symbol_exported(namespace_key, &use_stmt.name.value, "Element") {
+                    if !self.is_symbol_exported(namespace_key, &use_stmt.name.value, "element") {
                         eprintln!(
                             "Warning: Attempt to use non-exported template Element '{}' from namespace '{}'",
                             use_stmt.name.value, namespace_key
@@ -470,7 +470,7 @@ impl Generator {
                     style_rules.push(rule);
                 }
                 Statement::UseTemplate(use_stmt) => {
-                    if use_stmt.template_type.value == "Style" {
+                    if use_stmt.template_type.value == "style" {
                         let namespace_key = use_stmt
                             .from
                             .as_ref()
@@ -479,7 +479,7 @@ impl Generator {
                         if !self.is_symbol_exported(
                             &namespace_key,
                             &use_stmt.name.value,
-                            "Style",
+                            "style",
                         ) {
                             eprintln!(
                                 "Warning: Attempt to use non-exported template Style '{}' from namespace '{}'",
@@ -629,7 +629,7 @@ impl Generator {
                 // We are not checking the category ([Custom] vs [Template]) for now,
                 // as the UseTemplateStatement does not distinguish this.
                 // A match on type and name is sufficient for now.
-                item.item_type.value == symbol_type
+                item.item_type.value.eq_ignore_ascii_case(symbol_type)
                     && item.names.iter().any(|n| n.value == symbol_name)
             });
         }
@@ -765,9 +765,9 @@ mod tests {
 
         // Create the library file with a namespaced template
         let lib_content = r#"
-            [Namespace] my_lib;
+            [namespace] my_lib;
 
-            [Template] @Element MyBox {
+            [template] @element MyBox {
                 div {
                     class: "box";
                 }
@@ -777,10 +777,10 @@ mod tests {
 
         // Create the main file that imports and uses the template
         let main_content = r#"
-            [Import] @Chtl from "./lib.chtl";
+            [import] @chtl from "./lib.chtl";
 
             body {
-                @Element MyBox from my_lib;
+                @element MyBox from my_lib;
             }
         "#;
         std::fs::write(&main_path, main_content).unwrap();
@@ -815,16 +815,16 @@ mod tests {
         // A template is used without a `from` clause.
         // It should resolve to the template defined in the same file's namespace.
         let input = r#"
-            [Namespace] my_ui;
+            [namespace] my_ui;
 
-            [Template] @Element Button {
+            [template] @element Button {
                 button {
                     class: "btn";
                 }
             }
 
             body {
-                @Element Button; // Implicitly from `my_ui`
+                @element Button; // Implicitly from `my_ui`
             }
         "#;
 
@@ -855,20 +855,20 @@ mod tests {
         let main_path = dir.path().join("main.chtl");
 
         let lib_content = r#"
-            [Namespace] my_lib;
-            [Export] {
-                [Template] @Element ExportedBox;
+            [namespace] my_lib;
+            [export] {
+                [template] @element ExportedBox;
             }
-            [Template] @Element ExportedBox {
+            [template] @element ExportedBox {
                 div { class: "exported"; }
             }
         "#;
         std::fs::write(&lib_path, lib_content).unwrap();
 
         let main_content = r#"
-            [Import] @Chtl from "./lib.chtl";
+            [import] @chtl from "./lib.chtl";
             body {
-                @Element ExportedBox from my_lib;
+                @element ExportedBox from my_lib;
             }
         "#;
         std::fs::write(&main_path, main_content).unwrap();
@@ -896,20 +896,20 @@ mod tests {
         let main_path = dir.path().join("main.chtl");
 
         let lib_content = r#"
-            [Namespace] my_lib;
-            [Export] {
-                [Template] @Element AnotherBox;
+            [namespace] my_lib;
+            [export] {
+                [template] @element AnotherBox;
             }
-            [Template] @Element SecretBox {
+            [template] @element SecretBox {
                 div { class: "secret"; }
             }
         "#;
         std::fs::write(&lib_path, lib_content).unwrap();
 
         let main_content = r#"
-            [Import] @Chtl from "./lib.chtl";
+            [import] @chtl from "./lib.chtl";
             body {
-                @Element SecretBox from my_lib;
+                @element SecretBox from my_lib;
             }
         "#;
         std::fs::write(&main_path, main_content).unwrap();

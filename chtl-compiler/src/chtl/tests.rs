@@ -8,7 +8,7 @@ mod tests {
     #[test]
     fn test_pre_parsing_and_config_application() {
         let source = r#"
-        [Configuration] {
+        [configuration] {
             INDEX_INITIAL_COUNT: 1;
             DEBUG_MODE: true;
         }

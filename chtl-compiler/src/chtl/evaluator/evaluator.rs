@@ -317,7 +317,7 @@ mod tests {
     #[test]
     fn test_eval_variable_group_template() {
         let input = r#"
-        [Template] @Var ThemeColor {
+        [template] @var ThemeColor {
             tableColor: "rgb(255, 192, 203)";
         }
 

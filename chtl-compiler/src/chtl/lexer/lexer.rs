@@ -177,7 +177,7 @@ impl<'a> Lexer<'a> {
     fn lookup_ident(&self, ident: &str) -> Token {
         self.config
             .keyword_tokens
-            .get(&ident.to_lowercase())
+            .get(ident)
             .cloned()
             .unwrap_or_else(|| Token::Identifier(ident.to_string()))
     }
@@ -222,8 +222,8 @@ mod tests {
     #[test]
     fn test_custom_keyword_from_config() {
         let config_input = r#"
-        [Configuration] {
-            [Name] {
+        [configuration] {
+            [name] {
                 KEYWORD_IF: "my_if";
             }
         }
@@ -379,11 +379,11 @@ mod tests {
     #[test]
     fn test_import_keywords() {
         let input = r#"
-        [Import] @Html from "a.html" as A;
-        [Import] @JavaScript from "b.js" as B;
-        [Import] @Chtl from "c.chtl" as C;
-        [Import] @CJmod from "d.cjmod" as D;
-        [Import] @Config from "e.chtl" as E;
+        [import] @html from "a.html" as A;
+        [import] @javascript from "b.js" as B;
+        [import] @chtl from "c.chtl" as C;
+        [import] @cjmod from "d.cjmod" as D;
+        [import] @config from "e.chtl" as E;
         "#;
 
         let tests = vec![
@@ -447,6 +447,24 @@ mod tests {
 
         let config = ConfigManager::new();
         let mut lexer = Lexer::new(input, &config);
+
+        for expected_token in tests {
+            let tok = lexer.next_token();
+            assert_eq!(tok, expected_token);
+        }
+    }
+
+    #[test]
+    fn test_case_sensitivity() {
+        let input = "If IF if";
+        let config = ConfigManager::new();
+        let mut lexer = Lexer::new(input, &config);
+
+        let tests = vec![
+            Token::Identifier("If".to_string()),
+            Token::Identifier("IF".to_string()),
+            Token::If,
+        ];
 
         for expected_token in tests {
             let tok = lexer.next_token();

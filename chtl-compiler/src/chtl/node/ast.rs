@@ -108,11 +108,17 @@ pub enum Statement {
     Export(ExportStatement),
     Configuration(ConfigurationStatement),
     NameBlock(NameBlock),
+    Script(ScriptStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CommentStatement {
     pub value: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ScriptStatement {
+    pub content: String,
 }
 
 #[derive(Debug, PartialEq, Clone)]

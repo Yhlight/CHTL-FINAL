@@ -102,6 +102,7 @@ impl<'a> Parser<'a> {
                 }
             }
             Token::Style => self.parse_style_statement(),
+            Token::Script => self.parse_script_statement(),
             Token::GeneratorComment(value) => self.parse_comment_statement(value),
             Token::Delete => self.parse_delete_statement(),
             Token::If => self.parse_if_statement(),
@@ -377,6 +378,29 @@ impl<'a> Parser<'a> {
 
     fn parse_comment_statement(&mut self, value: String) -> Option<Statement> {
         Some(Statement::Comment(CommentStatement { value }))
+    }
+
+    fn parse_script_statement(&mut self) -> Option<Statement> {
+        // When this is called, current_token is 'script' and peek_token is '{'.
+        // The lexer's internal `ch` is positioned right after the '{' due to the peek.
+        // This is the perfect time to read the raw body.
+        if !self.peek_token_is(&Token::LBrace) {
+            self.errors.push(format!("Expected '{{' after 'script', got {:?}", self.peek_token));
+            return None;
+        }
+
+        let content = self.lexer.read_raw_body();
+
+        // Now, the lexer has advanced past the entire script block.
+        // The parser's token state is stale (current: 'script', peek: '{').
+        // We need to sync the parser by setting its current and peek tokens
+        // to reflect the new state of the lexer.
+
+        // This is equivalent to calling next_token() twice, but on the *new* lexer state.
+        self.next_token();
+        self.next_token();
+
+        Some(Statement::Script(ScriptStatement { content }))
     }
 
     fn parse_style_statement(&mut self) -> Option<Statement> {
@@ -1192,6 +1216,32 @@ mod tests {
     use super::*;
     use crate::chtl::config_manager::ConfigManager;
     use crate::chtl::lexer::lexer::Lexer;
+
+    #[test]
+    fn test_script_statement_parsing() {
+        let input = r#"
+        script {
+            console.log("hello");
+        }
+        "#;
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Script(script_stmt) = stmt {
+            assert_eq!(script_stmt.content.trim(), r#"console.log("hello");"#);
+        } else {
+            panic!("Expected ScriptStatement, got {:?}", stmt);
+        }
+    }
 
     #[test]
     fn test_property_access_expression() {

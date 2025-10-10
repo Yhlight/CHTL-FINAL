@@ -181,6 +181,26 @@ impl<'a> Lexer<'a> {
             .cloned()
             .unwrap_or_else(|| Token::Identifier(ident.to_string()))
     }
+
+    pub fn read_raw_body(&mut self) -> String {
+        let mut content = String::new();
+        let mut brace_level = 1;
+
+        while brace_level > 0 && self.ch != '\0' {
+            if self.ch == '{' {
+                brace_level += 1;
+            } else if self.ch == '}' {
+                brace_level -= 1;
+                if brace_level == 0 {
+                    break;
+                }
+            }
+            content.push(self.ch);
+            self.read_char();
+        }
+        self.read_char();
+        content
+    }
 }
 
 fn is_letter(ch: char) -> bool {

@@ -340,6 +340,7 @@ impl Generator {
         match statement {
             Statement::Element(element) => self.generate_element(element),
             Statement::Text(text) => self.generate_text(text),
+            Statement::Script(script) => self.generate_script(script),
             Statement::Style(style) => {
                 // For a global style block, there are no element attributes to modify.
                 // We pass a dummy map and only the global_css will be affected.
@@ -383,6 +384,10 @@ impl Generator {
 
     fn generate_comment(&self, comment: &CommentStatement) -> String {
         format!("<!--{}-->", comment.value)
+    }
+
+    fn generate_script(&self, script: &crate::chtl::node::ast::ScriptStatement) -> String {
+        format!("<script>{}</script>", script.content)
     }
 
     fn process_element_body(
@@ -923,5 +928,23 @@ mod tests {
         let html = generator.generate(&program);
 
         assert!(!html.contains("secret"));
+    }
+
+    #[test]
+    fn test_script_block_generation() {
+        let input = r#"
+        div {
+            script {
+                if (true) {
+                    console.log("Hello from script!");
+                }
+            }
+        }
+        "#;
+        let html = generate_html(input);
+        // More robust check that isn't sensitive to exact whitespace from the lexer
+        assert!(html.contains("<script>"));
+        assert!(html.contains(r#"console.log("Hello from script!");"#));
+        assert!(html.contains("</script>"));
     }
 }

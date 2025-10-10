@@ -2,8 +2,9 @@ use crate::chtl::evaluator::evaluator::Evaluator;
 use crate::chtl::evaluator::object::Object;
 use crate::chtl::loader::Loader;
 use crate::chtl::node::ast::{
-    CommentStatement, ElementStatement, Expression, IfStatement, ImportFileType, ImportSpecifier,
-    Program, Statement, StyleStatement, TemplateDefinitionStatement, TemplateType, TextStatement,
+    CommentStatement, ElementStatement, ExportStatement, Expression, IfStatement, ImportFileType,
+    ImportSpecifier, InfoStatement, Program, Statement, StyleStatement,
+    TemplateDefinitionStatement, TemplateType, TextStatement,
 };
 use crate::chtl::lexer::lexer::Lexer;
 use crate::chtl::parser::parser::Parser;
@@ -16,6 +17,8 @@ pub struct Generator {
     pub loader: Loader,
     pub document_map: HashMap<String, HashMap<String, Expression>>,
     pub current_namespace: String,
+    pub module_info: HashMap<String, InfoStatement>,
+    pub module_exports: HashMap<String, ExportStatement>,
 }
 
 impl Generator {
@@ -27,6 +30,8 @@ impl Generator {
             loader: Loader::new(),
             document_map: HashMap::new(),
             current_namespace: "::default".to_string(),
+            module_info: HashMap::new(),
+            module_exports: HashMap::new(),
         }
     }
 
@@ -66,6 +71,15 @@ impl Generator {
                         // unless a 'from' clause is specified.
                         let namespace_key =
                             use_stmt.from.as_ref().map_or(template_namespace, |f| &f.value);
+
+                        if !self.is_symbol_exported(namespace_key, &use_stmt.name.value, "Style") {
+                            eprintln!(
+                                "Warning: Attempt to use non-exported template Style '{}' from namespace '{}'",
+                                use_stmt.name.value, namespace_key
+                            );
+                            continue;
+                        }
+
                         if let Some(templates_in_ns) = self.templates.get(namespace_key) {
                             if let Some(nested_template) =
                                 templates_in_ns.get(&use_stmt.name.value).cloned()
@@ -170,6 +184,14 @@ impl Generator {
                         .entry(namespace_for_this_file.clone())
                         .or_default()
                         .insert(def.name.value.clone(), def.clone());
+                }
+                Statement::Info(info) => {
+                    self.module_info
+                        .insert(namespace_for_this_file.clone(), info.clone());
+                }
+                Statement::Export(export) => {
+                    self.module_exports
+                        .insert(namespace_for_this_file.clone(), export.clone());
                 }
                 Statement::Import(import_stmt) => {
                     if let ImportSpecifier::File(ImportFileType::Chtl) = &import_stmt.specifier {
@@ -308,6 +330,15 @@ impl Generator {
                 if use_stmt.template_type.value == "Element" {
                     let namespace_key =
                         use_stmt.from.as_ref().map_or(&self.current_namespace, |f| &f.value);
+
+                    if !self.is_symbol_exported(namespace_key, &use_stmt.name.value, "Element") {
+                        eprintln!(
+                            "Warning: Attempt to use non-exported template Element '{}' from namespace '{}'",
+                            use_stmt.name.value, namespace_key
+                        );
+                        return String::new();
+                    }
+
                     if let Some(templates_in_ns) = self.templates.get(namespace_key) {
                         if let Some(template) = templates_in_ns.get(&use_stmt.name.value).cloned()
                         {
@@ -460,6 +491,19 @@ impl Generator {
                             .from
                             .as_ref()
                             .map_or(self.current_namespace.clone(), |f| f.value.clone());
+
+                        if !self.is_symbol_exported(
+                            &namespace_key,
+                            &use_stmt.name.value,
+                            "Style",
+                        ) {
+                            eprintln!(
+                                "Warning: Attempt to use non-exported template Style '{}' from namespace '{}'",
+                                use_stmt.name.value, namespace_key
+                            );
+                            continue;
+                        }
+
                         if let Some(templates_in_ns) = self.templates.get(&namespace_key) {
                             if let Some(template) =
                                 templates_in_ns.get(&use_stmt.name.value).cloned()
@@ -622,6 +666,21 @@ impl Generator {
             Object::String(s) => !s.is_empty(),
             _ => false, // Errors, etc. are not truthy
         }
+    }
+
+    fn is_symbol_exported(&self, namespace: &str, symbol_name: &str, symbol_type: &str) -> bool {
+        if let Some(export_data) = self.module_exports.get(namespace) {
+            // If an [Export] block exists, the symbol MUST be in it.
+            return export_data.items.iter().any(|item| {
+                // We are not checking the category ([Custom] vs [Template]) for now,
+                // as the UseTemplateStatement does not distinguish this.
+                // A match on type and name is sufficient for now.
+                item.item_type.value == symbol_type
+                    && item.names.iter().any(|n| n.value == symbol_name)
+            });
+        }
+        // No [Export] block, so all symbols are considered public.
+        true
     }
 
     fn evaluate_if_chain(
@@ -829,5 +888,85 @@ mod tests {
         // Verify the output
         let expected_html = r#"<body><button class="btn"></button></body>"#;
         assert_eq!(html.trim(), expected_html.trim());
+    }
+
+    #[test]
+    fn test_exported_symbol_is_used() {
+        let dir = Builder::new().prefix("export_test").tempdir().unwrap();
+        let lib_path = dir.path().join("lib.chtl");
+        let main_path = dir.path().join("main.chtl");
+
+        let lib_content = r#"
+            [Namespace] my_lib;
+            [Export] {
+                [Template] @Element ExportedBox;
+            }
+            [Template] @Element ExportedBox {
+                div { class: "exported"; }
+            }
+        "#;
+        std::fs::write(&lib_path, lib_content).unwrap();
+
+        let main_content = r#"
+            [Import] @Chtl from "./lib.chtl";
+            body {
+                @Element ExportedBox from my_lib;
+            }
+        "#;
+        std::fs::write(&main_path, main_content).unwrap();
+
+        let mut loader = Loader::new();
+        loader.set_current_file_path(main_path.to_str().unwrap());
+
+        let lexer = Lexer::new(main_content);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(parser.errors().is_empty());
+
+        let mut generator = Generator::new();
+        generator.loader = loader;
+        let html = generator.generate(&program);
+
+        assert!(html.contains(r#"<div class="exported"></div>"#));
+    }
+
+    #[test]
+    fn test_unexported_symbol_is_ignored() {
+        let dir = Builder::new().prefix("export_test").tempdir().unwrap();
+        let lib_path = dir.path().join("lib.chtl");
+        let main_path = dir.path().join("main.chtl");
+
+        let lib_content = r#"
+            [Namespace] my_lib;
+            [Export] {
+                [Template] @Element AnotherBox;
+            }
+            [Template] @Element SecretBox {
+                div { class: "secret"; }
+            }
+        "#;
+        std::fs::write(&lib_path, lib_content).unwrap();
+
+        let main_content = r#"
+            [Import] @Chtl from "./lib.chtl";
+            body {
+                @Element SecretBox from my_lib;
+            }
+        "#;
+        std::fs::write(&main_path, main_content).unwrap();
+
+        let mut loader = Loader::new();
+        loader.set_current_file_path(main_path.to_str().unwrap());
+
+        let lexer = Lexer::new(main_content);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(parser.errors().is_empty());
+
+        let mut generator = Generator::new();
+        generator.loader = loader;
+        let html = generator.generate(&program);
+
+        assert!(!html.contains("secret"));
     }
 }

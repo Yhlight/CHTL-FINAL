@@ -67,6 +67,8 @@ pub enum Token {
     Chtl,
     CjMod,
     Config,
+    Info,
+    Export,
 
     // Comments
     SingleLineComment(String),

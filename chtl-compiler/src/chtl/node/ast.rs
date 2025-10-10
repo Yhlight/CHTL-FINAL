@@ -62,6 +62,23 @@ pub struct NamespaceStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct InfoStatement {
+    pub attributes: Vec<AttributeStatement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ExportStatement {
+    pub items: Vec<ExportItem>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ExportItem {
+    pub category: ImportItemCategory,
+    pub item_type: IdentifierExpression,
+    pub names: Vec<IdentifierExpression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
     Element(ElementStatement),
     Text(TextStatement),
@@ -76,6 +93,8 @@ pub enum Statement {
     If(IfStatement),
     Else(ElseStatement),
     Namespace(NamespaceStatement),
+    Info(InfoStatement),
+    Export(ExportStatement),
 }
 
 #[derive(Debug, PartialEq, Clone)]

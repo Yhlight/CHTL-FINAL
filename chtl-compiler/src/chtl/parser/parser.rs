@@ -67,6 +67,10 @@ impl<'a> Parser<'a> {
                     return self.parse_import_statement();
                 } else if self.peek_token_is(&Token::Namespace) {
                     return self.parse_namespace_statement();
+                } else if self.peek_token_is(&Token::Info) {
+                    return self.parse_info_statement();
+                } else if self.peek_token_is(&Token::Export) {
+                    return self.parse_export_statement();
                 }
                 None
             }
@@ -1031,6 +1035,109 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn parse_info_statement(&mut self) -> Option<Statement> {
+        // current is `[`
+        self.expect_peek(&Token::Info)?;      // consume `[`, current is `Info`
+        self.expect_peek(&Token::RBracket)?; // consume `Info`, current is `]`
+        self.expect_peek(&Token::LBrace)?;   // consume `]`, current is `{`
+        self.next_token();                  // consume `{`
+
+        let mut attributes = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(Statement::Attribute(attr)) = self.parse_attribute_statement() {
+                attributes.push(attr);
+            }
+            self.next_token();
+        }
+
+        Some(Statement::Info(InfoStatement { attributes }))
+    }
+
+    fn parse_export_statement(&mut self) -> Option<Statement> {
+        // current is `[`
+        self.expect_peek(&Token::Export)?;   // consume `[`, current is `Export`
+        self.expect_peek(&Token::RBracket)?; // consume `Export`, current is `]`
+        self.expect_peek(&Token::LBrace)?;   // consume `]`, current is `{`
+        self.next_token();                  // consume `{`
+
+        let mut items = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(item) = self.parse_export_item() {
+                items.push(item);
+            }
+            self.next_token();
+        }
+        Some(Statement::Export(ExportStatement { items }))
+    }
+
+    fn parse_export_item(&mut self) -> Option<ExportItem> {
+        // [Custom] @Style ChthollyStyle, ChthollyCard;
+        if !self.current_token_is(&Token::LBracket) {
+            self.errors.push(format!("Expected '[' at start of export item, got {:?}", self.current_token));
+            return None;
+        }
+        self.next_token(); // consume `[`
+
+        let category = match self.current_token.clone() {
+            Token::Custom => ImportItemCategory::Custom,
+            Token::Template => ImportItemCategory::Template,
+            Token::Origin => ImportItemCategory::Origin,
+            Token::Configuration => ImportItemCategory::Configuration,
+            _ => {
+                self.errors.push(format!("Invalid export category: {:?}", self.current_token));
+                return None;
+            }
+        };
+        self.next_token(); // consume category
+
+        if !self.current_token_is(&Token::RBracket) {
+            self.errors.push(format!("Expected ']' after export category, got {:?}", self.current_token));
+            return None;
+        }
+        self.next_token(); // consume `]`
+
+        if !self.current_token_is(&Token::At) {
+            self.errors.push(format!("Expected '@' after export category, got {:?}", self.current_token));
+            return None;
+        }
+        self.next_token(); // consume `@`
+
+        let item_type = if let Some(type_str) = self.token_to_string_for_unquoted_literal(&self.current_token) {
+            IdentifierExpression { value: type_str }
+        } else {
+            self.errors.push(format!("Expected item type after @, got {:?}", self.current_token));
+            return None;
+        };
+        self.next_token(); // consume item type
+
+        let mut names = Vec::new();
+        loop {
+            if let Token::Identifier(name) = self.current_token.clone() {
+                names.push(IdentifierExpression { value: name });
+            } else {
+                self.errors.push(format!("Expected identifier for export name, got {:?}", self.current_token));
+                return None;
+            }
+
+            self.next_token();
+
+            if self.current_token_is(&Token::Comma) {
+                self.next_token(); // consume comma
+                continue;
+            } else if self.current_token_is(&Token::Semicolon) {
+                break;
+            } else {
+                // If there's no comma, we assume the list is done and the semicolon is optional.
+                break;
+            }
+        }
+
+        Some(ExportItem {
+            category,
+            item_type,
+            names,
+        })
+    }
 }
 
 #[cfg(test)]
@@ -1745,6 +1852,73 @@ mod tests {
             }
         } else {
             panic!("Expected StyleStatement");
+        }
+    }
+
+    #[test]
+    fn test_parse_info_statement() {
+        let input = r#"
+        [Info] {
+            name: "my-module";
+            version: "1.0.0";
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Info(info_stmt) = stmt {
+            assert_eq!(info_stmt.attributes.len(), 2);
+            assert_eq!(info_stmt.attributes[0].name.value, "name");
+            assert_eq!(info_stmt.attributes[1].name.value, "version");
+        } else {
+            panic!("Expected InfoStatement, got {:?}", stmt);
+        }
+    }
+
+    #[test]
+    fn test_parse_export_statement() {
+        let input = r#"
+        [Export] {
+            [Custom] @Style ChthollyStyle, ChthollyCard;
+            [Template] @Element Box;
+        }
+        "#;
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Export(export_stmt) = stmt {
+            assert_eq!(export_stmt.items.len(), 2);
+
+            let item1 = &export_stmt.items[0];
+            assert!(matches!(item1.category, ImportItemCategory::Custom));
+            assert_eq!(item1.item_type.value, "Style");
+            assert_eq!(item1.names.len(), 2);
+            assert_eq!(item1.names[0].value, "ChthollyStyle");
+            assert_eq!(item1.names[1].value, "ChthollyCard");
+
+            let item2 = &export_stmt.items[1];
+            assert!(matches!(item2.category, ImportItemCategory::Template));
+            assert_eq!(item2.item_type.value, "Element");
+            assert_eq!(item2.names.len(), 1);
+            assert_eq!(item2.names[0].value, "Box");
+        } else {
+            panic!("Expected ExportStatement, got {:?}", stmt);
         }
     }
 }

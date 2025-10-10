@@ -131,6 +131,8 @@ impl<'a> Lexer<'a> {
                         "chtl" => Token::Chtl,
                         "cjmod" => Token::CjMod,
                         "config" => Token::Config,
+                        "info" => Token::Info,
+                        "export" => Token::Export,
                         _ => Token::Identifier(literal),
                     };
                 } else if is_digit(self.ch) {

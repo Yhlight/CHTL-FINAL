@@ -551,6 +551,16 @@ impl<'a> Parser<'a> {
 
         let mut body = Vec::new();
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            // Skip any leading separators
+            while self.current_token_is(&Token::Semicolon) {
+                self.next_token();
+            }
+
+            // Check for end of block again after skipping separators
+            if self.current_token_is(&Token::RBrace) || self.current_token_is(&Token::Eof) {
+                break;
+            }
+
             let stmt = match self.current_token.clone() {
                 Token::Dot | Token::Hash | Token::Ampersand => self.parse_style_rule_statement(),
                 Token::At => self.parse_use_template_statement(),
@@ -567,13 +577,7 @@ impl<'a> Parser<'a> {
                         None
                     }
                 }
-                _ => {
-                    self.errors.push(format!(
-                        "Unexpected token in style block: {:?}",
-                        self.current_token
-                    ));
-                    None
-                }
+                _ => self.parse_attribute_statement(),
             };
 
             if let Some(s) = stmt {
@@ -1047,6 +1051,19 @@ impl<'a> Parser<'a> {
                 value,
                 unit,
             })),
+            Token::Minus => {
+                self.next_token();
+                if let Token::Number(value, unit) = self.current_token.clone() {
+                    Some(Expression::NumberLiteral(NumberLiteralExpression {
+                        value: format!("-{}", value),
+                        unit,
+                    }))
+                } else {
+                    self.errors
+                        .push(format!("Expected number after minus, got {:?}", self.current_token));
+                    None
+                }
+            }
             Token::Hash | Token::Dot => {
                 let mut selector = if self.current_token_is(&Token::Hash) {
                     "#".to_string()

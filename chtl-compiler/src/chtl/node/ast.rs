@@ -90,7 +90,15 @@ pub struct ConfigurationStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct OriginStatement {
+    pub origin_type: IdentifierExpression,
+    pub name: Option<IdentifierExpression>,
+    pub content: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    Origin(OriginStatement),
     Element(ElementStatement),
     Text(TextStatement),
     Attribute(AttributeStatement),

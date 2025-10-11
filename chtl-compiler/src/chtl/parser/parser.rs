@@ -75,6 +75,8 @@ impl<'a> Parser<'a> {
                     return self.parse_configuration_statement();
                 } else if self.peek_token_is(&Token::Name) {
                     return self.parse_name_block();
+                } else if self.peek_token_is(&Token::Origin) {
+                    return self.parse_origin_statement();
                 }
                 None
             }
@@ -213,6 +215,45 @@ impl<'a> Parser<'a> {
             self.next_token();
         }
         Some(Statement::Export(ExportStatement { items }))
+    }
+
+    fn parse_origin_statement(&mut self) -> Option<Statement> {
+        self.expect_peek(&Token::Origin)?;
+        self.expect_peek(&Token::RBracket)?;
+        self.expect_peek(&Token::At)?;
+
+        self.next_token();
+
+        let origin_type = if let Some(type_str) = self.token_to_string_for_unquoted_literal(&self.current_token) {
+            IdentifierExpression { value: type_str }
+        } else {
+            self.errors.push(format!("Expected origin type after '@', got {:?}", self.current_token));
+            return None;
+        };
+
+        let mut name: Option<IdentifierExpression> = None;
+        if self.peek_token_is(&Token::Identifier("".to_string())) {
+            self.next_token();
+            if let Token::Identifier(n) = self.current_token.clone() {
+                name = Some(IdentifierExpression { value: n });
+            }
+        }
+
+        if !self.peek_token_is(&Token::LBrace) {
+            self.errors.push(format!("Expected '{{' to start origin block body, got {:?}", self.peek_token));
+            return None;
+        }
+
+        let content = self.lexer.read_raw_body();
+
+        self.next_token();
+        self.next_token();
+
+        Some(Statement::Origin(OriginStatement {
+            origin_type,
+            name,
+            content,
+        }))
     }
 
     fn parse_if_statement(&mut self) -> Option<Statement> {
@@ -2036,6 +2077,34 @@ mod tests {
             assert_eq!(item2.names[0].value, "Box");
         } else {
             panic!("Expected ExportStatement, got {:?}", stmt);
+        }
+    }
+
+    #[test]
+    fn test_parse_origin_statement() {
+        let input = r#"
+        [origin] @html my_code {
+            <p>Hello, world!</p>
+        }
+        "#;
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Origin(origin_stmt) = stmt {
+            assert_eq!(origin_stmt.origin_type.value, "html");
+            assert_eq!(origin_stmt.name.as_ref().unwrap().value, "my_code");
+            assert_eq!(origin_stmt.content.trim(), "<p>Hello, world!</p>");
+        } else {
+            panic!("Expected OriginStatement, got {:?}", stmt);
         }
     }
 }

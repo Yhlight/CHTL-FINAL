@@ -402,6 +402,7 @@ impl Generator {
 
     fn generate_statement(&mut self, statement: &Statement) -> String {
         match statement {
+            Statement::Origin(origin_stmt) => origin_stmt.content.clone(),
             Statement::Element(element) => self.generate_element(element),
             Statement::Text(text) => self.generate_text(text),
             Statement::Script(script) => self.generate_script(script),
@@ -1132,5 +1133,16 @@ mod tests {
         assert!(html.contains(r#"<button class="exported"></button>"#));
         assert!(html.contains(r#"<div style="font-size:16px"></div>"#));
         assert!(!html.contains("secret"));
+    }
+
+    #[test]
+    fn test_origin_block_generation() {
+        let input = r#"
+        [origin] @html {
+            <div><p>Raw HTML</p></div>
+        }
+        "#;
+        let html = generate_html(input);
+        assert_eq!(html.trim(), "<div><p>Raw HTML</p></div>");
     }
 }

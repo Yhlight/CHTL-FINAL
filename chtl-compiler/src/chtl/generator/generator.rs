@@ -167,38 +167,6 @@ impl Generator {
         }
     }
 
-    fn apply_element_template(
-        &mut self,
-        template: &TemplateDefinitionStatement,
-        specialization_body: &Option<Vec<Statement>>,
-    ) -> String {
-        let mut modified_body = template.body.clone();
-
-        if let Some(body) = specialization_body {
-            for stmt in body {
-                if let Statement::Delete(del_stmt) = stmt {
-                    for target in &del_stmt.targets {
-                        if let Expression::Identifier(ident) = target {
-                            modified_body.retain(|stmt| {
-                                if let Statement::Element(el) = stmt {
-                                    el.name.value != ident.value
-                                } else {
-                                    true
-                                }
-                            });
-                        }
-                    }
-                }
-            }
-        }
-
-        let mut html = String::new();
-        for stmt in &modified_body {
-            html.push_str(&self.generate_statement(stmt));
-        }
-        html
-    }
-
     fn process_imports_and_templates(&mut self, program: &Program, file_path_for_namespace: &str) {
         // Determine the namespace for the current file.
         // It's either defined by a [Namespace] directive or defaults to the filename.
@@ -399,7 +367,6 @@ impl Generator {
                 String::new()
             }
             Statement::Comment(comment) => self.generate_comment(comment),
-            Statement::Origin(origin) => origin.content.clone(),
             Statement::UseTemplate(use_stmt) => {
                 if use_stmt.template_type.value == "element" {
                     let namespace_key =
@@ -417,7 +384,11 @@ impl Generator {
                         if let Some(template) = templates_in_ns.get(&use_stmt.name.value).cloned()
                         {
                             if matches!(template.template_type, TemplateType::Element) {
-                                return self.apply_element_template(&template, &use_stmt.body);
+                                let mut html = String::new();
+                                for stmt in &template.body {
+                                    html.push_str(&self.generate_statement(stmt));
+                                }
+                                return html;
                             }
                         }
                     }
@@ -1053,60 +1024,6 @@ mod tests {
         let html = generator.generate(&program);
 
         let expected_html = r#"<body><p>Hello from CMOD!</p></body>"#;
-        assert_eq!(html.trim(), expected_html.trim());
-    }
-
-    #[test]
-    fn test_element_template_specialization() {
-        let input = r#"
-            [template] @element MyComponent {
-                div {
-                    class: "component";
-                    h1 {
-                        text: "Welcome!";
-                    }
-                    p {
-                        text: "This is a nested component.";
-                    }
-                }
-            }
-
-            body {
-                @element MyComponent {
-                    div {
-                        class: "component specialized";
-                    }
-                }
-            }
-        "#;
-        let html = generate_html(input);
-        let expected_html = r#"<body><div class="component specialized"><h1>Welcome!</h1><p>This is a nested component.</p></div></body>"#;
-        assert_eq!(html.trim(), expected_html.trim());
-    }
-
-    #[test]
-    fn test_element_template_delete() {
-        let input = r#"
-            [template] @element MyComponent {
-                div {
-                    class: "component";
-                    h1 {
-                        text: "Welcome!";
-                    }
-                    p {
-                        text: "This is a nested component.";
-                    }
-                }
-            }
-
-            body {
-                @element MyComponent {
-                    delete p;
-                }
-            }
-        "#;
-        let html = generate_html(input);
-        let expected_html = r#"<body><div class="component"><h1>Welcome!</h1></div></body>"#;
         assert_eq!(html.trim(), expected_html.trim());
     }
 }

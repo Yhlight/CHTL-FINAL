@@ -685,6 +685,18 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_import_from_path_alias(&mut self, specifier: ImportSpecifier) -> Option<Statement> {
+        let mut alias: Option<IdentifierExpression> = None;
+        if self.current_token_is(&Token::As) {
+            self.next_token();
+            if let Token::Identifier(alias_name) = self.current_token.clone() {
+                alias = Some(IdentifierExpression { value: alias_name });
+                self.next_token();
+            } else {
+                self.errors.push(format!("Expected identifier for alias, got {:?}", self.current_token));
+                return None;
+            }
+        }
+
         if !self.current_token_is(&Token::From) {
             self.errors.push(format!("Expected 'from' after import specifier, got {:?}", self.current_token));
             return None;
@@ -692,18 +704,6 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         let path = self.parse_path_expression()?;
-
-        let mut alias: Option<IdentifierExpression> = None;
-        if self.peek_token_is(&Token::As) {
-            self.next_token();
-            self.next_token();
-            if let Token::Identifier(alias_name) = self.current_token.clone() {
-                alias = Some(IdentifierExpression { value: alias_name });
-            } else {
-                self.errors.push(format!("Expected identifier for alias, got {:?}", self.current_token));
-                return None;
-            }
-        }
 
         if self.peek_token_is(&Token::Semicolon) {
             self.next_token();

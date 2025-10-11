@@ -167,10 +167,10 @@ impl Generator {
         }
     }
 
-    fn process_imports_and_templates(&mut self, program: &Program, file_path_for_namespace: &str) {
+    fn process_imports_and_templates(&mut self, program: &Program, file_path_for_namespace: &std::path::Path) {
         // Determine the namespace for the current file.
         // It's either defined by a [Namespace] directive or defaults to the filename.
-        let mut namespace_for_this_file = std::path::Path::new(file_path_for_namespace)
+        let mut namespace_for_this_file = file_path_for_namespace
             .file_stem()
             .and_then(|s| s.to_str())
             .unwrap_or("::default")
@@ -209,80 +209,92 @@ impl Generator {
                         }
                     };
 
-                    if let Ok(resolved_path) = self.loader.resolve_path(&path_str) {
-                        let path_to_load = resolved_path.to_str().unwrap_or("");
-                        if path_to_load.is_empty() {
-                            continue;
-                        }
+                    match self.loader.resolve_path(&path_str) {
+                        Ok(resolved_path) => {
+                            match std::fs::read_to_string(&resolved_path) {
+                                Ok(content) => {
+                                    let config = ConfigManager::new();
+                                    let lexer = Lexer::new(&content, &config);
+                                    let mut parser = Parser::new(lexer);
+                                    let imported_program = parser.parse_program();
 
-                        if let Ok(content) = self.loader.load_file_content(path_to_load) {
-                            let config = ConfigManager::new();
-                            let lexer = Lexer::new(&content, &config);
-                            let mut parser = Parser::new(lexer);
-                            let imported_program = parser.parse_program();
+                                    self.process_imports_and_templates(&imported_program, &resolved_path);
 
-                            self.process_imports_and_templates(&imported_program, path_to_load);
-
-                            if let ImportSpecifier::Item(item_spec) = &import_stmt.specifier {
-                                let mut imported_ns_name = std::path::Path::new(path_to_load)
-                                    .file_stem()
-                                    .and_then(|s| s.to_str())
-                                    .unwrap_or("::default")
-                                    .to_string();
-                                for stmt in &imported_program.statements {
-                                    if let Statement::Namespace(ns) = stmt {
-                                        imported_ns_name = ns.name.value.clone();
-                                        break;
-                                    }
-                                }
-
-                                if let Some(source_templates) = self.templates.get(&imported_ns_name).cloned() {
-                                    for (template_name, template_def) in source_templates {
-                                        let mut matches = true;
-                                        if let Some(spec_name) = &item_spec.name {
-                                            if template_name != spec_name.value {
-                                                matches = false;
-                                            }
-                                        }
-                                        if let Some(spec_type) = &item_spec.item_type {
-                                            let type_str = match template_def.template_type {
-                                                TemplateType::Style => "style",
-                                                TemplateType::Element => "element",
-                                                TemplateType::Var => "var",
-                                            };
-                                            if !type_str.eq_ignore_ascii_case(&spec_type.value) {
-                                                matches = false;
-                                            }
-                                        }
-                                        if let Some(spec_category) = &item_spec.category {
-                                            let is_custom = matches!(spec_category, ImportItemCategory::Custom);
-                                            if template_def.is_custom != is_custom {
-                                                matches = false;
+                                    if let ImportSpecifier::Item(item_spec) = &import_stmt.specifier {
+                                        let mut imported_ns_name = resolved_path
+                                            .file_stem()
+                                            .and_then(|s| s.to_str())
+                                            .unwrap_or("::default")
+                                            .to_string();
+                                        for stmt in &imported_program.statements {
+                                            if let Statement::Namespace(ns) = stmt {
+                                                imported_ns_name = ns.name.value.clone();
+                                                break;
                                             }
                                         }
 
-                                        if matches {
-                                            let type_str = match template_def.template_type {
-                                                TemplateType::Style => "style",
-                                                TemplateType::Element => "element",
-                                                TemplateType::Var => "var",
-                                            };
-                                            if self.is_symbol_exported(&imported_ns_name, &template_name, type_str) {
-                                                let mut def_to_add = template_def.clone();
-                                                if let Some(alias) = &import_stmt.alias {
-                                                    if item_spec.name.is_some() {
-                                                        def_to_add.name.value = alias.value.clone();
+                                        if let Some(source_templates) = self.templates.get(&imported_ns_name).cloned() {
+                                            for (template_name, template_def) in source_templates {
+                                                let mut matches = true;
+                                                if let Some(spec_name) = &item_spec.name {
+                                                    if template_name != spec_name.value {
+                                                        matches = false;
                                                     }
                                                 }
-                                                self.templates
-                                                    .entry(namespace_for_this_file.clone())
-                                                    .or_default()
-                                                    .insert(def_to_add.name.value.clone(), def_to_add);
+                                                if let Some(spec_type) = &item_spec.item_type {
+                                                    let type_str = match template_def.template_type {
+                                                        TemplateType::Style => "style",
+                                                        TemplateType::Element => "element",
+                                                        TemplateType::Var => "var",
+                                                    };
+                                                    if !type_str.eq_ignore_ascii_case(&spec_type.value) {
+                                                        matches = false;
+                                                    }
+                                                }
+                                                if let Some(spec_category) = &item_spec.category {
+                                                    let is_custom = matches!(spec_category, ImportItemCategory::Custom);
+                                                    if template_def.is_custom != is_custom {
+                                                        matches = false;
+                                                    }
+                                                }
+
+                                                if matches {
+                                                    let type_str = match template_def.template_type {
+                                                        TemplateType::Style => "style",
+                                                        TemplateType::Element => "element",
+                                                        TemplateType::Var => "var",
+                                                    };
+                                                    if self.is_symbol_exported(&imported_ns_name, &template_name, type_str) {
+                                                        let mut def_to_add = template_def.clone();
+                                                        if let Some(alias) = &import_stmt.alias {
+                                                            if item_spec.name.is_some() {
+                                                                def_to_add.name.value = alias.value.clone();
+                                                            }
+                                                        }
+                                                        self.templates
+                                                            .entry(namespace_for_this_file.clone())
+                                                            .or_default()
+                                                            .insert(def_to_add.name.value.clone(), def_to_add);
+                                                    }
+                                                }
                                             }
                                         }
                                     }
                                 }
+                                Err(e) => {
+                                    eprintln!(
+                                        "Warning: Failed to read imported file '{}': {}",
+                                        resolved_path.display(),
+                                        e
+                                    );
+                                }
                             }
+                        }
+                        Err(e) => {
+                            eprintln!(
+                                "Warning: Failed to resolve import path '{}': {}",
+                                path_str, e
+                            );
                         }
                     }
                 }
@@ -345,23 +357,29 @@ impl Generator {
     pub fn generate(&mut self, program: &Program) -> String {
         // First pass: recursively process imports and collect templates.
         // Use the initial file path stored in the loader.
-        let initial_path = self
+        let initial_path_str = self
             .loader
             .get_current_file_path()
             .unwrap_or_else(|| "::memory".to_string());
-        self.process_imports_and_templates(program, &initial_path);
+        let initial_path = std::path::Path::new(&initial_path_str);
+        self.process_imports_and_templates(program, initial_path);
 
         // New pass: collect all element properties for cross-element reference.
         self.collect_element_properties(&program.statements);
 
         // Determine the main namespace for the generation pass.
-        self.current_namespace = "::default".to_string(); // Reset before check
+        let mut main_namespace = initial_path
+            .file_stem()
+            .and_then(|s| s.to_str())
+            .unwrap_or("::default")
+            .to_string();
         for statement in &program.statements {
             if let Statement::Namespace(ns) = statement {
-                self.current_namespace = ns.name.value.clone();
+                main_namespace = ns.name.value.clone();
                 break;
             }
         }
+        self.current_namespace = main_namespace;
 
         // Second pass: generate the actual HTML from the main program.
         let mut html = String::new();

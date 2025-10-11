@@ -512,7 +512,38 @@ impl Generator {
         let mut children = String::new();
         let mut context = HashMap::new();
 
+        // New logic to pre-scan for auto-addable classes/IDs
+        let mut auto_class = None;
+        let mut auto_id = None;
+        for stmt in &element.body {
+            if let Statement::Style(style_stmt) = stmt {
+                for rule in &style_stmt.body {
+                    if let Statement::StyleRule(style_rule) = rule {
+                        if style_rule.selector.starts_with('.') && auto_class.is_none() {
+                            auto_class = Some(style_rule.selector[1..].to_string());
+                        }
+                        if style_rule.selector.starts_with('#') && auto_id.is_none() {
+                            auto_id = Some(style_rule.selector[1..].to_string());
+                        }
+                    }
+                }
+            }
+        }
+
         self.process_element_body(&element.body, &mut context, &mut attributes, &mut children);
+
+        // Inject attributes if they are not already present
+        if let Some(class) = auto_class {
+            if !attributes.contains_key("class") {
+                attributes.insert("class".to_string(), class);
+            }
+        }
+        if let Some(id) = auto_id {
+            if !attributes.contains_key("id") {
+                attributes.insert("id".to_string(), id);
+            }
+        }
+
 
         let mut attrs_str = String::new();
         let mut sorted_attributes: Vec<_> = attributes.iter().collect();
@@ -1373,6 +1404,36 @@ mod tests {
         "#;
         let html = generate_html(input);
         assert_eq!(html.trim(), "<div><p>Raw HTML</p></div>");
+    }
+
+    #[test]
+    fn test_auto_class_injection() {
+        let input = r#"
+        div {
+            style {
+                .box {
+                    color: red;
+                }
+            }
+        }
+        "#;
+        let html = generate_html(input);
+        assert!(html.contains(r#"class="box""#));
+    }
+
+    #[test]
+    fn test_auto_id_injection() {
+        let input = r#"
+        div {
+            style {
+                #main {
+                    color: red;
+                }
+            }
+        }
+        "#;
+        let html = generate_html(input);
+        assert!(html.contains(r#"id="main""#));
     }
 
     #[test]

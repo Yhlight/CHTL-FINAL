@@ -791,31 +791,37 @@ impl Generator {
                     }
                 }
             }
+
             // --- Phase 2: Handle Deletes ---
-            let mut delete_targets = Vec::new();
-            for spec_stmt in spec_body {
-                if let Statement::Element(spec_element) = spec_stmt {
-                    for stmt in &spec_element.body {
-                        if let Statement::Delete(d) = stmt {
-                            delete_targets.extend(d.targets.iter().cloned());
-                        }
+            let mut indices_to_delete = std::collections::HashSet::new();
+            let delete_statements: Vec<_> = spec_body
+                .iter()
+                .filter_map(|stmt| match stmt {
+                    Statement::Element(e) => Some(e.body.iter()),
+                    _ => None,
+                })
+                .flatten()
+                .filter_map(|stmt| match stmt {
+                    Statement::Delete(d) => Some(d),
+                    _ => None,
+                })
+                .collect();
+
+            for delete_stmt in delete_statements {
+                for target in &delete_stmt.targets {
+                    if let Some(index) = find_target_index(&final_body, target) {
+                        indices_to_delete.insert(index);
                     }
                 }
             }
 
-            if !delete_targets.is_empty() {
-                final_body.retain(|template_stmt| {
-                    if let Statement::Element(template_element) = template_stmt {
-                        for target in &delete_targets {
-                            if let Expression::Identifier(ident) = target {
-                                if ident.value == template_element.name.value {
-                                    return false; // Remove this element
-                                }
-                            }
-                        }
-                    }
-                    true // Keep this element
-                });
+            if !indices_to_delete.is_empty() {
+                let mut sorted_indices: Vec<_> = indices_to_delete.into_iter().collect();
+                sorted_indices.sort_unstable_by(|a, b| b.cmp(a)); // Sort in reverse
+
+                for index in sorted_indices {
+                    final_body.remove(index);
+                }
             }
 
             // --- Phase 3: Handle Merges ---

@@ -56,6 +56,7 @@ impl ConfigManager {
         add_keyword!(keywords, keyword_tokens, "KEYWORD_INFO", "info", Token::Info);
         add_keyword!(keywords, keyword_tokens, "KEYWORD_EXPORT", "export", Token::Export);
         add_keyword!(keywords, keyword_tokens, "KEYWORD_NAME", "name", Token::Name);
+        add_keyword!(keywords, keyword_tokens, "KEYWORD_HTML5", "html5", Token::Html);
 
         ConfigManager {
             keywords,

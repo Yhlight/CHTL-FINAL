@@ -97,7 +97,19 @@ pub struct OriginStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum UseTarget {
+    Html5,
+    Config(IdentifierExpression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct UseStatement {
+    pub target: UseTarget,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    Use(UseStatement),
     Origin(OriginStatement),
     Element(ElementStatement),
     Text(TextStatement),

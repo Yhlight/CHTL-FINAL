@@ -112,8 +112,39 @@ impl<'a> Parser<'a> {
                 self.errors.push("`else` without a preceding `if`".to_string());
                 None
             }
+            Token::Use => self.parse_use_statement(),
             _ => None,
         }
+    }
+
+    fn parse_use_statement(&mut self) -> Option<Statement> {
+        self.next_token();
+
+        let target = if self.current_token_is(&Token::Html) {
+            UseTarget::Html5
+        } else if self.current_token_is(&Token::At) {
+            self.next_token();
+            if !self.current_token_is(&Token::Config) {
+                self.errors.push(format!("Expected 'Config' after '@' in use statement, got {:?}", self.current_token));
+                return None;
+            }
+            self.next_token();
+            if let Token::Identifier(name) = self.current_token.clone() {
+                UseTarget::Config(IdentifierExpression { value: name })
+            } else {
+                self.errors.push(format!("Expected identifier for config name, got {:?}", self.current_token));
+                return None;
+            }
+        } else {
+            self.errors.push(format!("Invalid 'use' target: {:?}", self.current_token));
+            return None;
+        };
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::Use(UseStatement { target }))
     }
 
     fn parse_configuration_statement(&mut self) -> Option<Statement> {
@@ -2105,6 +2136,42 @@ mod tests {
             assert_eq!(origin_stmt.content.trim(), "<p>Hello, world!</p>");
         } else {
             panic!("Expected OriginStatement, got {:?}", stmt);
+        }
+    }
+
+    #[test]
+    fn test_parse_use_statement() {
+        let input = r#"
+        use html5;
+        use @config MyConfig;
+        "#;
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt1 = &program.statements[0];
+        if let Statement::Use(use_stmt) = stmt1 {
+            assert!(matches!(use_stmt.target, UseTarget::Html5));
+        } else {
+            panic!("Expected UseStatement, got {:?}", stmt1);
+        }
+
+        let stmt2 = &program.statements[1];
+        if let Statement::Use(use_stmt) = stmt2 {
+            if let UseTarget::Config(ident) = &use_stmt.target {
+                assert_eq!(ident.value, "MyConfig");
+            } else {
+                panic!("Expected UseTarget::Config, got {:?}", use_stmt.target);
+            }
+        } else {
+            panic!("Expected UseStatement, got {:?}", stmt2);
         }
     }
 }

@@ -5,7 +5,7 @@ use crate::chtl::loader::Loader;
 use crate::chtl::node::ast::{
     CommentStatement, ElementStatement, ExportStatement, Expression, IfStatement, ImportFileType,
     ImportItemCategory, ImportSpecifier, InfoStatement, Program, Statement, StyleStatement,
-    TemplateDefinitionStatement, TemplateType, TextStatement,
+    TemplateDefinitionStatement, TemplateType, TextStatement, UseStatement, UseTarget,
 };
 use crate::chtl::lexer::lexer::Lexer;
 use crate::chtl::parser::parser::Parser;
@@ -20,6 +20,7 @@ pub struct Generator {
     pub current_namespace: String,
     pub module_info: HashMap<String, InfoStatement>,
     pub module_exports: HashMap<String, ExportStatement>,
+    use_html5: bool,
 }
 
 impl Generator {
@@ -38,6 +39,7 @@ impl Generator {
             current_namespace: "::default".to_string(),
             module_info: HashMap::new(),
             module_exports: HashMap::new(),
+            use_html5: false,
         }
     }
 
@@ -384,17 +386,31 @@ impl Generator {
         // Second pass: generate the actual HTML from the main program.
         let mut html = String::new();
         for statement in &program.statements {
+            if let Statement::Use(use_stmt) = statement {
+                if let UseTarget::Html5 = use_stmt.target {
+                    self.use_html5 = true;
+                }
+                // Config handling would go here
+            }
+
             // Don't generate output for top-level templates or imports.
             if !matches!(
                 statement,
-                Statement::TemplateDefinition(_) | Statement::Import(_) | Statement::Namespace(_)
+                Statement::TemplateDefinition(_)
+                    | Statement::Import(_)
+                    | Statement::Namespace(_)
+                    | Statement::Use(_)
             ) {
                 html.push_str(&self.generate_statement(statement));
             }
         }
 
         if !self.global_css.is_empty() {
-            return format!("<style>{}</style>{}", self.global_css, html);
+            html = format!("<style>{}</style>{}", self.global_css, html);
+        }
+
+        if self.use_html5 {
+            html = format!("<!DOCTYPE html>{}", html);
         }
 
         html
@@ -1144,5 +1160,15 @@ mod tests {
         "#;
         let html = generate_html(input);
         assert_eq!(html.trim(), "<div><p>Raw HTML</p></div>");
+    }
+
+    #[test]
+    fn test_use_html5_generation() {
+        let input = r#"
+        use html5;
+        div {}
+        "#;
+        let html = generate_html(input);
+        assert!(html.starts_with("<!DOCTYPE html>"));
     }
 }

@@ -4,7 +4,7 @@ use crate::chtl::evaluator::object::Object;
 use crate::chtl::loader::Loader;
 use crate::chtl::node::ast::{
     CommentStatement, ElementStatement, ExportStatement, Expression, IfStatement, ImportFileType,
-    ImportSpecifier, InfoStatement, Program, Statement, StyleStatement,
+    ImportItemCategory, ImportSpecifier, InfoStatement, Program, Statement, StyleStatement,
     TemplateDefinitionStatement, TemplateType, TextStatement,
 };
 use crate::chtl::lexer::lexer::Lexer;
@@ -200,59 +200,88 @@ impl Generator {
                         .insert(namespace_for_this_file.clone(), export.clone());
                 }
                 Statement::Import(import_stmt) => {
-                    if let ImportSpecifier::File(ImportFileType::Chtl) = &import_stmt.specifier {
-                        let path_str = match &import_stmt.path {
-                            Expression::StringLiteral(s) => s.value.clone(),
-                            Expression::UnquotedLiteral(u) => u.value.clone(),
-                            _ => {
-                                eprintln!(
-                                    "Warning: Unsupported import path expression: {:?}",
-                                    import_stmt.path
-                                );
-                                continue;
-                            }
-                        };
+                    let path_str = match &import_stmt.path {
+                        Expression::StringLiteral(s) => s.value.clone(),
+                        Expression::UnquotedLiteral(u) => u.value.clone(),
+                        _ => {
+                            eprintln!("Warning: Unsupported import path expression: {:?}", import_stmt.path);
+                            continue;
+                        }
+                    };
 
-                        match self.loader.resolve_path(&path_str) {
-                            Ok(resolved_path) => {
-                                let path_to_load = resolved_path.to_str().unwrap_or_else(|| {
-                                    eprintln!("Warning: Could not convert resolved path to string");
-                                    ""
-                                });
+                    if let Ok(resolved_path) = self.loader.resolve_path(&path_str) {
+                        let path_to_load = resolved_path.to_str().unwrap_or("");
+                        if path_to_load.is_empty() {
+                            continue;
+                        }
 
-                                if path_to_load.is_empty() {
-                                    continue;
-                                }
+                        if let Ok(content) = self.loader.load_file_content(path_to_load) {
+                            let config = ConfigManager::new();
+                            let lexer = Lexer::new(&content, &config);
+                            let mut parser = Parser::new(lexer);
+                            let imported_program = parser.parse_program();
 
-                                if let Ok(content) = self.loader.load_file_content(path_to_load) {
-                                    let config = ConfigManager::new();
-                                    let lexer = Lexer::new(&content, &config);
-                                    let mut parser = Parser::new(lexer);
-                                    let imported_program = parser.parse_program();
-                                    if !parser.errors().is_empty() {
-                                        eprintln!(
-                                            "Warning: Parsing errors in imported file '{}': {:?}",
-                                            path_to_load,
-                                            parser.errors()
-                                        );
+                            self.process_imports_and_templates(&imported_program, path_to_load);
+
+                            if let ImportSpecifier::Item(item_spec) = &import_stmt.specifier {
+                                let mut imported_ns_name = std::path::Path::new(path_to_load)
+                                    .file_stem()
+                                    .and_then(|s| s.to_str())
+                                    .unwrap_or("::default")
+                                    .to_string();
+                                for stmt in &imported_program.statements {
+                                    if let Statement::Namespace(ns) = stmt {
+                                        imported_ns_name = ns.name.value.clone();
+                                        break;
                                     }
-                                    // Recursively process the imported file, passing its path
-                                    self.process_imports_and_templates(
-                                        &imported_program,
-                                        path_to_load,
-                                    );
-                                } else {
-                                    eprintln!(
-                                        "Warning: Could not load content from resolved path '{}'",
-                                        path_to_load
-                                    );
                                 }
-                            }
-                            Err(e) => {
-                                eprintln!(
-                                    "Warning: Could not resolve import path '{}': {}",
-                                    path_str, e
-                                );
+
+                                if let Some(source_templates) = self.templates.get(&imported_ns_name).cloned() {
+                                    for (template_name, template_def) in source_templates {
+                                        let mut matches = true;
+                                        if let Some(spec_name) = &item_spec.name {
+                                            if template_name != spec_name.value {
+                                                matches = false;
+                                            }
+                                        }
+                                        if let Some(spec_type) = &item_spec.item_type {
+                                            let type_str = match template_def.template_type {
+                                                TemplateType::Style => "style",
+                                                TemplateType::Element => "element",
+                                                TemplateType::Var => "var",
+                                            };
+                                            if !type_str.eq_ignore_ascii_case(&spec_type.value) {
+                                                matches = false;
+                                            }
+                                        }
+                                        if let Some(spec_category) = &item_spec.category {
+                                            let is_custom = matches!(spec_category, ImportItemCategory::Custom);
+                                            if template_def.is_custom != is_custom {
+                                                matches = false;
+                                            }
+                                        }
+
+                                        if matches {
+                                            let type_str = match template_def.template_type {
+                                                TemplateType::Style => "style",
+                                                TemplateType::Element => "element",
+                                                TemplateType::Var => "var",
+                                            };
+                                            if self.is_symbol_exported(&imported_ns_name, &template_name, type_str) {
+                                                let mut def_to_add = template_def.clone();
+                                                if let Some(alias) = &import_stmt.alias {
+                                                    if item_spec.name.is_some() {
+                                                        def_to_add.name.value = alias.value.clone();
+                                                    }
+                                                }
+                                                self.templates
+                                                    .entry(namespace_for_this_file.clone())
+                                                    .or_default()
+                                                    .insert(def_to_add.name.value.clone(), def_to_add);
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
@@ -1025,5 +1054,65 @@ mod tests {
 
         let expected_html = r#"<body><p>Hello from CMOD!</p></body>"#;
         assert_eq!(html.trim(), expected_html.trim());
+    }
+
+    #[test]
+    fn test_advanced_imports() {
+        let dir = Builder::new().prefix("adv_import_test").tempdir().unwrap();
+        let lib_path = dir.path().join("lib.chtl");
+        let main_path = dir.path().join("main.chtl");
+
+        let lib_content = r#"
+            [namespace] my_lib;
+            [export] {
+                [template] @element ExportedButton;
+                [custom] @style CustomText;
+            }
+            [template] @element ExportedButton {
+                button { class: "exported"; }
+            }
+            [custom] @style CustomText {
+                font-size: 16px;
+            }
+            [template] @element SecretButton {
+                button { class: "secret"; }
+            }
+        "#;
+        std::fs::write(&lib_path, lib_content).unwrap();
+
+        let main_content = format!(
+            r#"
+            [import] [template] @element ExportedButton from "{}";
+            [import] [custom] @style CustomText as MyText from "{}";
+            [import] [template] @element SecretButton from "{}";
+
+            body {{
+                @element ExportedButton;
+                div {{
+                    style {{
+                        @style MyText;
+                    }}
+                }}
+            }}
+        "#,
+            lib_path.to_str().unwrap(),
+            lib_path.to_str().unwrap(),
+            lib_path.to_str().unwrap()
+        );
+        std::fs::write(&main_path, &main_content).unwrap();
+
+        let source = std::fs::read_to_string(&main_path).unwrap();
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(&source, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
+
+        let mut generator = Generator::new(Some(main_path.to_str().unwrap()));
+        let html = generator.generate(&program);
+
+        assert!(html.contains(r#"<button class="exported"></button>"#));
+        assert!(html.contains(r#"<div style="font-size:16px"></div>"#));
+        assert!(!html.contains("secret"));
     }
 }

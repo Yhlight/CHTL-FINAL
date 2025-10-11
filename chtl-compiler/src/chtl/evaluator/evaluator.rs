@@ -173,6 +173,13 @@ impl Evaluator {
         document_map: &DocumentMap,
     ) -> Object {
         let left = self.eval(&node.left, context, templates, document_map);
+
+        if node.operator == "&&" {
+            return Object::Boolean(left.is_truthy() && self.eval(&node.right, context, templates, document_map).is_truthy());
+        } else if node.operator == "||" {
+            return Object::Boolean(left.is_truthy() || self.eval(&node.right, context, templates, document_map).is_truthy());
+        }
+
         let right = self.eval(&node.right, context, templates, document_map);
 
         match (left, right) {
@@ -380,6 +387,25 @@ mod tests {
     }
 
     #[test]
+    fn test_eval_logical_expression() {
+        let tests = vec![
+            ("width: 1 > 2 && 3 < 4;", Object::Boolean(false)),
+            ("width: 1 > 2 || 3 < 4;", Object::Boolean(true)),
+            ("width: 1 < 2 && 3 < 4;", Object::Boolean(true)),
+            ("width: 1 < 2 || 3 > 4;", Object::Boolean(true)),
+            (r#"width: "hello" && 1;"#, Object::Boolean(true)),
+            (r#"width: "" && 1;"#, Object::Boolean(false)),
+            (r#"width: "hello" || 0;"#, Object::Boolean(true)),
+            (r#"width: "" || 0;"#, Object::Boolean(false)),
+        ];
+
+        for (input, expected) in tests {
+            let full_input = format!("style {{ {} }}", input);
+            let result = test_eval(&full_input);
+            assert_eq!(result, expected);
+        }
+    }
+
     fn test_eval_variable_group_template() {
         let input = r#"
         [template] @var ThemeColor {

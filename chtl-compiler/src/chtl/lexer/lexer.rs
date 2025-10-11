@@ -67,7 +67,22 @@ impl<'a> Lexer<'a> {
             '>' => Token::Gt,
             '<' => Token::Lt,
             '!' => Token::Bang,
-            '&' => Token::Ampersand,
+            '&' => {
+                if let Some(&'&') = self.input.peek() {
+                    self.read_char();
+                    Token::And
+                } else {
+                    Token::Ampersand
+                }
+            }
+            '|' => {
+                if let Some(&'|') = self.input.peek() {
+                    self.read_char();
+                    Token::Or
+                } else {
+                    Token::Illegal
+                }
+            }
             '@' => Token::At,
             '#' => {
                 if let Some(&' ') = self.input.peek() {
@@ -448,6 +463,18 @@ mod tests {
         let config = ConfigManager::new();
         let mut lexer = Lexer::new(input, &config);
 
+        for expected_token in tests {
+            let tok = lexer.next_token();
+            assert_eq!(tok, expected_token);
+        }
+    }
+
+    #[test]
+    fn test_logical_operators() {
+        let input = "&& ||";
+        let tests = vec![Token::And, Token::Or];
+        let config = ConfigManager::new();
+        let mut lexer = Lexer::new(input, &config);
         for expected_token in tests {
             let tok = lexer.next_token();
             assert_eq!(tok, expected_token);

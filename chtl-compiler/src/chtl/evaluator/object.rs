@@ -16,3 +16,14 @@ impl std::fmt::Display for Object {
         }
     }
 }
+
+impl Object {
+    pub fn is_truthy(&self) -> bool {
+        match self {
+            Object::Boolean(b) => *b,
+            Object::Number(val, _) => *val != 0.0,
+            Object::String(s) => !s.is_empty(),
+            _ => false,
+        }
+    }
+}

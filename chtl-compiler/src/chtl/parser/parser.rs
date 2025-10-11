@@ -5,6 +5,7 @@ use crate::chtl::node::ast::*;
 #[derive(PartialEq, PartialOrd, Debug, Clone, Copy)]
 enum Precedence {
     Lowest,
+    Logical,     // && or ||
     Conditional, // ?:
     LessGreater, // > or <
     Sum,         // + or -
@@ -1124,6 +1125,8 @@ impl<'a> Parser<'a> {
             Token::Power => "**".to_string(),
             Token::Gt => ">".to_string(),
             Token::Lt => "<".to_string(),
+            Token::And => "&&".to_string(),
+            Token::Or => "||".to_string(),
             _ => return None,
         };
 
@@ -1206,6 +1209,7 @@ impl<'a> Parser<'a> {
             Token::Plus | Token::Minus => Precedence::Sum,
             Token::Asterisk | Token::Slash | Token::Percent => Precedence::Product,
             Token::Power => Precedence::Power,
+            Token::And | Token::Or => Precedence::Logical,
             Token::Gt | Token::Lt => Precedence::LessGreater,
             Token::Question => Precedence::Conditional,
             Token::LParen => Precedence::Call,
@@ -2281,6 +2285,50 @@ mod tests {
     }
 
     #[test]
+    fn test_logical_expressions() {
+        let input = r#"
+        style {
+            width: 1 > 2 && 3 < 4;
+            height: 1 > 2 || 3 < 4;
+        }
+        "#;
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(parser.errors.is_empty(), "Parser errors: {:?}", parser.errors);
+
+        let stmt = &program.statements[0];
+        if let Statement::Style(style_stmt) = stmt {
+            let attr_stmt = &style_stmt.body[0];
+            if let Statement::Attribute(attr) = attr_stmt {
+                assert_eq!(attr.name.value, "width");
+                if let Some(Expression::Infix(infix_exp)) = &attr.value {
+                    assert_eq!(infix_exp.operator, "&&");
+                } else {
+                    panic!("Expected InfixExpression");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+
+            let attr_stmt = &style_stmt.body[1];
+            if let Statement::Attribute(attr) = attr_stmt {
+                assert_eq!(attr.name.value, "height");
+                if let Some(Expression::Infix(infix_exp)) = &attr.value {
+                    assert_eq!(infix_exp.operator, "||");
+                } else {
+                    panic!("Expected InfixExpression");
+                }
+            } else {
+                panic!("Expected AttributeStatement");
+            }
+        } else {
+            panic!("Expected StyleStatement");
+        }
+    }
+
     fn test_parse_insert_statement() {
         let input = r#"
         insert after div[0] {

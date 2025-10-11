@@ -3,9 +3,9 @@ use crate::chtl::evaluator::evaluator::Evaluator;
 use crate::chtl::evaluator::object::Object;
 use crate::chtl::loader::Loader;
 use crate::chtl::node::ast::{
-    CommentStatement, ElementStatement, ExportStatement, Expression, IfStatement, ImportFileType,
-    ImportItemCategory, ImportSpecifier, InfoStatement, Program, Statement, StyleStatement,
-    TemplateDefinitionStatement, TemplateType, TextStatement, UseStatement, UseTarget,
+    CommentStatement, ElementStatement, ExportStatement, Expression, IfStatement,
+    ImportItemCategory, ImportSpecifier, InfoStatement, InsertPosition, Program, Statement,
+    StyleStatement, TemplateDefinitionStatement, TemplateType, TextStatement, UseTarget,
 };
 use crate::chtl::lexer::lexer::Lexer;
 use crate::chtl::parser::parser::Parser;
@@ -752,15 +752,87 @@ impl Generator {
         let mut final_body = template.body.clone();
 
         if let Some(body) = specialization_body {
-            for stmt in body {
-                if let Statement::Insert(insert_stmt) = stmt {
-                    // TODO: Implement insert logic
+            let mut indexed_inserts = Vec::new();
+
+            // First pass: collect all insert operations and their target indices
+            // based on the *original* template body.
+            for insert_stmt in body.iter().filter_map(|s| match s {
+                Statement::Insert(is) => Some(is),
+                _ => None,
+            }) {
+                let target_index = match insert_stmt.position {
+                    InsertPosition::AtTop => Some(0),
+                    InsertPosition::AtBottom => Some(final_body.len()),
+                    _ => find_target_index(&final_body, &insert_stmt.target),
+                };
+
+                if let Some(index) = target_index {
+                    indexed_inserts.push((insert_stmt.clone(), index));
+                } else {
+                    eprintln!(
+                        "Warning: Insert target not found for specialization of template '{}'",
+                        template.name.value
+                    );
+                }
+            }
+
+            indexed_inserts.sort_by(|a, b| b.1.cmp(&a.1));
+
+            for (insert_stmt, target_index) in indexed_inserts {
+                match insert_stmt.position {
+                    InsertPosition::Replace => {
+                        final_body.splice(target_index..=target_index, insert_stmt.body);
+                    }
+                    InsertPosition::After => {
+                        let insert_pos = target_index + 1;
+                        final_body.splice(insert_pos..insert_pos, insert_stmt.body);
+                    }
+                    InsertPosition::Before | InsertPosition::AtTop => {
+                        final_body.splice(target_index..target_index, insert_stmt.body);
+                    }
+                    InsertPosition::AtBottom => {
+                        final_body.splice(target_index..target_index, insert_stmt.body);
+                    }
                 }
             }
         }
 
         final_body
     }
+}
+
+fn find_target_index(body: &[Statement], target: &Expression) -> Option<usize> {
+    let (tag_name, target_occurrence) = match target {
+        Expression::Index(index_expr) => {
+            let name = match &*index_expr.left {
+                Expression::Identifier(ident) => &ident.value,
+                Expression::UnquotedLiteral(lit) => &lit.value,
+                _ => return None,
+            };
+            let index = match &*index_expr.index {
+                Expression::NumberLiteral(num) => num.value.parse::<usize>().ok(),
+                _ => return None,
+            };
+            (name.clone(), index.unwrap_or(0))
+        }
+        Expression::Identifier(ident) => (ident.value.clone(), 0),
+        Expression::UnquotedLiteral(lit) => (lit.value.clone(), 0),
+        _ => return None,
+    };
+
+    let mut occurrence_count = 0;
+    for (i, stmt) in body.iter().enumerate() {
+        if let Statement::Element(element_stmt) = stmt {
+            if element_stmt.name.value == tag_name {
+                if occurrence_count == target_occurrence {
+                    return Some(i);
+                }
+                occurrence_count += 1;
+            }
+        }
+    }
+
+    None
 }
 
 #[cfg(test)]

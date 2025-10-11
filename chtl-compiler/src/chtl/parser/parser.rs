@@ -451,26 +451,57 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_insert_statement(&mut self) -> Option<Statement> {
-        self.next_token();
+        self.next_token(); // consume 'insert'
 
-        let position = match self.current_token {
+        let position = match self.current_token.clone() {
             Token::After => InsertPosition::After,
             Token::Before => InsertPosition::Before,
             Token::Replace => InsertPosition::Replace,
-            Token::AtTop => InsertPosition::AtTop,
-            Token::AtBottom => InsertPosition::AtBottom,
+            Token::Identifier(s) if s == "at" => {
+                if self.peek_token_is(&Token::Identifier("top".to_string())) {
+                    self.next_token();
+                    InsertPosition::AtTop
+                } else if self.peek_token_is(&Token::Identifier("bottom".to_string())) {
+                    self.next_token();
+                    InsertPosition::AtBottom
+                } else {
+                    self.errors.push(format!(
+                        "Expected 'top' or 'bottom' after 'at', got {:?}",
+                        self.peek_token
+                    ));
+                    return None;
+                }
+            }
             _ => {
-                self.errors.push(format!("Expected insert position, got {:?}", self.current_token));
+                self.errors.push(format!(
+                    "Expected insert position, got {:?}",
+                    self.current_token
+                ));
                 return None;
             }
         };
-        self.next_token();
+        self.next_token(); // consume position keyword
 
-        let target = self.parse_expression(Precedence::Lowest)?;
+        let has_target = !matches!(position, InsertPosition::AtTop | InsertPosition::AtBottom);
 
-        self.next_token();
+        let target = if has_target {
+            self.parse_expression(Precedence::Lowest)?
+        } else {
+            // A dummy expression for positions that don't have a target.
+            Expression::UnquotedLiteral(UnquotedLiteralExpression {
+                value: "container".to_string(),
+            })
+        };
+
+        if has_target {
+            self.next_token();
+        }
+
         if !self.current_token_is(&Token::LBrace) {
-            self.errors.push(format!("Expected '{{' to start insert block body, got {:?}", self.current_token));
+            self.errors.push(format!(
+                "Expected '{{' to start insert block body, got {:?}",
+                self.current_token
+            ));
             return None;
         }
         self.next_token();

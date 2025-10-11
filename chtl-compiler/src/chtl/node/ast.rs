@@ -124,7 +124,15 @@ pub struct InsertStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct InheritStatement {
+    pub name: IdentifierExpression,
+    pub template_type: IdentifierExpression,
+    pub from: Option<IdentifierExpression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    Inherit(InheritStatement),
     Insert(InsertStatement),
     Use(UseStatement),
     Origin(OriginStatement),

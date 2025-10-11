@@ -110,6 +110,7 @@ impl<'a> Parser<'a> {
             Token::GeneratorComment(value) => self.parse_comment_statement(value),
             Token::Delete => self.parse_delete_statement(),
             Token::Insert => self.parse_insert_statement(),
+            Token::Inherit => self.parse_inherit_statement(),
             Token::If => self.parse_if_statement(),
             Token::Else => {
                 self.errors.push("`else` without a preceding `if`".to_string());
@@ -449,6 +450,54 @@ impl<'a> Parser<'a> {
         }
 
         Some(Statement::Delete(DeleteStatement { targets }))
+    }
+
+    fn parse_inherit_statement(&mut self) -> Option<Statement> {
+        self.next_token(); // consume 'inherit'
+
+        if !self.current_token_is(&Token::At) {
+            self.errors.push(format!("Expected '@' after 'inherit', got {:?}", self.current_token));
+            return None;
+        }
+        self.next_token(); // consume '@'
+
+        let template_type = if let Some(type_str) = self.token_to_string_for_unquoted_literal(&self.current_token) {
+            IdentifierExpression { value: type_str }
+        } else {
+            self.errors.push(format!("Expected template type after '@', got {:?}", self.current_token));
+            return None;
+        };
+        self.next_token();
+
+        let name = if let Token::Identifier(n) = self.current_token.clone() {
+            IdentifierExpression { value: n }
+        } else {
+            self.errors.push(format!("Expected template name, got {:?}", self.current_token));
+            return None;
+        };
+        self.next_token();
+
+        let mut from = None;
+        if self.current_token_is(&Token::From) {
+            self.next_token();
+            if let Token::Identifier(ns) = self.current_token.clone() {
+                from = Some(IdentifierExpression { value: ns });
+                self.next_token();
+            } else {
+                self.errors.push(format!("Expected namespace identifier after 'from', got {:?}", self.current_token));
+                return None;
+            }
+        }
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::Inherit(InheritStatement {
+            name,
+            template_type,
+            from,
+        }))
     }
 
     fn parse_insert_statement(&mut self) -> Option<Statement> {
@@ -2326,6 +2375,25 @@ mod tests {
             }
         } else {
             panic!("Expected StyleStatement");
+        }
+    }
+
+    fn test_parse_inherit_statement() {
+        let input = "inherit @style MyStyle from my_space;";
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(parser.errors.is_empty(), "Parser errors: {:?}", parser.errors);
+
+        let stmt = &program.statements[0];
+        if let Statement::Inherit(inherit_stmt) = stmt {
+            assert_eq!(inherit_stmt.name.value, "MyStyle");
+            assert_eq!(inherit_stmt.template_type.value, "style");
+            assert_eq!(inherit_stmt.from.as_ref().unwrap().value, "my_space");
+        } else {
+            panic!("Expected InheritStatement");
         }
     }
 

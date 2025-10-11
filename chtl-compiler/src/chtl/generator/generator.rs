@@ -56,6 +56,36 @@ impl Generator {
         // First, apply properties from the base template
         for stmt in &template.body {
             match stmt {
+                Statement::Inherit(inherit_stmt) => {
+                    if inherit_stmt.template_type.value == "style" {
+                        let namespace_key =
+                            inherit_stmt.from.as_ref().map_or(template_namespace, |f| &f.value);
+
+                        if !self.is_symbol_exported(namespace_key, &inherit_stmt.name.value, "style") {
+                            eprintln!(
+                                "Warning: Attempt to inherit non-exported template Style '{}' from namespace '{}'",
+                                inherit_stmt.name.value, namespace_key
+                            );
+                            continue;
+                        }
+
+                        if let Some(templates_in_ns) = self.templates.get(namespace_key) {
+                            if let Some(inherited_template) =
+                                templates_in_ns.get(&inherit_stmt.name.value).cloned()
+                            {
+                                if matches!(inherited_template.template_type, TemplateType::Style) {
+                                    self.apply_style_template(
+                                        &inherited_template,
+                                        namespace_key,
+                                        context,
+                                        inline_style_props,
+                                        &None, // Inheritance doesn't pass specialization
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
                         let all_templates: HashMap<_, _> = self
@@ -1437,6 +1467,28 @@ mod tests {
     }
 
     #[test]
+    #[test]
+    fn test_explicit_inheritance() {
+        let input = r#"
+        [template] @style Base {
+            font-size: 16px;
+        }
+
+        [template] @style Derived {
+            inherit @style Base;
+            color: red;
+        }
+
+        div {
+            style {
+                @style Derived;
+            }
+        }
+        "#;
+        let html = generate_html(input);
+        assert!(html.contains(r#"style="color:red;font-size:16px""#));
+    }
+
     fn test_use_html5_generation() {
         let input = r#"
         use html5;

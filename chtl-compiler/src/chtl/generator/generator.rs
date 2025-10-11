@@ -435,6 +435,11 @@ impl Generator {
                     let statements_to_add = self.evaluate_if_chain(if_stmt, context);
                     self.process_element_body(&statements_to_add, context, attributes, children);
                 }
+                Statement::UseTemplate(use_stmt) => {
+                    if use_stmt.template_type.value == "element" {
+                        children.push_str(&self.generate_statement(statement));
+                    }
+                }
                 _ => {
                     children.push_str(&self.generate_statement(statement));
                 }

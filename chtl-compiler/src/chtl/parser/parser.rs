@@ -187,8 +187,8 @@ impl<'a> Parser<'a> {
                 body.push(s);
             } else {
                 self.errors.push(format!("Unexpected token in configuration body: {:?}", self.current_token));
-                self.next_token();
             }
+            self.next_token();
         }
 
         Some(Statement::Configuration(ConfigurationStatement { name, body }))
@@ -206,8 +206,8 @@ impl<'a> Parser<'a> {
                 settings.push(attr);
             } else {
                 self.errors.push(format!("Expected attribute statement in [Name] block, got {:?}", self.current_token));
-                self.next_token();
             }
+            self.next_token();
         }
         Some(Statement::NameBlock(NameBlock { settings }))
     }

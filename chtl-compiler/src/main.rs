@@ -47,14 +47,43 @@ fn main() {
         // For now, we'll ignore them as the main pass will catch them anyway.
     }
 
-    // Find the first unnamed [Configuration] block and apply it.
+    // Find all named configs and the first unnamed one.
+    let mut named_configs = std::collections::HashMap::new();
+    let mut unnamed_config = None;
     for stmt in &pre_program.statements {
         if let Statement::Configuration(config_stmt) = stmt {
-            if config_stmt.name.is_none() {
-                config_manager.apply_config(config_stmt);
-                break; // Only the first unnamed config is used
+            if let Some(name) = &config_stmt.name {
+                named_configs.insert(name.value.clone(), config_stmt.clone());
+            } else if unnamed_config.is_none() {
+                unnamed_config = Some(config_stmt.clone());
             }
         }
+    }
+
+    // Check for a `use @Config <name>;` statement.
+    let mut use_config_name = None;
+    for stmt in &pre_program.statements {
+        if let Statement::Use(use_stmt) = stmt {
+            if let chtl::node::ast::UseTarget::Config(config_name) = &use_stmt.target {
+                use_config_name = Some(config_name.value.clone());
+                break;
+            }
+        }
+    }
+
+    if let Some(config_name) = use_config_name {
+        if let Some(config_stmt) = named_configs.get(&config_name) {
+            config_manager.apply_config(config_stmt);
+        } else {
+            eprintln!("Warning: Configuration '{}' specified in 'use' statement not found.", config_name);
+            // Fallback to unnamed config if the named one isn't found
+            if let Some(config_stmt) = unnamed_config {
+                config_manager.apply_config(&config_stmt);
+            }
+        }
+    } else if let Some(config_stmt) = unnamed_config {
+        // Default behavior: apply the first unnamed config if no `use` statement is present
+        config_manager.apply_config(&config_stmt);
     }
 
     // --- Main parsing pass ---

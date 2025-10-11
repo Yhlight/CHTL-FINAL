@@ -35,4 +35,23 @@ mod tests {
         assert_eq!(config_manager.index_initial_count, 1);
         assert_eq!(config_manager.debug_mode, true);
     }
+
+    #[test]
+    fn test_use_html5_generation() {
+        let source = r#"
+        use html5;
+        div {}
+        "#;
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(&source, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(parser.errors().is_empty(), "Parser errors: {:?}", parser.errors());
+
+        let mut generator = crate::chtl::generator::generator::Generator::new(None);
+        let html = generator.generate(&program);
+
+        assert!(html.starts_with("<!DOCTYPE html>"));
+    }
 }

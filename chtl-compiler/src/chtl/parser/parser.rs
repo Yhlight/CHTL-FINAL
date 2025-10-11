@@ -75,6 +75,8 @@ impl<'a> Parser<'a> {
                     return self.parse_configuration_statement();
                 } else if self.peek_token_is(&Token::Name) {
                     return self.parse_name_block();
+                } else if self.peek_token_is(&Token::Origin) {
+                    return self.parse_origin_statement();
                 }
                 None
             }
@@ -177,6 +179,45 @@ impl<'a> Parser<'a> {
             }
         }
         Some(Statement::NameBlock(NameBlock { settings }))
+    }
+
+    fn parse_origin_statement(&mut self) -> Option<Statement> {
+        self.expect_peek(&Token::Origin)?;
+        self.expect_peek(&Token::RBracket)?;
+
+        if !self.peek_token_is(&Token::At) {
+            self.errors
+                .push(format!("Expected '@' after [Origin], got {:?}", self.peek_token));
+            return None;
+        }
+        self.next_token();
+
+        if !self.peek_token_is(&Token::Html)
+            && !self.peek_token_is(&Token::Style)
+            && !self.peek_token_is(&Token::JavaScript)
+        {
+            self.errors.push(format!(
+                "Expected origin type (Html, Style, JavaScript), got {:?}",
+                self.peek_token
+            ));
+            return None;
+        }
+        self.next_token();
+
+        if !self.peek_token_is(&Token::LBrace) {
+            self.errors.push(format!(
+                "Expected '{{' after origin type, got {:?}",
+                self.peek_token
+            ));
+            return None;
+        }
+        self.next_token();
+
+        let content = self.lexer.read_raw_body();
+
+        self.next_token();
+
+        Some(Statement::Origin(OriginStatement { content }))
     }
 
     fn parse_info_statement(&mut self) -> Option<Statement> {

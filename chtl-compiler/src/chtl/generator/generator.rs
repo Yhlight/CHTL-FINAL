@@ -367,6 +367,7 @@ impl Generator {
                 String::new()
             }
             Statement::Comment(comment) => self.generate_comment(comment),
+            Statement::Origin(origin) => origin.content.clone(),
             Statement::UseTemplate(use_stmt) => {
                 if use_stmt.template_type.value == "element" {
                     let namespace_key =
@@ -434,11 +435,6 @@ impl Generator {
                 Statement::If(if_stmt) => {
                     let statements_to_add = self.evaluate_if_chain(if_stmt, context);
                     self.process_element_body(&statements_to_add, context, attributes, children);
-                }
-                Statement::UseTemplate(use_stmt) => {
-                    if use_stmt.template_type.value == "element" {
-                        children.push_str(&self.generate_statement(statement));
-                    }
                 }
                 _ => {
                     children.push_str(&self.generate_statement(statement));

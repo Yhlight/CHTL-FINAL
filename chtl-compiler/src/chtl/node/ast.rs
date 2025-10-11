@@ -93,6 +93,7 @@ pub struct ConfigurationStatement {
 pub enum Statement {
     Element(ElementStatement),
     Text(TextStatement),
+    Origin(OriginStatement),
     Attribute(AttributeStatement),
     Style(StyleStatement),
     StyleRule(StyleRuleStatement),
@@ -118,6 +119,11 @@ pub struct CommentStatement {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct ScriptStatement {
+    pub content: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct OriginStatement {
     pub content: String,
 }
 

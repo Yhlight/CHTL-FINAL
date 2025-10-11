@@ -485,12 +485,9 @@ impl<'a> Parser<'a> {
         let has_target = !matches!(position, InsertPosition::AtTop | InsertPosition::AtBottom);
 
         let target = if has_target {
-            self.parse_expression(Precedence::Lowest)?
+            self.parse_expression(Precedence::Lowest)
         } else {
-            // A dummy expression for positions that don't have a target.
-            Expression::UnquotedLiteral(UnquotedLiteralExpression {
-                value: "container".to_string(),
-            })
+            None
         };
 
         if has_target {
@@ -2287,7 +2284,7 @@ mod tests {
         let stmt = &program.statements[0];
         if let Statement::Insert(insert_stmt) = stmt {
             assert!(matches!(insert_stmt.position, InsertPosition::After));
-            if let Expression::Index(index_expr) = &insert_stmt.target {
+            if let Some(Expression::Index(index_expr)) = &insert_stmt.target {
                 if let Expression::Identifier(ident) = &*index_expr.left {
                     assert_eq!(ident.value, "div");
                 } else {

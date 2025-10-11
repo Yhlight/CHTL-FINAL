@@ -119,7 +119,7 @@ pub enum InsertPosition {
 #[derive(Debug, PartialEq, Clone)]
 pub struct InsertStatement {
     pub position: InsertPosition,
-    pub target: Expression,
+    pub target: Option<Expression>,
     pub body: Vec<Statement>,
 }
 

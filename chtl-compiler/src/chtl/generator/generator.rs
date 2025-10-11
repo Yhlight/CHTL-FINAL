@@ -751,19 +751,17 @@ impl Generator {
     ) -> Vec<Statement> {
         let mut final_body = template.body.clone();
 
-        if let Some(body) = specialization_body {
+        if let Some(spec_body) = specialization_body {
+            // --- Phase 1: Handle Inserts ---
             let mut indexed_inserts = Vec::new();
-
-            // First pass: collect all insert operations and their target indices
-            // based on the *original* template body.
-            for insert_stmt in body.iter().filter_map(|s| match s {
+            for insert_stmt in spec_body.iter().filter_map(|s| match s {
                 Statement::Insert(is) => Some(is),
                 _ => None,
             }) {
                 let target_index = match insert_stmt.position {
                     InsertPosition::AtTop => Some(0),
                     InsertPosition::AtBottom => Some(final_body.len()),
-                    _ => find_target_index(&final_body, &insert_stmt.target),
+                    _ => find_target_index(&final_body, &insert_stmt.target.clone().unwrap()),
                 };
 
                 if let Some(index) = target_index {
@@ -775,9 +773,7 @@ impl Generator {
                     );
                 }
             }
-
             indexed_inserts.sort_by(|a, b| b.1.cmp(&a.1));
-
             for (insert_stmt, target_index) in indexed_inserts {
                 match insert_stmt.position {
                     InsertPosition::Replace => {
@@ -793,6 +789,60 @@ impl Generator {
                     InsertPosition::AtBottom => {
                         final_body.splice(target_index..target_index, insert_stmt.body);
                     }
+                }
+            }
+            // --- Phase 2: Handle Deletes ---
+            let mut delete_targets = Vec::new();
+            for spec_stmt in spec_body {
+                if let Statement::Element(spec_element) = spec_stmt {
+                    for stmt in &spec_element.body {
+                        if let Statement::Delete(d) = stmt {
+                            delete_targets.extend(d.targets.iter().cloned());
+                        }
+                    }
+                }
+            }
+
+            if !delete_targets.is_empty() {
+                final_body.retain(|template_stmt| {
+                    if let Statement::Element(template_element) = template_stmt {
+                        for target in &delete_targets {
+                            if let Expression::Identifier(ident) = target {
+                                if ident.value == template_element.name.value {
+                                    return false; // Remove this element
+                                }
+                            }
+                        }
+                    }
+                    true // Keep this element
+                });
+            }
+
+            // --- Phase 3: Handle Merges ---
+            let mut spec_element_occurrences: HashMap<String, usize> = HashMap::new();
+            for spec_stmt in spec_body {
+                if let Statement::Element(spec_element) = spec_stmt {
+                    let tag_name = &spec_element.name.value;
+                    let spec_occurrence_index = spec_element_occurrences.entry(tag_name.clone()).or_insert(0);
+
+                    let mut template_occurrence_count = 0;
+                    let target_element = final_body.iter_mut().find_map(|template_stmt| {
+                        if let Statement::Element(template_element) = template_stmt {
+                            if &template_element.name.value == tag_name {
+                                if template_occurrence_count == *spec_occurrence_index {
+                                    return Some(template_element);
+                                }
+                                template_occurrence_count += 1;
+                            }
+                        }
+                        None
+                    });
+
+                    if let Some(target_element) = target_element {
+                        merge_element_bodies(&mut target_element.body, &spec_element.body);
+                    }
+
+                    *spec_occurrence_index += 1;
                 }
             }
         }
@@ -833,6 +883,72 @@ fn find_target_index(body: &[Statement], target: &Expression) -> Option<usize> {
     }
 
     None
+}
+
+fn merge_element_bodies(template_body: &mut Vec<Statement>, spec_body: &Vec<Statement>) {
+    // Phase 1: Merge attributes and styles
+    for spec_stmt in spec_body {
+        match spec_stmt {
+            Statement::Attribute(spec_attr) => {
+                let mut found = false;
+                for template_stmt in template_body.iter_mut() {
+                    if let Statement::Attribute(template_attr) = template_stmt {
+                        if template_attr.name.value == spec_attr.name.value {
+                            template_attr.value = spec_attr.value.clone();
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if !found {
+                    template_body.push(spec_stmt.clone());
+                }
+            }
+            Statement::Style(spec_style) => {
+                let mut found_and_merged = false;
+                for template_stmt in template_body.iter_mut() {
+                    if let Statement::Style(template_style) = template_stmt {
+                        template_style.body.extend(spec_style.body.clone());
+                        found_and_merged = true;
+                        break;
+                    }
+                }
+                if !found_and_merged {
+                    template_body.push(spec_stmt.clone());
+                }
+            }
+            _ => {} // Ignore elements in this pass
+        }
+    }
+
+    // Phase 2: Recursively merge child elements
+    let mut spec_element_occurrences: HashMap<String, usize> = HashMap::new();
+    for spec_stmt in spec_body {
+        if let Statement::Element(spec_element) = spec_stmt {
+            let tag_name = &spec_element.name.value;
+            let spec_occurrence_index = spec_element_occurrences.entry(tag_name.clone()).or_insert(0);
+
+            let mut template_occurrence_count = 0;
+            let target_element = template_body.iter_mut().find_map(|template_stmt| {
+                if let Statement::Element(template_element) = template_stmt {
+                    if &template_element.name.value == tag_name {
+                        if template_occurrence_count == *spec_occurrence_index {
+                            return Some(template_element);
+                        }
+                        template_occurrence_count += 1;
+                    }
+                }
+                None
+            });
+
+            if let Some(target_element) = target_element {
+                // Recurse
+                merge_element_bodies(&mut target_element.body, &spec_element.body);
+            }
+
+            *spec_occurrence_index += 1;
+        }
+    }
 }
 
 #[cfg(test)]

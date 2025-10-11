@@ -42,6 +42,9 @@ impl Evaluator {
             Expression::PropertyAccess(p) => {
                 self.eval_property_access_expression(p, context, templates, document_map)
             }
+            Expression::Index(_) => {
+                todo!()
+            }
         }
     }
 

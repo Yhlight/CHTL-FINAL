@@ -448,8 +448,9 @@ impl Generator {
                         if let Some(template) = templates_in_ns.get(&use_stmt.name.value).cloned()
                         {
                             if matches!(template.template_type, TemplateType::Element) {
+                                let specialized_body = self.apply_element_template(&template, &use_stmt.body);
                                 let mut html = String::new();
-                                for stmt in &template.body {
+                                for stmt in &specialized_body {
                                     html.push_str(&self.generate_statement(stmt));
                                 }
                                 return html;
@@ -741,6 +742,24 @@ impl Generator {
             }
         }
         vec![]
+    }
+
+    fn apply_element_template(
+        &mut self,
+        template: &TemplateDefinitionStatement,
+        specialization_body: &Option<Vec<Statement>>,
+    ) -> Vec<Statement> {
+        let mut final_body = template.body.clone();
+
+        if let Some(body) = specialization_body {
+            for stmt in body {
+                if let Statement::Insert(insert_stmt) = stmt {
+                    // TODO: Implement insert logic
+                }
+            }
+        }
+
+        final_body
     }
 }
 

@@ -11,6 +11,7 @@ enum Precedence {
     Product,     // * or /
     Power,       // **
     Call,        // my_function(X)
+    Index,       // array[index]
     PropertyAccess, // .
 }
 
@@ -107,6 +108,7 @@ impl<'a> Parser<'a> {
             Token::Script => self.parse_script_statement(),
             Token::GeneratorComment(value) => self.parse_comment_statement(value),
             Token::Delete => self.parse_delete_statement(),
+            Token::Insert => self.parse_insert_statement(),
             Token::If => self.parse_if_statement(),
             Token::Else => {
                 self.errors.push("`else` without a preceding `if`".to_string());
@@ -446,6 +448,46 @@ impl<'a> Parser<'a> {
         }
 
         Some(Statement::Delete(DeleteStatement { targets }))
+    }
+
+    fn parse_insert_statement(&mut self) -> Option<Statement> {
+        self.next_token();
+
+        let position = match self.current_token {
+            Token::After => InsertPosition::After,
+            Token::Before => InsertPosition::Before,
+            Token::Replace => InsertPosition::Replace,
+            Token::AtTop => InsertPosition::AtTop,
+            Token::AtBottom => InsertPosition::AtBottom,
+            _ => {
+                self.errors.push(format!("Expected insert position, got {:?}", self.current_token));
+                return None;
+            }
+        };
+        self.next_token();
+
+        let target = self.parse_expression(Precedence::Lowest)?;
+
+        self.next_token();
+        if !self.current_token_is(&Token::LBrace) {
+            self.errors.push(format!("Expected '{{' to start insert block body, got {:?}", self.current_token));
+            return None;
+        }
+        self.next_token();
+
+        let mut body = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if let Some(stmt) = self.parse_statement() {
+                body.push(stmt);
+            }
+            self.next_token();
+        }
+
+        Some(Statement::Insert(InsertStatement {
+            position,
+            target,
+            body,
+        }))
     }
 
     fn parse_comment_statement(&mut self, value: String) -> Option<Statement> {
@@ -952,6 +994,9 @@ impl<'a> Parser<'a> {
             if self.peek_token_is(&Token::LParen) {
                 self.next_token();
                 left_exp = self.parse_call_expression(left_exp)?;
+            } else if self.peek_token_is(&Token::LBracket) {
+                self.next_token();
+                left_exp = self.parse_index_expression(left_exp)?;
             } else if self.peek_token_is(&Token::Question) {
                 self.next_token();
                 left_exp = self.parse_conditional_expression(left_exp)?;
@@ -1119,9 +1164,24 @@ impl<'a> Parser<'a> {
             Token::Gt | Token::Lt => Precedence::LessGreater,
             Token::Question => Precedence::Conditional,
             Token::LParen => Precedence::Call,
+            Token::LBracket => Precedence::Index,
             Token::Dot => Precedence::PropertyAccess,
             _ => Precedence::Lowest,
         }
+    }
+
+    fn parse_index_expression(&mut self, left: Expression) -> Option<Expression> {
+        self.next_token();
+        let index = self.parse_expression(Precedence::Lowest)?;
+
+        if self.expect_peek(&Token::RBracket).is_none() {
+            return None;
+        }
+
+        Some(Expression::Index(IndexExpression {
+            left: Box::new(left),
+            index: Box::new(index),
+        }))
     }
 
     fn current_token_is(&self, t: &Token) -> bool {
@@ -2172,6 +2232,42 @@ mod tests {
             }
         } else {
             panic!("Expected UseStatement, got {:?}", stmt2);
+        }
+    }
+
+    #[test]
+    fn test_parse_insert_statement() {
+        let input = r#"
+        insert after div[0] {
+            p { text: "new paragraph" }
+        }
+        "#;
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let stmt = &program.statements[0];
+        if let Statement::Insert(insert_stmt) = stmt {
+            assert!(matches!(insert_stmt.position, InsertPosition::After));
+            if let Expression::Index(index_expr) = &insert_stmt.target {
+                if let Expression::Identifier(ident) = &*index_expr.left {
+                    assert_eq!(ident.value, "div");
+                } else {
+                    panic!("Expected Identifier for left side of index expression");
+                }
+            } else {
+                panic!("Expected IndexExpression for target");
+            }
+            assert_eq!(insert_stmt.body.len(), 1);
+        } else {
+            panic!("Expected InsertStatement, got {:?}", stmt);
         }
     }
 }

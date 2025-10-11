@@ -108,7 +108,24 @@ pub struct UseStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum InsertPosition {
+    After,
+    Before,
+    Replace,
+    AtTop,
+    AtBottom,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct InsertStatement {
+    pub position: InsertPosition,
+    pub target: Expression,
+    pub body: Vec<Statement>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    Insert(InsertStatement),
     Use(UseStatement),
     Origin(OriginStatement),
     Element(ElementStatement),
@@ -169,6 +186,13 @@ pub enum Expression {
     Conditional(ConditionalExpression),
     FunctionCall(FunctionCallExpression),
     PropertyAccess(PropertyAccessExpression),
+    Index(IndexExpression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct IndexExpression {
+    pub left: Box<Expression>,
+    pub index: Box<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

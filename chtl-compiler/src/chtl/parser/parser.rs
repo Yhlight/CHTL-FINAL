@@ -657,8 +657,10 @@ impl<'a> Parser<'a> {
                 if let Some(expr) = self.parse_expression(Precedence::Lowest) {
                     body.push(ScriptBodyPart::EnhancedSelector(expr));
                 }
-                if !self.current_token_is(&Token::DoubleRBrace) {
-                    self.errors.push(format!("Expected '}}' to close enhanced selector, got {:?}", self.current_token));
+                if !self.peek_token_is(&Token::DoubleRBrace) {
+                    self.errors.push(format!("Expected '}}' to close enhanced selector, got {:?}", self.peek_token));
+                } else {
+                    self.next_token(); // consume expression
                 }
             } else {
                 // This is a simplification. A real implementation would need to
@@ -709,7 +711,13 @@ impl<'a> Parser<'a> {
                         None
                     }
                 }
-                _ => self.parse_attribute_statement(),
+                _ => {
+                    if self.current_token_is(&Token::Semicolon) {
+                        None
+                    } else {
+                        self.parse_attribute_statement()
+                    }
+                }
             };
 
             if let Some(s) = stmt {

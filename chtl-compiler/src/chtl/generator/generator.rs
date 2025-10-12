@@ -1011,6 +1011,24 @@ const __chtl_state = new Proxy({}, {
                 _ => None,
             }) {
                 for target in &delete_stmt.targets {
+                    if let Expression::UnquotedLiteral(unquoted) = target {
+                        if unquoted.value.starts_with("@") {
+                            let parts: Vec<&str> = unquoted.value.split_whitespace().collect();
+                            if parts.len() == 2 {
+                                let target_type = parts[0];
+                                let target_name = parts[1];
+                                final_body.retain(|stmt| match stmt {
+                                    Statement::UseTemplate(use_stmt) => {
+                                        let stmt_type = format!("@{}", use_stmt.template_type.value);
+                                        !(stmt_type == target_type && use_stmt.name.value == target_name)
+                                    }
+                                    _ => true,
+                                });
+                                continue;
+                            }
+                        }
+                    }
+
                     if let Some(index) = find_target_index(&final_body, target) {
                         indices_to_delete.insert(index);
                     }

@@ -1629,4 +1629,55 @@ mod tests {
         assert!(!html.contains("second"));
         assert!(html.contains("third"));
     }
+
+    #[test]
+    fn test_template_specialization_insert() {
+        let input = r#"
+        [custom] @element MyComponent {
+            p { text: "first" }
+            span { text: "third" }
+        }
+
+        body {
+            @element MyComponent {
+                insert after p {
+                    div { text: "second" }
+                }
+                insert at top {
+                    h1 { text: "zeroth" }
+                }
+            }
+        }
+        "#;
+
+        let html = generate_html(input);
+        let expected_order = "<h1>zeroth</h1><p>first</p><div>second</div><span>third</span>";
+        assert_eq!(html.replace(" ", "").replace("\n", ""), format!("<body>{}</body>", expected_order));
+    }
+
+    #[test]
+    fn test_template_specialization_merge() {
+        let input = r#"
+        [custom] @element MyComponent {
+            div {
+                class: "default";
+                p { text: "hello"; }
+            }
+        }
+
+        body {
+            @element MyComponent {
+                div {
+                    class: "override";
+                    id: "merged";
+                }
+            }
+        }
+        "#;
+
+        let html = generate_html(input);
+        assert!(html.contains(r#"class="override""#));
+        assert!(html.contains(r#"id="merged""#));
+        assert!(html.contains("hello"));
+    }
 }

@@ -555,7 +555,7 @@ const __chtl_state = new Proxy({}, {
             Statement::Origin(origin_stmt) => origin_stmt.content.clone(),
             Statement::Element(element) => self.generate_element(element),
             Statement::Text(text) => self.generate_text(text),
-            Statement::Script(script) => self.generate_script(script),
+            Statement::Script(script) => self.generate_script(script, None),
             Statement::Style(style) => {
                 // For a global style block, there are no element attributes to modify.
                 // We pass a dummy map and only the global_css will be affected.
@@ -602,14 +602,20 @@ const __chtl_state = new Proxy({}, {
         format!("<!--{}-->", comment.value)
     }
 
-    fn generate_script(&self, script: &crate::chtl::node::ast::ScriptStatement) -> String {
+    fn generate_script(&mut self, script: &crate::chtl::node::ast::ScriptStatement, element_id: Option<&str>) -> String {
         let mut script_content = String::new();
         for part in &script.body {
             match part {
                 ScriptBodyPart::Raw(raw) => script_content.push_str(raw),
                 ScriptBodyPart::EnhancedSelector(expr) => {
                     if let Expression::Identifier(ident) = expr {
-                        script_content.push_str(&format!("document.querySelector('#{}')", ident.value));
+                        if ident.value == "&" {
+                            if let Some(id) = element_id {
+                                script_content.push_str(&format!("document.getElementById('{}')", id));
+                            }
+                        } else {
+                            script_content.push_str(&format!("document.getElementById('{}') || document.querySelector('.{}')", ident.value, ident.value));
+                        }
                     } else if let Expression::UnquotedLiteral(unquoted) = expr {
                         script_content.push_str(&format!("document.querySelector('{}')", unquoted.value));
                     }
@@ -650,6 +656,9 @@ const __chtl_state = new Proxy({}, {
                 }
                 Statement::Except(_) => {
                     // Handled by the generate_element function, do not render as a child.
+                }
+                Statement::Script(script) => {
+                    children.push_str(&self.generate_script(script, Some(element_id)));
                 }
                 _ => {
                     children.push_str(&self.generate_statement(statement));
@@ -1803,17 +1812,20 @@ mod tests {
     }
 
     #[test]
-    fn test_enhanced_script_selectors() {
+    fn test_advanced_script_selectors() {
         let input = r#"
         div {
+            id: "my_div";
             script {
-                {{.my-class}}.doSomething();
+                {{&}}.style.color = "red";
+                {{box}}.innerHTML = "Hello";
             }
         }
+        div { id: "box"; }
         "#;
 
         let html = generate_html(input);
-        assert!(html.contains(r#"class="my-class""#));
-        assert!(html.contains(r#"document.querySelector('.my-class').doSomething();"#));
+        assert!(html.contains(r#"document.getElementById('my_div').style.color = "red";"#));
+        assert!(html.contains(r#"document.getElementById('box') || document.querySelector('.box').innerHTML = "Hello";"#));
     }
 }

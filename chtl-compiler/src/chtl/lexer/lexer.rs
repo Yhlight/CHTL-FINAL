@@ -33,8 +33,24 @@ impl<'a> Lexer<'a> {
             '?' => Token::Question,
             '(' => Token::LParen,
             ')' => Token::RParen,
-            '{' => Token::LBrace,
-            '}' => Token::RBrace,
+            '{' => {
+                if let Some(&c) = self.input.peek() {
+                    if c == '{' {
+                        self.read_char();
+                        return Token::DoubleLBrace;
+                    }
+                }
+                Token::LBrace
+            }
+            '}' => {
+                if let Some(&c) = self.input.peek() {
+                    if c == '}' {
+                        self.read_char();
+                        return Token::DoubleRBrace;
+                    }
+                }
+                Token::RBrace
+            }
             '[' => Token::LBracket,
             ']' => Token::RBracket,
             ',' => Token::Comma,

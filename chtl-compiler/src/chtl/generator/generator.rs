@@ -4,8 +4,8 @@ use crate::chtl::evaluator::object::Object;
 use crate::chtl::loader::Loader;
 use crate::chtl::node::ast::{
     CommentStatement, ElementStatement, ExportStatement, Expression, IfStatement,
-    ImportItemCategory, ImportSpecifier, InfoStatement, InsertPosition, Program, Statement,
-    StyleStatement, TemplateDefinitionStatement, TemplateType, TextStatement, UseTarget,
+    ImportItemCategory, ImportSpecifier, InfoStatement, InsertPosition, Program, ScriptBodyPart,
+    Statement, StyleStatement, TemplateDefinitionStatement, TemplateType, TextStatement, UseTarget,
 };
 use crate::chtl::lexer::lexer::Lexer;
 use crate::chtl::parser::parser::Parser;
@@ -603,7 +603,20 @@ const __chtl_state = new Proxy({}, {
     }
 
     fn generate_script(&self, script: &crate::chtl::node::ast::ScriptStatement) -> String {
-        format!("<script>{}</script>", script.content)
+        let mut script_content = String::new();
+        for part in &script.body {
+            match part {
+                ScriptBodyPart::Raw(raw) => script_content.push_str(raw),
+                ScriptBodyPart::EnhancedSelector(expr) => {
+                    if let Expression::Identifier(ident) = expr {
+                        script_content.push_str(&format!("document.querySelector('#{}')", ident.value));
+                    } else if let Expression::UnquotedLiteral(unquoted) = expr {
+                        script_content.push_str(&format!("document.querySelector('{}')", unquoted.value));
+                    }
+                }
+            }
+        }
+        format!("<script>{}</script>", script_content)
     }
 
     fn process_element_body(
@@ -1787,5 +1800,20 @@ mod tests {
         assert!(html.contains(r#"<script>"#));
         assert!(html.contains(r#"__chtl_bindings.addBinding('myClass', '__chtl_id_1', 'class');"#));
         assert!(html.contains(r#"__chtl_bindings.addBinding('myWidth', '__chtl_id_1', 'width');"#));
+    }
+
+    #[test]
+    fn test_enhanced_script_selectors() {
+        let input = r#"
+        div {
+            script {
+                {{.my-class}}.doSomething();
+            }
+        }
+        "#;
+
+        let html = generate_html(input);
+        assert!(html.contains(r#"class="my-class""#));
+        assert!(html.contains(r#"document.querySelector('.my-class').doSomething();"#));
     }
 }

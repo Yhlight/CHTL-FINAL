@@ -17,6 +17,8 @@ pub enum Token {
     RParen,      // )
     LBrace,      // {
     RBrace,      // }
+    DoubleLBrace, // {{
+    DoubleRBrace, // }}
     LBracket,    // [
     RBracket,    // ]
     Comma,       // ,

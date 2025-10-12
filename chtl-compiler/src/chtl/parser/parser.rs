@@ -122,6 +122,22 @@ impl<'a> Parser<'a> {
         }
     }
 
+    fn token_to_string_for_script(&self, token: &Token) -> String {
+        // This is a very basic conversion. A real implementation would need to
+        // handle spacing, operators, etc. much more carefully.
+        match token.clone() {
+            Token::Identifier(s) => s,
+            Token::String(s) => format!("\"{}\"", s),
+            Token::Number(v, u) => format!("{}{}", v, u.unwrap_or_default()),
+            Token::LParen => "(".to_string(),
+            Token::RParen => ")".to_string(),
+            Token::Comma => ",".to_string(),
+            Token::Semicolon => ";".to_string(),
+            Token::Dot => ".".to_string(),
+            _ => format!("{:?}", token), // Fallback for other tokens
+        }
+    }
+
     fn parse_except_statement(&mut self) -> Option<Statement> {
         self.next_token(); // consume 'except'
 
@@ -631,16 +647,34 @@ impl<'a> Parser<'a> {
             self.errors.push(format!("Expected '{{' after 'script', got {:?}", self.peek_token));
             return None;
         }
+        self.next_token(); // consume script
+        self.next_token(); // consume {
 
-        // Delegate to the lexer to read the raw content.
-        let content = self.lexer.read_raw_body();
+        let mut body = Vec::new();
+        while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if self.current_token_is(&Token::DoubleLBrace) {
+                self.next_token(); // consume {{
+                if let Some(expr) = self.parse_expression(Precedence::Lowest) {
+                    body.push(ScriptBodyPart::EnhancedSelector(expr));
+                }
+                if !self.current_token_is(&Token::DoubleRBrace) {
+                    self.errors.push(format!("Expected '}}' to close enhanced selector, got {:?}", self.current_token));
+                }
+            } else {
+                // This is a simplification. A real implementation would need to
+                // read tokens until it hits a `{{` or `}`.
+                let mut raw_code = String::new();
+                while !self.current_token_is(&Token::DoubleLBrace) && !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+                    raw_code.push_str(&self.token_to_string_for_script(&self.current_token));
+                    self.next_token();
+                }
+                body.push(ScriptBodyPart::Raw(raw_code));
+                continue; // we've already advanced, so skip the final next_token
+            }
+            self.next_token();
+        }
 
-        // The lexer is now past the '}'. The parser's tokens are stale. Re-sync.
-        // The '}' terminates the statement.
-        self.current_token = Token::RBrace;
-        self.peek_token = self.lexer.next_token();
-
-        Some(Statement::Script(ScriptStatement { content }))
+        Some(Statement::Script(ScriptStatement { body }))
     }
 
     fn parse_style_statement(&mut self) -> Option<Statement> {
@@ -1536,7 +1570,11 @@ mod tests {
 
         let stmt = &program.statements[0];
         if let Statement::Script(script_stmt) = stmt {
-            assert_eq!(script_stmt.content.trim(), r#"console.log("hello");"#);
+            if let ScriptBodyPart::Raw(raw) = &script_stmt.body[0] {
+                assert_eq!(raw.trim(), r#"console.log("hello");"#);
+            } else {
+                panic!("Expected Raw script body part");
+            }
         } else {
             panic!("Expected ScriptStatement, got {:?}", stmt);
         }

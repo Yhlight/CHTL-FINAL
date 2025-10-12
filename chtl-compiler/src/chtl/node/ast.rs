@@ -168,8 +168,14 @@ pub struct CommentStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub enum ScriptBodyPart {
+    Raw(String),
+    EnhancedSelector(Expression),
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub struct ScriptStatement {
-    pub content: String,
+    pub body: Vec<ScriptBodyPart>,
 }
 
 #[derive(Debug, PartialEq, Clone)]

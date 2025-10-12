@@ -406,6 +406,7 @@ mod tests {
         }
     }
 
+    #[test]
     fn test_eval_variable_group_template() {
         let input = r#"
         [template] @var ThemeColor {

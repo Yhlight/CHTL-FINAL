@@ -1038,35 +1038,37 @@ impl<'a> Parser<'a> {
         self.expect_peek(&Token::LBrace)?;
         self.next_token();
 
-        if let Token::String(value) = self.current_token.clone() {
-            let text_value = StringLiteralExpression { value };
-            self.next_token();
-            if !self.current_token_is(&Token::RBrace) {
-                return None;
+        let expression = if let Token::String(value) = self.current_token.clone() {
+            self.next_token(); // consume string token
+            Expression::StringLiteral(StringLiteralExpression { value })
+        } else {
+            // It's an unquoted literal
+            let mut literal = String::new();
+            let mut first = true;
+            while self.is_unquoted_literal_token(&self.current_token) {
+                if !first {
+                    literal.push(' ');
+                }
+                if let Some(s) = self.token_to_string_for_unquoted_literal(&self.current_token) {
+                    literal.push_str(&s);
+                } else {
+                    break;
+                }
+                self.next_token();
+                first = false;
             }
-            return Some(Statement::Text(TextStatement { value: text_value }));
-        }
-
-        let mut literal = String::new();
-        let mut first = true;
-        while self.is_unquoted_literal_token(&self.current_token) {
-            if !first {
-                literal.push(' ');
-            }
-            if let Some(s) = self.token_to_string_for_unquoted_literal(&self.current_token) {
-                literal.push_str(&s);
-            } else {
-                break;
-            }
-            self.next_token();
-            first = false;
-        }
+            Expression::UnquotedLiteral(UnquotedLiteralExpression { value: literal })
+        };
 
         if !self.current_token_is(&Token::RBrace) {
+            self.errors.push(format!(
+                "Expected '}}' to close text block, got {:?}",
+                self.current_token
+            ));
             return None;
         }
 
-        Some(Statement::Text(TextStatement { value: StringLiteralExpression { value: literal } }))
+        Some(Statement::Text(TextStatement { value: expression }))
     }
 
     fn parse_expression(&mut self, precedence: Precedence) -> Option<Expression> {
@@ -1789,7 +1791,11 @@ mod tests {
 
             let text_stmt = &element_stmt.body[1];
             if let Statement::Text(text) = text_stmt {
-                assert_eq!(text.value.value, "Hello");
+                if let Expression::StringLiteral(string_literal) = &text.value {
+                    assert_eq!(string_literal.value, "Hello");
+                } else {
+                    panic!("Expected a StringLiteral expression for the text value");
+                }
             } else {
                 panic!("Expected TextStatement");
             }
@@ -2378,6 +2384,7 @@ mod tests {
         }
     }
 
+    #[test]
     fn test_parse_inherit_statement() {
         let input = "inherit @style MyStyle from my_space;";
         let config = ConfigManager::new();
@@ -2397,6 +2404,7 @@ mod tests {
         }
     }
 
+    #[test]
     fn test_parse_insert_statement() {
         let input = r#"
         insert after div[0] {

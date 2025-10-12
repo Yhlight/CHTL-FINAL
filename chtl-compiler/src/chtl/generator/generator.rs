@@ -738,7 +738,15 @@ impl Generator {
     }
 
     fn generate_text(&self, text: &TextStatement) -> String {
-        text.value.value.clone()
+        match &text.value {
+            Expression::StringLiteral(s) => s.value.clone(),
+            Expression::UnquotedLiteral(u) => u.value.clone(),
+            _ => {
+                // This case should ideally not be hit if the parser is correct for text statements
+                eprintln!("Warning: Unsupported expression type in text block: {:?}. Only string and unquoted literals are supported here.", text.value);
+                String::new()
+            }
+        }
     }
 
     fn eval_expression_to_object(
@@ -1467,7 +1475,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn test_explicit_inheritance() {
         let input = r#"
         [template] @style Base {
@@ -1489,6 +1496,7 @@ mod tests {
         assert!(html.contains(r#"style="color:red;font-size:16px""#));
     }
 
+    #[test]
     fn test_use_html5_generation() {
         let input = r#"
         use html5;

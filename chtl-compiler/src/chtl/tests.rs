@@ -54,4 +54,31 @@ mod tests {
 
         assert!(html.starts_with("<!DOCTYPE html>"));
     }
+
+    #[test]
+    fn test_unquoted_text_statement() {
+        let input = r#"
+        div {
+            text {
+                unquoted text
+            }
+        }
+        "#;
+
+        let config = ConfigManager::new();
+        let lexer = Lexer::new(input, &config);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(
+            parser.errors().is_empty(),
+            "Parser has errors: {:?}",
+            parser.errors()
+        );
+
+        let mut generator = crate::chtl::generator::generator::Generator::new(None);
+        let html = generator.generate(&program);
+
+        assert_eq!(html.trim(), "<div>unquoted text</div>");
+    }
 }

@@ -23,6 +23,7 @@ pub struct Generator {
     constraint_stack: Vec<Vec<Expression>>,
     use_html5: bool,
     dynamic_js: String,
+    id_counter: u32,
 }
 
 impl Generator {
@@ -44,6 +45,7 @@ impl Generator {
             constraint_stack: Vec::new(),
             use_html5: false,
             dynamic_js: String::new(),
+            id_counter: 0,
         }
     }
 
@@ -449,11 +451,48 @@ impl Generator {
 
         if !self.dynamic_js.is_empty() {
             html.push_str("<script>");
+            html.push_str(&self.get_js_runtime());
             html.push_str(&self.dynamic_js);
             html.push_str("</script>");
         }
 
         html
+    }
+
+    fn get_js_runtime(&self) -> String {
+        r#"
+const __chtl_bindings = {
+    bindings: {},
+    addBinding: function(varName, elemId, propName) {
+        if (!this.bindings[varName]) {
+            this.bindings[varName] = [];
+        }
+        this.bindings[varName].push({ elemId, propName });
+    },
+    update: function(varName, value) {
+        if (this.bindings[varName]) {
+            this.bindings[varName].forEach(binding => {
+                const elem = document.getElementById(binding.elemId);
+                if (elem) {
+                    if (binding.propName in elem.style) {
+                        elem.style[binding.propName] = value;
+                    } else {
+                        elem.setAttribute(binding.propName, value);
+                    }
+                }
+            });
+        }
+    }
+};
+
+const __chtl_state = new Proxy({}, {
+    set: function(target, property, value) {
+        target[property] = value;
+        __chtl_bindings.update(property, value);
+        return true;
+    }
+});
+"#.to_string()
     }
 
     fn is_statement_forbidden(&self, statement: &Statement) -> bool {
@@ -522,7 +561,7 @@ impl Generator {
                 // We pass a dummy map and only the global_css will be affected.
                 let mut dummy_attrs = std::collections::HashMap::new();
                 let mut dummy_context = std::collections::HashMap::new();
-                self.generate_style(style, &mut dummy_attrs, &mut dummy_context);
+                self.generate_style(style, &mut dummy_attrs, &mut dummy_context, None);
                 String::new()
             }
             Statement::Comment(comment) => self.generate_comment(comment),
@@ -569,6 +608,7 @@ impl Generator {
 
     fn process_element_body(
         &mut self,
+        element_id: &str,
         statements: &[Statement],
         context: &mut HashMap<String, Object>,
         attributes: &mut HashMap<String, String>,
@@ -578,7 +618,7 @@ impl Generator {
             match statement {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let value_obj = self.eval_expression_to_object(expr, context);
+                        let value_obj = self.eval_expression_to_object(expr, context, Some(element_id), Some(&attr.name.value));
                         let value_str = value_obj.to_string();
                         context.insert(attr.name.value.clone(), value_obj);
                         if attr.name.value == "text" {
@@ -589,11 +629,11 @@ impl Generator {
                     }
                 }
                 Statement::Style(style) => {
-                    self.generate_style(style, attributes, context);
+                    self.generate_style(style, attributes, context, Some(element_id));
                 }
                 Statement::If(if_stmt) => {
-                    let statements_to_add = self.evaluate_if_chain(if_stmt, context);
-                    self.process_element_body(&statements_to_add, context, attributes, children);
+                    let statements_to_add = self.evaluate_if_chain(if_stmt, context, element_id);
+                    self.process_element_body(element_id, &statements_to_add, context, attributes, children);
                 }
                 Statement::Except(_) => {
                     // Handled by the generate_element function, do not render as a child.
@@ -637,10 +677,17 @@ impl Generator {
             }
         }
 
-        self.process_element_body(&element.body, &mut context, &mut attributes, &mut children);
+        let element_id = attributes.get("id").map(|s| s.clone()).unwrap_or("".to_string());
+        self.process_element_body(&element_id, &element.body, &mut context, &mut attributes, &mut children);
 
         // Pop constraints after processing children
         self.constraint_stack.pop();
+
+        let has_responsive_value = attributes.values().any(|v| v.starts_with('$') && v.ends_with('$'));
+        if has_responsive_value && !attributes.contains_key("id") {
+            self.id_counter += 1;
+            attributes.insert("id".to_string(), format!("__chtl_id_{}", self.id_counter));
+        }
 
         // Inject attributes if they are not already present
         if let Some(class) = auto_class {
@@ -676,6 +723,7 @@ impl Generator {
         style: &StyleStatement,
         attributes: &mut std::collections::HashMap<String, String>,
         context: &mut HashMap<String, Object>,
+        element_id: Option<&str>,
     ) {
         let mut inline_style_props = std::collections::HashMap::new();
         let mut style_rules = Vec::new();
@@ -684,7 +732,7 @@ impl Generator {
             match statement {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
-                        let value_obj = self.eval_expression_to_object(expr, context);
+                        let value_obj = self.eval_expression_to_object(expr, context, element_id, Some(&attr.name.value));
                         context.insert(attr.name.value.clone(), value_obj.clone());
                         inline_style_props.insert(attr.name.value.clone(), value_obj.to_string());
                     }
@@ -776,7 +824,7 @@ impl Generator {
             for prop in &rule.body {
                 if let Statement::Attribute(attr_prop) = prop {
                     if let Some(expr) = &attr_prop.value {
-                        let value_obj = self.eval_expression_to_object(expr, &mut rule_context);
+                        let value_obj = self.eval_expression_to_object(expr, &mut rule_context, element_id, Some(&attr_prop.name.value));
                         rule_context.insert(attr_prop.name.value.clone(), value_obj.clone());
                         rule_css_body.push_str(&format!(
                             "{}:{};",
@@ -833,12 +881,20 @@ impl Generator {
         &mut self,
         expr: &Expression,
         context: &mut std::collections::HashMap<String, Object>,
+        element_id: Option<&str>,
+        prop_name: Option<&str>,
     ) -> Object {
         if let Expression::ResponsiveValue(responsive_expr) = expr {
-            // This is a placeholder. In a real implementation, we'd
-            // generate JS to update this value. For now, we'll just
-            // return a placeholder string.
-            return Object::String(format!("${}$", responsive_expr.value));
+            let var_name = &responsive_expr.value;
+            if let (Some(id), Some(prop)) = (element_id, prop_name) {
+                self.dynamic_js.push_str(&format!(
+                    "__chtl_bindings.addBinding('{var}', '{elem_id}', '{prop}');\n",
+                    var = var_name,
+                    elem_id = id,
+                    prop = prop
+                ));
+            }
+            return Object::String(format!("${}$", var_name));
         }
         let all_templates: HashMap<_, _> = self
             .templates
@@ -878,15 +934,16 @@ impl Generator {
         &mut self,
         if_stmt: &IfStatement,
         context: &mut HashMap<String, Object>,
+        element_id: &str,
     ) -> Vec<Statement> {
-        let condition_result = self.eval_expression_to_object(&if_stmt.condition, context);
+        let condition_result = self.eval_expression_to_object(&if_stmt.condition, context, None, None);
 
         if self.is_truthy(&condition_result) {
             return if_stmt.consequence.clone();
         } else if let Some(alternative) = &if_stmt.alternative {
             match &**alternative {
                 Statement::If(next_if_stmt) => {
-                    return self.evaluate_if_chain(next_if_stmt, context);
+                    return self.evaluate_if_chain(next_if_stmt, context, element_id);
                 }
                 Statement::Else(else_stmt) => {
                     return else_stmt.consequence.clone();
@@ -1709,5 +1766,8 @@ mod tests {
         let html = generate_html(input);
         assert!(html.contains(r#"class="$myClass$""#));
         assert!(html.contains(r#"style="width:$myWidth$px""#));
+        assert!(html.contains(r#"<script>"#));
+        assert!(html.contains(r#"__chtl_bindings.addBinding('myClass', '__chtl_id_1', 'class');"#));
+        assert!(html.contains(r#"__chtl_bindings.addBinding('myWidth', '__chtl_id_1', 'width');"#));
     }
 }

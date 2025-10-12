@@ -96,6 +96,9 @@ impl<'a> Lexer<'a> {
             '"' | '\'' => {
                 return self.read_string();
             }
+            '$' => {
+                return self.read_responsive_value();
+            }
             '\0' => Token::Eof,
             _ => {
                 if is_letter(self.ch) {
@@ -164,6 +167,17 @@ impl<'a> Lexer<'a> {
         }
         self.read_char(); // Consume closing quote
         Token::String(value)
+    }
+
+    fn read_responsive_value(&mut self) -> Token {
+        self.read_char(); // Consume opening '$'
+        let mut identifier = String::new();
+        while self.ch != '$' && self.ch != '\0' {
+            identifier.push(self.ch);
+            self.read_char();
+        }
+        self.read_char(); // Consume closing '$'
+        Token::ResponsiveValue(identifier)
     }
 
     fn read_single_line_comment(&mut self) -> String {

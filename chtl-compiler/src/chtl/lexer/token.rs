@@ -75,4 +75,7 @@ pub enum Token {
     SingleLineComment(String),
     MultiLineComment(String),
     GeneratorComment(String),
+
+    // Responsive Values
+    ResponsiveValue(String),
 }

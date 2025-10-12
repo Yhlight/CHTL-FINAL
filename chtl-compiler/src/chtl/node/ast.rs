@@ -191,7 +191,13 @@ pub struct FunctionCallExpression {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct ResponsiveValueExpression {
+    pub value: String,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expression {
+    ResponsiveValue(ResponsiveValueExpression),
     Identifier(IdentifierExpression),
     StringLiteral(StringLiteralExpression),
     NumberLiteral(NumberLiteralExpression),

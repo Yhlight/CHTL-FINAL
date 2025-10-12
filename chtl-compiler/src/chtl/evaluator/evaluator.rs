@@ -45,6 +45,12 @@ impl Evaluator {
             Expression::Index(_) => {
                 todo!()
             }
+            Expression::ResponsiveValue(responsive_expr) => {
+                // This is a placeholder. In a real implementation, we'd
+                // generate JS to update this value. For now, we'll just
+                // return a placeholder string.
+                Object::String(format!("${}$", responsive_expr.value))
+            }
         }
     }
 

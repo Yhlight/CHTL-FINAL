@@ -22,6 +22,7 @@ pub struct Generator {
     pub module_exports: HashMap<String, ExportStatement>,
     constraint_stack: Vec<Vec<Expression>>,
     use_html5: bool,
+    dynamic_js: String,
 }
 
 impl Generator {
@@ -42,6 +43,7 @@ impl Generator {
             module_exports: HashMap::new(),
             constraint_stack: Vec::new(),
             use_html5: false,
+            dynamic_js: String::new(),
         }
     }
 
@@ -445,6 +447,12 @@ impl Generator {
             html = format!("<!DOCTYPE html>{}", html);
         }
 
+        if !self.dynamic_js.is_empty() {
+            html.push_str("<script>");
+            html.push_str(&self.dynamic_js);
+            html.push_str("</script>");
+        }
+
         html
     }
 
@@ -826,6 +834,12 @@ impl Generator {
         expr: &Expression,
         context: &mut std::collections::HashMap<String, Object>,
     ) -> Object {
+        if let Expression::ResponsiveValue(responsive_expr) = expr {
+            // This is a placeholder. In a real implementation, we'd
+            // generate JS to update this value. For now, we'll just
+            // return a placeholder string.
+            return Object::String(format!("${}$", responsive_expr.value));
+        }
         let all_templates: HashMap<_, _> = self
             .templates
             .values()
@@ -1679,5 +1693,21 @@ mod tests {
         assert!(html.contains(r#"class="override""#));
         assert!(html.contains(r#"id="merged""#));
         assert!(html.contains("hello"));
+    }
+
+    #[test]
+    fn test_responsive_value_generation() {
+        let input = r#"
+        div {
+            class: "$myClass$";
+            style {
+                width: $myWidth$px;
+            }
+        }
+        "#;
+
+        let html = generate_html(input);
+        assert!(html.contains(r#"class="$myClass$""#));
+        assert!(html.contains(r#"style="width:$myWidth$px""#));
     }
 }

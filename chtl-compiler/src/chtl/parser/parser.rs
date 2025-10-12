@@ -675,7 +675,13 @@ impl<'a> Parser<'a> {
                         None
                     }
                 }
-                _ => self.parse_attribute_statement(),
+                _ => {
+                    if self.current_token_is(&Token::Semicolon) {
+                        None
+                    } else {
+                        self.parse_attribute_statement()
+                    }
+                }
             };
 
             if let Some(s) = stmt {
@@ -1146,6 +1152,7 @@ impl<'a> Parser<'a> {
 
     fn parse_prefix(&mut self) -> Option<Expression> {
         match self.current_token.clone() {
+            Token::ResponsiveValue(s) => Some(Expression::ResponsiveValue(ResponsiveValueExpression { value: s })),
             Token::String(s) => Some(Expression::StringLiteral(StringLiteralExpression { value: s })),
             Token::Number(value, unit) => Some(Expression::NumberLiteral(NumberLiteralExpression {
                 value,

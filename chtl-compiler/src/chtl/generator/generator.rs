@@ -449,12 +449,6 @@ impl Generator {
     }
 
     fn is_statement_forbidden(&self, statement: &Statement) -> bool {
-        if let Statement::Element(element_stmt) = statement {
-            if element_stmt.body.iter().any(|s| matches!(s, Statement::Except(_))) {
-                return false;
-            }
-        }
-
         if let Some(constraints) = self.constraint_stack.last() {
             for constraint_expr in constraints {
                 let is_forbidden = match statement {
@@ -941,20 +935,10 @@ impl Generator {
 
             // --- Phase 2: Handle Deletes ---
             let mut indices_to_delete = std::collections::HashSet::new();
-            let delete_statements: Vec<_> = spec_body
-                .iter()
-                .filter_map(|stmt| match stmt {
-                    Statement::Element(e) => Some(e.body.iter()),
-                    _ => None,
-                })
-                .flatten()
-                .filter_map(|stmt| match stmt {
-                    Statement::Delete(d) => Some(d),
-                    _ => None,
-                })
-                .collect();
-
-            for delete_stmt in delete_statements {
+            for delete_stmt in spec_body.iter().filter_map(|s| match s {
+                Statement::Delete(ds) => Some(ds),
+                _ => None,
+            }) {
                 for target in &delete_stmt.targets {
                     if let Some(index) = find_target_index(&final_body, target) {
                         indices_to_delete.insert(index);
@@ -1622,5 +1606,27 @@ mod tests {
         let html = generate_html(input);
         assert!(html.contains("this should be rendered"));
         assert!(!html.contains("this should NOT be rendered"));
+    }
+
+    #[test]
+    fn test_template_specialization_delete() {
+        let input = r#"
+        [custom] @element MyComponent {
+            p { text: "first" }
+            div { text: "second" }
+            span { text: "third" }
+        }
+
+        body {
+            @element MyComponent {
+                delete div;
+            }
+        }
+        "#;
+
+        let html = generate_html(input);
+        assert!(html.contains("first"));
+        assert!(!html.contains("second"));
+        assert!(html.contains("third"));
     }
 }

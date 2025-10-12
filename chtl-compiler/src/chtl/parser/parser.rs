@@ -709,13 +709,7 @@ impl<'a> Parser<'a> {
                         None
                     }
                 }
-                _ => {
-                    if self.current_token_is(&Token::Semicolon) {
-                        None
-                    } else {
-                        self.parse_attribute_statement()
-                    }
-                }
+                _ => self.parse_attribute_statement(),
             };
 
             if let Some(s) = stmt {
@@ -1103,9 +1097,9 @@ impl<'a> Parser<'a> {
 
             let value = self.parse_expression(Precedence::Lowest)?;
 
-            if self.peek_token_is(&Token::Semicolon) {
-                self.next_token();
-            }
+            // while self.peek_token_is(&Token::Semicolon) {
+            //     self.next_token();
+            // }
 
             Some(Statement::Attribute(AttributeStatement {
                 name,

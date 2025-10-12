@@ -117,8 +117,53 @@ impl<'a> Parser<'a> {
                 None
             }
             Token::Use => self.parse_use_statement(),
+            Token::Except => self.parse_except_statement(),
             _ => None,
         }
+    }
+
+    fn parse_except_statement(&mut self) -> Option<Statement> {
+        self.next_token(); // consume 'except'
+
+        let mut targets = Vec::new();
+
+        loop {
+            let mut literal = String::new();
+            while !self.peek_token_is(&Token::Comma)
+                && !self.peek_token_is(&Token::Semicolon)
+                && !self.peek_token_is(&Token::Eof)
+            {
+                if !literal.is_empty() {
+                    literal.push(' ');
+                }
+                literal.push_str(&self.token_to_string_for_constraint_target(&self.current_token));
+                self.next_token();
+            }
+
+            if !literal.is_empty() {
+                literal.push(' ');
+            }
+            literal.push_str(&self.token_to_string_for_constraint_target(&self.current_token));
+
+            if !literal.trim().is_empty() {
+                targets.push(Expression::UnquotedLiteral(UnquotedLiteralExpression {
+                    value: literal.trim().to_string(),
+                }));
+            }
+
+            if self.peek_token_is(&Token::Comma) {
+                self.next_token(); // consume last token of target
+                self.next_token(); // consume comma
+            } else {
+                break;
+            }
+        }
+
+        if self.peek_token_is(&Token::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::Except(ExceptStatement { targets }))
     }
 
     fn parse_use_statement(&mut self) -> Option<Statement> {
@@ -1330,6 +1375,18 @@ impl<'a> Parser<'a> {
             Token::Colon => Some((":".to_string(), false)),
             Token::Before => Some(("before".to_string(), true)),
             _ => None,
+        }
+    }
+
+    fn token_to_string_for_constraint_target(&self, token: &Token) -> String {
+        if let Some(s) = self.token_to_string_for_unquoted_literal(token) {
+            return s;
+        }
+        match token {
+            Token::At => "@".to_string(),
+            Token::LBracket => "[".to_string(),
+            Token::RBracket => "]".to_string(),
+            _ => "".to_string(),
         }
     }
 

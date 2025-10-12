@@ -131,7 +131,13 @@ pub struct InheritStatement {
 }
 
 #[derive(Debug, PartialEq, Clone)]
+pub struct ExceptStatement {
+    pub targets: Vec<Expression>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
+    Except(ExceptStatement),
     Inherit(InheritStatement),
     Insert(InsertStatement),
     Use(UseStatement),

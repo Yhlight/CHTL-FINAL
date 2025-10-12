@@ -20,6 +20,7 @@ pub struct Generator {
     pub current_namespace: String,
     pub module_info: HashMap<String, InfoStatement>,
     pub module_exports: HashMap<String, ExportStatement>,
+    constraint_stack: Vec<Vec<Expression>>,
     use_html5: bool,
 }
 
@@ -39,6 +40,7 @@ impl Generator {
             current_namespace: "::default".to_string(),
             module_info: HashMap::new(),
             module_exports: HashMap::new(),
+            constraint_stack: Vec::new(),
             use_html5: false,
         }
     }
@@ -446,7 +448,68 @@ impl Generator {
         html
     }
 
+    fn is_statement_forbidden(&self, statement: &Statement) -> bool {
+        if let Statement::Element(element_stmt) = statement {
+            if element_stmt.body.iter().any(|s| matches!(s, Statement::Except(_))) {
+                return false;
+            }
+        }
+
+        if let Some(constraints) = self.constraint_stack.last() {
+            for constraint_expr in constraints {
+                let is_forbidden = match statement {
+                    Statement::Element(element_stmt) => match constraint_expr {
+                        Expression::Identifier(ident_expr) => {
+                            element_stmt.name.value == ident_expr.value
+                        }
+                        Expression::UnquotedLiteral(unquoted_expr) => {
+                            let val = &unquoted_expr.value.replace(" ", "");
+                            // This is a special case for the type constraint @Html
+                            if val == "@Html" {
+                                // This should only be true for Origin statements, not all elements.
+                                // The check for Origin statements is handled below.
+                                return false;
+                            }
+                            element_stmt.name.value == *val
+                        }
+                        _ => false,
+                    },
+                    Statement::UseTemplate(use_stmt) => {
+                        if let Expression::UnquotedLiteral(unquoted_expr) = constraint_expr {
+                            let val = &unquoted_expr.value.replace(" ", "");
+                            if val == "[Template]@Var" {
+                                return use_stmt.template_type.value == "var";
+                            }
+                            if val == "[Custom]" {
+                                return true;
+                            }
+                        }
+                        false
+                    }
+                    Statement::Origin(origin_stmt) => {
+                        if let Expression::UnquotedLiteral(unquoted_expr) = constraint_expr {
+                            let val = &unquoted_expr.value.replace(" ", "");
+                            if val == "@Html" {
+                                return origin_stmt.origin_type.value == "html";
+                            }
+                        }
+                        false
+                    }
+                    _ => false,
+                };
+
+                if is_forbidden {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
     fn generate_statement(&mut self, statement: &Statement) -> String {
+        if self.is_statement_forbidden(statement) {
+            return String::new();
+        }
         match statement {
             Statement::Origin(origin_stmt) => origin_stmt.content.clone(),
             Statement::Element(element) => self.generate_element(element),
@@ -530,6 +593,9 @@ impl Generator {
                     let statements_to_add = self.evaluate_if_chain(if_stmt, context);
                     self.process_element_body(&statements_to_add, context, attributes, children);
                 }
+                Statement::Except(_) => {
+                    // Handled by the generate_element function, do not render as a child.
+                }
                 _ => {
                     children.push_str(&self.generate_statement(statement));
                 }
@@ -541,6 +607,15 @@ impl Generator {
         let mut attributes: HashMap<String, String> = HashMap::new();
         let mut children = String::new();
         let mut context = HashMap::new();
+
+        // Collect constraints from the current element's body
+        let mut current_constraints = Vec::new();
+        for stmt in &element.body {
+            if let Statement::Except(except_stmt) = stmt {
+                current_constraints.extend(except_stmt.targets.clone());
+            }
+        }
+        self.constraint_stack.push(current_constraints);
 
         // New logic to pre-scan for auto-addable classes/IDs
         let mut auto_class = None;
@@ -561,6 +636,9 @@ impl Generator {
         }
 
         self.process_element_body(&element.body, &mut context, &mut attributes, &mut children);
+
+        // Pop constraints after processing children
+        self.constraint_stack.pop();
 
         // Inject attributes if they are not already present
         if let Some(class) = auto_class {
@@ -1522,5 +1600,27 @@ mod tests {
                 <span>Hello Raw</span>
             </div><p>after</p>"#;
         assert_eq!(html.replace('\n', "").replace("  ", ""), expected.replace('\n', "").replace("  ", ""));
+    }
+
+    #[test]
+    fn test_except_constraint() {
+        let input = r#"
+        div {
+            except span, @Html;
+            p { text: "this should be rendered" }
+            span { text: "this should NOT be rendered" }
+            [origin] @html {
+                <p>this should NOT be rendered</p>
+            }
+            div {
+                except [Custom];
+                span { text: "this should be rendered" }
+            }
+        }
+        "#;
+
+        let html = generate_html(input);
+        assert!(html.contains("this should be rendered"));
+        assert!(!html.contains("this should NOT be rendered"));
     }
 }

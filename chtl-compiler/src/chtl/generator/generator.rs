@@ -1505,4 +1505,22 @@ mod tests {
         let html = generate_html(input);
         assert!(html.starts_with("<!DOCTYPE html>"));
     }
+
+    #[test]
+    fn test_origin_statement_generation() {
+        let input = r#"
+        p { text: "before" }
+        [origin] @html {
+            <div class="raw">
+                <span>Hello Raw</span>
+            </div>
+        }
+        p { text: "after" }
+        "#;
+        let html = generate_html(input);
+        let expected = r#"<p>before</p><div class="raw">
+                <span>Hello Raw</span>
+            </div><p>after</p>"#;
+        assert_eq!(html.replace('\n', "").replace("  ", ""), expected.replace('\n', "").replace("  ", ""));
+    }
 }

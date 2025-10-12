@@ -253,11 +253,11 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_origin_statement(&mut self) -> Option<Statement> {
-        self.expect_peek(&Token::Origin)?;
-        self.expect_peek(&Token::RBracket)?;
-        self.expect_peek(&Token::At)?;
-
-        self.next_token();
+        // when called, current_token is LBracket
+        self.expect_peek(&Token::Origin)?; // consumes Origin
+        self.expect_peek(&Token::RBracket)?; // consumes RBracket
+        self.expect_peek(&Token::At)?; // consumes At
+        self.next_token(); // current_token is now the type
 
         let origin_type = if let Some(type_str) = self.token_to_string_for_unquoted_literal(&self.current_token) {
             IdentifierExpression { value: type_str }
@@ -266,23 +266,32 @@ impl<'a> Parser<'a> {
             return None;
         };
 
+        // Check for optional name
         let mut name: Option<IdentifierExpression> = None;
         if self.peek_token_is(&Token::Identifier("".to_string())) {
-            self.next_token();
+            self.next_token(); // consume type, current_token is now name
             if let Token::Identifier(n) = self.current_token.clone() {
                 name = Some(IdentifierExpression { value: n });
             }
         }
 
+        // After type and optional name, next token must be LBrace.
+        // At this point current_token is either type or name. peek_token is LBrace.
         if !self.peek_token_is(&Token::LBrace) {
             self.errors.push(format!("Expected '{{' to start origin block body, got {:?}", self.peek_token));
             return None;
         }
 
+        // Do not advance parser tokens. Let lexer do its thing.
+        // peek_token is '{', so lexer's `ch` is positioned after '{'. This is what `read_raw_body` expects.
         let content = self.lexer.read_raw_body();
 
-        self.next_token();
-        self.next_token();
+        // After read_raw_body, the lexer is positioned after the closing '}'.
+        // The parser's tokens are stale. We need to re-sync.
+        // The statement is considered terminated by '}'. So, we set current_token to '}'
+        // and refresh the peek_token from the lexer's new position.
+        self.current_token = Token::RBrace;
+        self.peek_token = self.lexer.next_token();
 
         Some(Statement::Origin(OriginStatement {
             origin_type,
@@ -573,24 +582,18 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_script_statement(&mut self) -> Option<Statement> {
-        // When this is called, current_token is 'script' and peek_token is '{'.
-        // The lexer's internal `ch` is positioned right after the '{' due to the peek.
-        // This is the perfect time to read the raw body.
         if !self.peek_token_is(&Token::LBrace) {
             self.errors.push(format!("Expected '{{' after 'script', got {:?}", self.peek_token));
             return None;
         }
 
+        // Delegate to the lexer to read the raw content.
         let content = self.lexer.read_raw_body();
 
-        // Now, the lexer has advanced past the entire script block.
-        // The parser's token state is stale (current: 'script', peek: '{').
-        // We need to sync the parser by setting its current and peek tokens
-        // to reflect the new state of the lexer.
-
-        // This is equivalent to calling next_token() twice, but on the *new* lexer state.
-        self.next_token();
-        self.next_token();
+        // The lexer is now past the '}'. The parser's tokens are stale. Re-sync.
+        // The '}' terminates the statement.
+        self.current_token = Token::RBrace;
+        self.peek_token = self.lexer.next_token();
 
         Some(Statement::Script(ScriptStatement { content }))
     }

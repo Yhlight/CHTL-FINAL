@@ -1,4 +1,5 @@
 #include "Parser.h"
+#include "../CHTLNode/Style.h"
 #include <memory>
 
 namespace CHTL {
@@ -26,11 +27,17 @@ namespace CHTL {
     }
 
     std::unique_ptr<Statement> Parser::ParseStatement() {
+        if (currentToken.type == TokenType::IDENT && peekToken.type == TokenType::COLON) {
+            return ParseAttribute();
+        }
+
         switch (currentToken.type) {
         case TokenType::IDENT:
             return ParseElementStatement();
         case TokenType::TEXT:
             return ParseTextStatement();
+        case TokenType::STYLE:
+            return ParseStyleStatement();
         default:
             return nullptr;
         }
@@ -70,6 +77,47 @@ namespace CHTL {
         // For now, we'll treat unquoted values as identifiers
         return std::make_unique<Identifier>(currentToken, currentToken.literal);
     }
+
+    std::unique_ptr<StyleStatement> Parser::ParseStyleStatement() {
+        auto styleStmt = std::make_unique<StyleStatement>(currentToken);
+        if (peekToken.type != TokenType::LBRACE) {
+            PeekError(TokenType::LBRACE);
+            return nullptr;
+        }
+        NextToken(); // consume 'style'
+        NextToken(); // consume '{'
+
+        while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+            auto prop = ParseStyleProperty();
+            if (prop) {
+                styleStmt->Properties.push_back(std::move(prop));
+            }
+            NextToken();
+        }
+        return styleStmt;
+    }
+
+    std::unique_ptr<StyleProperty> Parser::ParseStyleProperty() {
+        auto key = std::make_unique<Identifier>(currentToken, currentToken.literal);
+
+        if (peekToken.type != TokenType::COLON) {
+            PeekError(TokenType::COLON);
+            return nullptr;
+        }
+
+        NextToken(); // consume key
+        Token opToken = currentToken;
+        NextToken(); // consume ':'
+
+        auto value = ParseExpression();
+
+        if (peekToken.type == TokenType::SEMICOLON) {
+            NextToken();
+        }
+
+        return std::make_unique<StyleProperty>(opToken, std::move(key), std::move(value));
+    }
+
 
     std::unique_ptr<TextStatement> Parser::ParseTextStatement() {
         Token textToken = currentToken; // The 'text' token

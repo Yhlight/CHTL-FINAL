@@ -5,13 +5,10 @@
 
 int main() {
     std::string input = R"(
-        html {
-            body {
-                div {
-                    id: "main";
-                    class: "content";
-                    text { "Attribute test" }
-                }
+        div {
+            style {
+                width: 100px;
+                height: 200px;
             }
         }
     )";

@@ -7,7 +7,7 @@
 
 namespace CHTL {
 
-    class Attribute : public Node {
+    class Attribute : public Statement {
     public:
         Attribute(Token token, std::unique_ptr<Identifier> key, std::unique_ptr<Expression> value)
             : token(std::move(token)), Key(std::move(key)), Value(std::move(value)) {}

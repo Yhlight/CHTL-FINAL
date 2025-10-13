@@ -1,6 +1,7 @@
 #include "Generator.h"
 #include "../CHTLNode/Statement.h"
 #include "../CHTLNode/Expression.h"
+#include "../CHTLNode/Style.h"
 
 namespace CHTL {
 
@@ -44,6 +45,25 @@ namespace CHTL {
                 out += identifier->value;
             }
             out += "\"";
+        }
+
+        std::string style_string;
+        for (const auto& child_stmt : stmt->Body->statements) {
+            if (const auto styleStmt = dynamic_cast<const StyleStatement*>(child_stmt.get())) {
+                 for (const auto& prop : styleStmt->Properties) {
+                    style_string += " " + prop->Key->value + ": ";
+                    if (const auto stringLiteral = dynamic_cast<const StringLiteral*>(prop->Value.get())) {
+                        style_string += stringLiteral->value;
+                    } else if (const auto identifier = dynamic_cast<const Identifier*>(prop->Value.get())) {
+                        style_string += identifier->value;
+                    }
+                    style_string += ";";
+                }
+            }
+        }
+
+        if (!style_string.empty()) {
+            out += " style=\"" + style_string + "\"";
         }
 
         out += ">";

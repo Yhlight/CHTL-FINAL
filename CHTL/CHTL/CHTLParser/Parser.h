@@ -4,6 +4,7 @@
 #include "../CHTLNode/Node.h"
 #include "../CHTLNode/Statement.h"
 #include "../CHTLNode/Expression.h"
+#include "../CHTLNode/Style.h"
 #include <vector>
 #include <string>
 
@@ -22,6 +23,8 @@ namespace CHTL {
         std::unique_ptr<Statement> ParseStatement();
         std::unique_ptr<ElementStatement> ParseElementStatement();
         std::unique_ptr<Attribute> ParseAttribute();
+        std::unique_ptr<StyleStatement> ParseStyleStatement();
+        std::unique_ptr<StyleProperty> ParseStyleProperty();
         std::unique_ptr<TextStatement> ParseTextStatement();
         std::unique_ptr<Expression> ParseUnquotedLiteral();
         std::unique_ptr<Expression> ParseExpression();

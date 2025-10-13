@@ -7,9 +7,12 @@ int main() {
     std::string input = R"(
         div {
             style {
-                width: 100px + 50px;
-                height: 200px * 2;
-                font-size: 100% / 2;
+                .class-a {
+                    color: red;
+                }
+                .class-b {
+                    background-color: blue;
+                }
             }
         }
     )";

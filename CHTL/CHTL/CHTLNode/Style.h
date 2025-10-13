@@ -26,6 +26,26 @@ namespace CHTL {
         std::unique_ptr<Expression> Value;
     };
 
+    class StyleRule : public Node {
+    public:
+        StyleRule(Token token, std::unique_ptr<Expression> selector)
+            : token(std::move(token)), Selector(std::move(selector)) {}
+
+        std::string ToString() const override {
+            std::string out = Selector->ToString();
+            out += " {";
+            for (const auto& prop : Properties) {
+                out += " " + prop->ToString();
+            }
+            out += " }";
+            return out;
+        }
+
+        Token token; // The '.' or '#' token
+        std::unique_ptr<Expression> Selector;
+        std::vector<std::unique_ptr<StyleProperty>> Properties;
+    };
+
 
     class StyleStatement : public Statement {
     public:
@@ -36,12 +56,16 @@ namespace CHTL {
             for (const auto& prop : Properties) {
                 out += " " + prop->ToString();
             }
+            for (const auto& rule : Rules) {
+                out += " " + rule->ToString();
+            }
             out += " }";
             return out;
         }
 
         Token token; // The 'style' token
         std::vector<std::unique_ptr<StyleProperty>> Properties;
+        std::vector<std::unique_ptr<StyleRule>> Rules;
     };
 
 } // namespace CHTL

@@ -41,6 +41,8 @@ namespace CHTL {
         RBRACE,         // }
         LBRACKET,       // [
         RBRACKET,       // ]
+        DOT,            // .
+        HASH,           // #
 
         // Keywords
         TEXT,

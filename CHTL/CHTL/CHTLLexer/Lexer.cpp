@@ -155,6 +155,12 @@ namespace CHTL {
         case ']':
             tok = { TokenType::RBRACKET, "]" };
             break;
+        case '.':
+            tok = { TokenType::DOT, "." };
+            break;
+        case '#':
+            tok = { TokenType::HASH, "#" };
+            break;
         case '"':
             tok.type = TokenType::STRING;
             tok.literal = ReadString();

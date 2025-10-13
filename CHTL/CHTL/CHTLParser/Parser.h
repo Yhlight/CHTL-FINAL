@@ -50,6 +50,7 @@ namespace CHTL {
         std::unique_ptr<ElementStatement> ParseElementStatement();
         std::unique_ptr<Attribute> ParseAttribute();
         std::unique_ptr<StyleStatement> ParseStyleStatement();
+        std::unique_ptr<StyleRule> ParseStyleRule();
         std::unique_ptr<StyleProperty> ParseStyleProperty();
         std::unique_ptr<TextStatement> ParseTextStatement();
 

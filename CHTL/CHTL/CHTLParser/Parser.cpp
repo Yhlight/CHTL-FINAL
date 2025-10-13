@@ -174,13 +174,43 @@ namespace CHTL {
         NextToken(); // consume '{'
 
         while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-            auto prop = ParseStyleProperty();
-            if (prop) {
-                styleStmt->Properties.push_back(std::move(prop));
+            if (currentToken.type == TokenType::DOT || currentToken.type == TokenType::HASH) {
+                auto rule = ParseStyleRule();
+                if (rule) {
+                    styleStmt->Rules.push_back(std::move(rule));
+                }
+            } else {
+                auto prop = ParseStyleProperty();
+                if (prop) {
+                    styleStmt->Properties.push_back(std::move(prop));
+                }
             }
             NextToken();
         }
         return styleStmt;
+    }
+
+    std::unique_ptr<StyleRule> Parser::ParseStyleRule() {
+        Token selectorToken = currentToken;
+        NextToken(); // Consume '.' or '#'
+        auto selector = std::make_unique<Identifier>(currentToken, currentToken.literal);
+        auto rule = std::make_unique<StyleRule>(selectorToken, std::move(selector));
+
+        if (peekToken.type != TokenType::LBRACE) {
+            PeekError(TokenType::LBRACE);
+            return nullptr;
+        }
+        NextToken(); // consume selector
+        NextToken(); // consume '{'
+
+        while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+            auto prop = ParseStyleProperty();
+            if (prop) {
+                rule->Properties.push_back(std::move(prop));
+            }
+            NextToken();
+        }
+        return rule;
     }
 
     std::unique_ptr<StyleProperty> Parser::ParseStyleProperty() {

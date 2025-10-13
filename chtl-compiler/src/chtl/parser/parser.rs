@@ -1188,6 +1188,9 @@ impl<'a> Parser<'a> {
 
     fn parse_prefix(&mut self) -> Option<Expression> {
         match self.current_token.clone() {
+            Token::Ampersand => Some(Expression::Identifier(IdentifierExpression {
+                value: "&".to_string(),
+            })),
             Token::ResponsiveValue(s) => {
                 let mut unit = None;
                 if let Token::Identifier(ident) = self.peek_token.clone() {

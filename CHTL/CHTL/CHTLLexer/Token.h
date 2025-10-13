@@ -43,6 +43,7 @@ namespace CHTL {
         RBRACKET,       // ]
         DOT,            // .
         HASH,           // #
+        AMPERSAND,      // &
 
         // Keywords
         TEXT,

@@ -161,6 +161,9 @@ namespace CHTL {
         case '#':
             tok = { TokenType::HASH, "#" };
             break;
+        case '&':
+            tok = { TokenType::AMPERSAND, "&" };
+            break;
         case '"':
             tok.type = TokenType::STRING;
             tok.literal = ReadString();

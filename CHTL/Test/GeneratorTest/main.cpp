@@ -7,11 +7,11 @@ int main() {
     std::string input = R"(
         div {
             style {
-                .class-a {
-                    color: red;
+                .my-class {
+                    width: 100px + 50px;
                 }
-                .class-b {
-                    background-color: blue;
+                &:hover {
+                    color: blue;
                 }
             }
         }

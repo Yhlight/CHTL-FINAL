@@ -9,7 +9,7 @@ namespace CHTL {
 
     std::string Generator::Generate(const Program* program) {
         global_styles.clear();
-        CollectStyleRules(program);
+        CollectStyleRules(program, nullptr);
 
         Evaluator evaluator;
         std::string body_content;
@@ -17,32 +17,60 @@ namespace CHTL {
             body_content += GenerateStatement(stmt.get(), evaluator);
         }
 
-        std::string global_style_content = RenderGlobalStyles();
+        std::string global_style_content = RenderGlobalStyles(evaluator);
 
         // A basic HTML structure. A more robust solution would be to build this
         // from the AST, but this is a simple way to inject the head and style.
         return "<html><head><style>" + global_style_content + "</style></head><body>" + body_content + "</body></html>";
     }
 
-    void Generator::CollectStyleRules(const Node* node) {
+    void Generator::CollectStyleRules(const Node* node, const ElementStatement* parent) {
         if (const auto elementStmt = dynamic_cast<const ElementStatement*>(node)) {
             for (const auto& child_stmt : elementStmt->Body->statements) {
                 if (const auto styleStmt = dynamic_cast<const StyleStatement*>(child_stmt.get())) {
                     for (const auto& rule : styleStmt->Rules) {
-                        global_styles.push_back(rule.get());
+                        global_styles.push_back({rule.get(), elementStmt});
                     }
                 }
-                CollectStyleRules(child_stmt.get());
+                CollectStyleRules(child_stmt.get(), elementStmt);
             }
         }
     }
 
-    std::string Generator::RenderGlobalStyles() {
+    std::string Generator::RenderGlobalStyles(Evaluator& evaluator) {
         std::string out;
-        for (const auto& rule : global_styles) {
-            out += rule->Selector->ToString() + " {";
+        for (const auto& pair : global_styles) {
+            const auto rule = pair.first;
+            const auto parent = pair.second;
+            std::string selector = rule->Selector->ToString();
+
+            if (selector.find('&') != std::string::npos) {
+                std::string parent_selector;
+                if (parent) {
+                    // Find the primary selector from the parent's style rules
+                    bool found = false;
+                    for (const auto& child_stmt : parent->Body->statements) {
+                        if (const auto styleStmt = dynamic_cast<const StyleStatement*>(child_stmt.get())) {
+                            for (const auto& r : styleStmt->Rules) {
+                                if (r->token.type == TokenType::DOT || r->token.type == TokenType::HASH) {
+                                    parent_selector = r->Selector->ToString();
+                                    found = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (found) break;
+                    }
+                }
+                selector.replace(selector.find('&'), 1, parent_selector);
+            }
+
+            out += selector + " {";
             for (const auto& prop : rule->Properties) {
-                out += " " + prop->Key->ToString() + ": " + prop->Value->ToString() + ";";
+                auto evaluated = evaluator.Eval(prop->Value.get());
+                if (evaluated) {
+                    out += " " + prop->Key->ToString() + ": " + std::to_string(evaluated->Value) + evaluated->Unit + ";";
+                }
             }
             out += " } ";
         }

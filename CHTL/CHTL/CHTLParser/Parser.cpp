@@ -192,19 +192,34 @@ namespace CHTL {
 
     std::unique_ptr<StyleRule> Parser::ParseStyleRule() {
         Token selectorToken = currentToken;
-        NextToken(); // Consume '.' or '#'
-        auto selector = std::make_unique<Identifier>(currentToken, currentToken.literal);
+        std::string selectorText;
+
+        if (currentToken.type == TokenType::DOT || currentToken.type == TokenType::HASH) {
+            selectorText += currentToken.literal;
+            NextToken(); // consume '.' or '#'
+            selectorText += currentToken.literal; // consume identifier
+            NextToken();
+        } else if (currentToken.type == TokenType::AMPERSAND) {
+            // Greedily consume tokens for complex selectors like &:hover
+            while (currentToken.type != TokenType::LBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                selectorText += currentToken.literal;
+                NextToken();
+            }
+        } else {
+             return nullptr; // Should not happen if called correctly
+        }
+
+        auto selector = std::make_unique<Identifier>(selectorToken, selectorText);
         auto rule = std::make_unique<StyleRule>(selectorToken, std::move(selector));
 
-        if (peekToken.type != TokenType::LBRACE) {
+        if (currentToken.type != TokenType::LBRACE) {
             PeekError(TokenType::LBRACE);
             return nullptr;
         }
-        NextToken(); // consume selector
         NextToken(); // consume '{'
 
         while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-            auto prop = ParseStyleProperty();
+             auto prop = ParseStyleProperty();
             if (prop) {
                 rule->Properties.push_back(std::move(prop));
             }

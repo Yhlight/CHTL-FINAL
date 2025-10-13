@@ -193,7 +193,10 @@ namespace CHTL {
 
     std::string Lexer::ReadNumber() {
         size_t startPosition = position;
-        while (isdigit(ch)) {
+        while (isdigit(ch) || ch == '.') {
+            ReadChar();
+        }
+        while (isalpha(ch) || ch == '%') {
             ReadChar();
         }
         return input.substr(startPosition, position - startPosition);

@@ -34,10 +34,15 @@ add_library(CHTLGenerator STATIC
     CHTL/CHTLGenerator/Generator.cpp
 )
 
+# Define the evaluator library
+add_library(CHTLEvaluator STATIC
+    CHTL/CHTLEvaluator/Evaluator.cpp
+)
+
 # Define the GeneratorTest executable
 add_executable(GeneratorTest
     Test/GeneratorTest/main.cpp
 )
 
 # Link the GeneratorTest executable against the generator, parser, and lexer libraries
-target_link_libraries(GeneratorTest CHTLGenerator CHTLParser CHTLLexer)
+target_link_libraries(GeneratorTest CHTLGenerator CHTLParser CHTLLexer CHTLEvaluator)

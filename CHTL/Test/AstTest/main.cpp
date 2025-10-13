@@ -1,7 +1,6 @@
 #include <iostream>
 #include "../../CHTL/CHTLLexer/Lexer.h"
 #include "../../CHTL/CHTLParser/Parser.h"
-#include "../../CHTL/CHTLGenerator/Generator.h"
 
 void PrintParserErrors(const std::vector<std::string>& errors) {
     std::cerr << "Parser has " << errors.size() << " errors" << std::endl;
@@ -13,10 +12,9 @@ void PrintParserErrors(const std::vector<std::string>& errors) {
 int main() {
     std::string input = R"(
         div {
-            id: "main-content";
-            class: "container";
-
-            text { "Hello, Attributes!" }
+            style {
+                width: 100 + 50 * 2;
+            }
         }
     )";
 

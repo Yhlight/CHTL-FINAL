@@ -1,8 +1,83 @@
 #include "Parser.h"
 #include "../CHTLNode/Style.h"
 #include <memory>
+#include <map>
 
 namespace CHTL {
+
+    // Pratt parser precedence table
+    const std::map<TokenType, Precedence> precedences = {
+        {TokenType::EQ,       Precedence::SUM},
+        {TokenType::NOT_EQ,   Precedence::SUM},
+        {TokenType::LT,       Precedence::SUM},
+        {TokenType::GT,       Precedence::SUM},
+        {TokenType::PLUS,     Precedence::SUM},
+        {TokenType::MINUS,    Precedence::SUM},
+        {TokenType::SLASH,    Precedence::PRODUCT},
+        {TokenType::ASTERISK, Precedence::PRODUCT},
+        {TokenType::MODULO,   Precedence::PRODUCT},
+        {TokenType::POWER,    Precedence::POWER},
+    };
+
+    // Forward declarations for parse functions
+    std::unique_ptr<Expression> ParseInfixExpression(Parser* parser, std::unique_ptr<Expression> left);
+    std::unique_ptr<Expression> ParseIdentifier(Parser* parser);
+    std::unique_ptr<Expression> ParseNumberLiteral(Parser* parser);
+    std::unique_ptr<Expression> ParseStringLiteral(Parser* parser);
+
+    const std::map<TokenType, PrefixParseFn> prefixParseFns = {
+        {TokenType::IDENT,  ParseIdentifier},
+        {TokenType::NUMBER, ParseNumberLiteral},
+        {TokenType::STRING, ParseStringLiteral},
+    };
+
+    const std::map<TokenType, InfixParseFn> infixParseFns = {
+        {TokenType::PLUS,     ParseInfixExpression},
+        {TokenType::MINUS,    ParseInfixExpression},
+        {TokenType::SLASH,    ParseInfixExpression},
+        {TokenType::ASTERISK, ParseInfixExpression},
+        {TokenType::MODULO,   ParseInfixExpression},
+        {TokenType::POWER,    ParseInfixExpression},
+        {TokenType::EQ,       ParseInfixExpression},
+        {TokenType::NOT_EQ,   ParseInfixExpression},
+        {TokenType::LT,       ParseInfixExpression},
+        {TokenType::GT,       ParseInfixExpression},
+    };
+
+    std::unique_ptr<Expression> ParseInfixExpression(Parser* parser, std::unique_ptr<Expression> left) {
+        Token token = parser->currentToken;
+        std::string op = parser->currentToken.literal;
+        Precedence precedence = parser->CurPrecedence();
+        parser->NextToken();
+        auto right = parser->ParseExpression(precedence);
+        return std::make_unique<InfixExpression>(token, std::move(left), op, std::move(right));
+    }
+
+    std::unique_ptr<Expression> ParseIdentifier(Parser* parser) {
+        return std::make_unique<Identifier>(parser->currentToken, parser->currentToken.literal);
+    }
+
+    std::unique_ptr<Expression> ParseNumberLiteral(Parser* parser) {
+        std::string literal = parser->currentToken.literal;
+        size_t first_alpha = std::string::npos;
+        for (size_t i = 0; i < literal.length(); ++i) {
+            if (isalpha(literal[i]) || literal[i] == '%') {
+                first_alpha = i;
+                break;
+            }
+        }
+
+        std::string num_part = literal.substr(0, first_alpha);
+        std::string unit_part = (first_alpha != std::string::npos) ? literal.substr(first_alpha) : "";
+
+        double value = std::stod(num_part);
+        return std::make_unique<NumberLiteral>(parser->currentToken, value, unit_part);
+    }
+
+    std::unique_ptr<Expression> ParseStringLiteral(Parser* parser) {
+        return std::make_unique<StringLiteral>(parser->currentToken, parser->currentToken.literal);
+    }
+
 
     Parser::Parser(Lexer& l) : lexer(l) {
         NextToken();
@@ -61,7 +136,7 @@ namespace CHTL {
 
         NextToken(); // Consume ':' or '=', currentToken is now the value expression
 
-        auto value = ParseExpression();
+        auto value = ParseExpression(Precedence::LOWEST);
 
         if (peekToken.type == TokenType::SEMICOLON) {
             NextToken();
@@ -70,12 +145,23 @@ namespace CHTL {
         return std::make_unique<Attribute>(opToken, std::move(key), std::move(value));
     }
 
-    std::unique_ptr<Expression> Parser::ParseExpression() {
-        if (currentToken.type == TokenType::STRING) {
-             return std::make_unique<StringLiteral>(currentToken, currentToken.literal);
+    std::unique_ptr<Expression> Parser::ParseExpression(Precedence precedence) {
+        auto prefixIt = prefixParseFns.find(currentToken.type);
+        if (prefixIt == prefixParseFns.end()) {
+            return nullptr;
         }
-        // For now, we'll treat unquoted values as identifiers
-        return std::make_unique<Identifier>(currentToken, currentToken.literal);
+        auto leftExp = prefixIt->second(this);
+
+        while (peekToken.type != TokenType::SEMICOLON && precedence < PeekPrecedence()) {
+            auto infixIt = infixParseFns.find(peekToken.type);
+            if (infixIt == infixParseFns.end()) {
+                return leftExp;
+            }
+            NextToken();
+            leftExp = infixIt->second(this, std::move(leftExp));
+        }
+
+        return leftExp;
     }
 
     std::unique_ptr<StyleStatement> Parser::ParseStyleStatement() {
@@ -109,7 +195,7 @@ namespace CHTL {
         Token opToken = currentToken;
         NextToken(); // consume ':'
 
-        auto value = ParseExpression();
+        auto value = ParseExpression(Precedence::LOWEST);
 
         if (peekToken.type == TokenType::SEMICOLON) {
             NextToken();
@@ -205,6 +291,20 @@ namespace CHTL {
         }
 
         return block;
+    }
+
+    Precedence Parser::PeekPrecedence() {
+        if (precedences.count(peekToken.type)) {
+            return precedences.at(peekToken.type);
+        }
+        return Precedence::LOWEST;
+    }
+
+    Precedence Parser::CurPrecedence() {
+        if (precedences.count(currentToken.type)) {
+            return precedences.at(currentToken.type);
+        }
+        return Precedence::LOWEST;
     }
 
 } // namespace CHTL

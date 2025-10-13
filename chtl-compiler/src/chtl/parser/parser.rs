@@ -285,10 +285,17 @@ impl<'a> Parser<'a> {
 
         let mut attributes = Vec::new();
         while !self.current_token_is(&Token::RBrace) && !self.current_token_is(&Token::Eof) {
+            if self.current_token_is(&Token::Semicolon) {
+                self.next_token();
+                continue;
+            }
             if let Some(Statement::Attribute(attr)) = self.parse_attribute_statement() {
                 attributes.push(attr);
             } else {
-                self.errors.push(format!("Expected attribute statement in [Info] block, got {:?}", self.current_token));
+                self.errors.push(format!(
+                    "Expected attribute statement in [Info] block, got {:?}",
+                    self.current_token
+                ));
             }
             self.next_token();
         }

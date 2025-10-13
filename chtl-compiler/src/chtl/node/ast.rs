@@ -199,6 +199,12 @@ pub struct FunctionCallExpression {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ResponsiveValueExpression {
     pub value: String,
+    pub unit: Option<String>,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub struct ArrayLiteralExpression {
+    pub elements: Vec<Expression>,
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -213,6 +219,7 @@ pub enum Expression {
     FunctionCall(FunctionCallExpression),
     PropertyAccess(PropertyAccessExpression),
     Index(IndexExpression),
+    ArrayLiteral(ArrayLiteralExpression),
 }
 
 #[derive(Debug, PartialEq, Clone)]

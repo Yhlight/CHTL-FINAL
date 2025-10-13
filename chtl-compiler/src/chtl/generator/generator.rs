@@ -561,7 +561,8 @@ const __chtl_state = new Proxy({}, {
                 // We pass a dummy map and only the global_css will be affected.
                 let mut dummy_attrs = std::collections::HashMap::new();
                 let mut dummy_context = std::collections::HashMap::new();
-                self.generate_style(style, &mut dummy_attrs, &mut dummy_context, None);
+                let mut dummy_bindings = Vec::new();
+                self.generate_style(style, &mut dummy_attrs, &mut dummy_context, None, &mut dummy_bindings);
                 String::new()
             }
             Statement::Comment(comment) => self.generate_comment(comment),
@@ -632,12 +633,16 @@ const __chtl_state = new Proxy({}, {
         context: &mut HashMap<String, Object>,
         attributes: &mut HashMap<String, String>,
         children: &mut String,
+        responsive_bindings: &mut Vec<(String, String)>,
     ) {
         for statement in statements {
             match statement {
                 Statement::Attribute(attr) => {
                     if let Some(expr) = &attr.value {
                         let value_obj = self.eval_expression_to_object(expr, context, Some(element_id), Some(&attr.name.value));
+                        if let Object::Responsive(var, _) = &value_obj {
+                            responsive_bindings.push((var.clone(), attr.name.value.clone()));
+                        }
                         let value_str = value_obj.to_string();
                         context.insert(attr.name.value.clone(), value_obj);
                         if attr.name.value == "text" {
@@ -652,7 +657,7 @@ const __chtl_state = new Proxy({}, {
                 }
                 Statement::If(if_stmt) => {
                     let statements_to_add = self.evaluate_if_chain(if_stmt, context, element_id);
-                    self.process_element_body(element_id, &statements_to_add, context, attributes, children);
+                    self.process_element_body(element_id, &statements_to_add, context, attributes, children, responsive_bindings);
                 }
                 Statement::Except(_) => {
                     // Handled by the generate_element function, do not render as a child.
@@ -671,6 +676,7 @@ const __chtl_state = new Proxy({}, {
         let mut attributes: HashMap<String, String> = HashMap::new();
         let mut children = String::new();
         let mut context = HashMap::new();
+        let mut responsive_bindings = Vec::new();
 
         // Collect constraints from the current element's body
         let mut current_constraints = Vec::new();
@@ -699,16 +705,31 @@ const __chtl_state = new Proxy({}, {
             }
         }
 
-        let element_id = attributes.get("id").map(|s| s.clone()).unwrap_or("".to_string());
-        self.process_element_body(&element_id, &element.body, &mut context, &mut attributes, &mut children);
+        // We don't know the final element ID yet, so we pass an empty string for now.
+        // The ID will be finalized after we know if there are responsive values.
+        self.process_element_body("", &element.body, &mut context, &mut attributes, &mut children, &mut responsive_bindings);
 
         // Pop constraints after processing children
         self.constraint_stack.pop();
 
-        let has_responsive_value = attributes.values().any(|v| v.starts_with('$') && v.ends_with('$'));
-        if has_responsive_value && !attributes.contains_key("id") {
-            self.id_counter += 1;
-            attributes.insert("id".to_string(), format!("__chtl_id_{}", self.id_counter));
+        if !responsive_bindings.is_empty() && !attributes.contains_key("id") {
+             if let Some(id) = &auto_id {
+                attributes.insert("id".to_string(), id.clone());
+            } else {
+                self.id_counter += 1;
+                attributes.insert("id".to_string(), format!("__chtl_id_{}", self.id_counter));
+            }
+        }
+
+        if let Some(id) = attributes.get("id") {
+            for (var_name, prop_name) in responsive_bindings {
+                self.dynamic_js.push_str(&format!(
+                    "__chtl_bindings.addBinding('{var}', '{elem_id}', '{prop}');\n",
+                    var = var_name,
+                    elem_id = id,
+                    prop = prop_name
+                ));
+            }
         }
 
         // Inject attributes if they are not already present
@@ -903,20 +924,14 @@ const __chtl_state = new Proxy({}, {
         &mut self,
         expr: &Expression,
         context: &mut std::collections::HashMap<String, Object>,
-        element_id: Option<&str>,
-        prop_name: Option<&str>,
+        _element_id: Option<&str>,
+        _prop_name: Option<&str>,
     ) -> Object {
         if let Expression::ResponsiveValue(responsive_expr) = expr {
-            let var_name = &responsive_expr.value;
-            if let (Some(id), Some(prop)) = (element_id, prop_name) {
-                self.dynamic_js.push_str(&format!(
-                    "__chtl_bindings.addBinding('{var}', '{elem_id}', '{prop}');\n",
-                    var = var_name,
-                    elem_id = id,
-                    prop = prop
-                ));
-            }
-            return Object::String(format!("${}$", var_name));
+            return Object::Responsive(
+                responsive_expr.value.clone(),
+                responsive_expr.unit.clone(),
+            );
         }
         let all_templates: HashMap<_, _> = self
             .templates

@@ -3,6 +3,7 @@ pub enum Object {
     Number(f64, String), // Value and unit
     String(String),
     Boolean(bool),
+    Responsive(String, Option<String>), // Variable name and optional unit
     Error(String),
 }
 
@@ -12,6 +13,9 @@ impl std::fmt::Display for Object {
             Object::Number(val, unit) => write!(f, "{}{}", val, unit),
             Object::String(s) => write!(f, "{}", s),
             Object::Boolean(b) => write!(f, "{}", b),
+            Object::Responsive(var, unit) => {
+                write!(f, "${}${}", var, unit.as_deref().unwrap_or(""))
+            }
             Object::Error(s) => write!(f, "Error: {}", s),
         }
     }

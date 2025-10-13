@@ -1105,9 +1105,9 @@ impl<'a> Parser<'a> {
 
             let value = self.parse_expression(Precedence::Lowest)?;
 
-            // while self.peek_token_is(&Token::Semicolon) {
-            //     self.next_token();
-            // }
+            if self.peek_token_is(&Token::Semicolon) {
+                self.next_token();
+            }
 
             Some(Statement::Attribute(AttributeStatement {
                 name,
@@ -1188,12 +1188,25 @@ impl<'a> Parser<'a> {
 
     fn parse_prefix(&mut self) -> Option<Expression> {
         match self.current_token.clone() {
-            Token::ResponsiveValue(s) => Some(Expression::ResponsiveValue(ResponsiveValueExpression { value: s })),
+            Token::ResponsiveValue(s) => {
+                let mut unit = None;
+                if let Token::Identifier(ident) = self.peek_token.clone() {
+                    // This is a simple check. A more robust solution might verify
+                    // that the identifier is a valid CSS unit.
+                    unit = Some(ident);
+                    self.next_token();
+                }
+                Some(Expression::ResponsiveValue(ResponsiveValueExpression {
+                    value: s,
+                    unit,
+                }))
+            }
             Token::String(s) => Some(Expression::StringLiteral(StringLiteralExpression { value: s })),
             Token::Number(value, unit) => Some(Expression::NumberLiteral(NumberLiteralExpression {
                 value,
                 unit,
             })),
+            Token::LBracket => self.parse_array_literal_expression(),
             Token::Minus => {
                 self.next_token();
                 if let Token::Number(value, unit) = self.current_token.clone() {
@@ -1255,6 +1268,36 @@ impl<'a> Parser<'a> {
             }
             _ => None,
         }
+    }
+
+    fn parse_array_literal_expression(&mut self) -> Option<Expression> {
+        let mut elements = vec![];
+
+        if self.peek_token_is(&Token::RBracket) {
+            self.next_token();
+            return Some(Expression::ArrayLiteral(ArrayLiteralExpression { elements }));
+        }
+
+        self.next_token();
+
+        elements.push(self.parse_expression(Precedence::Lowest)?);
+
+        while self.peek_token_is(&Token::Comma) {
+            self.next_token();
+            self.next_token();
+
+            if self.current_token_is(&Token::RBracket) {
+                return Some(Expression::ArrayLiteral(ArrayLiteralExpression { elements }));
+            }
+
+            elements.push(self.parse_expression(Precedence::Lowest)?);
+        }
+
+        if self.expect_peek(&Token::RBracket).is_none() {
+            return None;
+        }
+
+        Some(Expression::ArrayLiteral(ArrayLiteralExpression { elements }))
     }
 
     fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {

@@ -81,4 +81,45 @@ mod tests {
 
         assert_eq!(html.trim(), "<div>unquoted text</div>");
     }
+
+    #[test]
+    fn test_multi_value_keyword_config() {
+        let source = r#"
+        [configuration] {
+            [name] {
+                KEYWORD_STYLE = ["css", "style", "schtyle"];
+            }
+        }
+
+        css {}
+        style {}
+        schtyle {}
+        "#;
+
+        let mut config_manager = ConfigManager::new();
+        let pre_lexer = Lexer::new(&source, &config_manager);
+        let mut pre_parser = Parser::new(pre_lexer);
+        let pre_program = pre_parser.parse_program();
+
+        assert!(pre_parser.errors().is_empty(), "Pre-parser has errors: {:?}", pre_parser.errors());
+
+        for stmt in &pre_program.statements {
+            if let Statement::Configuration(config_stmt) = stmt {
+                if config_stmt.name.is_none() {
+                    config_manager.apply_config(config_stmt);
+                    break;
+                }
+            }
+        }
+
+        assert_eq!(config_manager.keyword_tokens.get("css"), Some(&crate::chtl::lexer::token::Token::Style));
+        assert_eq!(config_manager.keyword_tokens.get("style"), Some(&crate::chtl::lexer::token::Token::Style));
+        assert_eq!(config_manager.keyword_tokens.get("schtyle"), Some(&crate::chtl::lexer::token::Token::Style));
+
+        let main_lexer = Lexer::new(&source, &config_manager);
+        let mut main_parser = Parser::new(main_lexer);
+        main_parser.parse_program();
+
+        assert!(main_parser.errors().is_empty(), "Main parser has errors: {:?}", main_parser.errors());
+    }
 }

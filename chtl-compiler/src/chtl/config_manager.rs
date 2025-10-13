@@ -113,31 +113,66 @@ impl ConfigManager {
     fn apply_name_block(&mut self, name_block: &NameBlock) {
         for setting in &name_block.settings {
             if let Some(value) = &setting.value {
-                let keyword_value = match value {
-                    Expression::UnquotedLiteral(val) => Some(val.value.clone()),
-                    Expression::Identifier(val) => Some(val.value.clone()),
-                    Expression::StringLiteral(val) => Some(val.value.clone()),
-                    _ => None,
+                let internal_name = setting.name.value.clone();
+
+                // Find the token associated with this internal keyword name.
+                // We do this by looking up the current string representation...
+                let old_keyword_string = self.keywords.get(&internal_name).cloned();
+
+                // ...and then finding and removing its token from the map.
+                let token = if let Some(ref old_str) = old_keyword_string {
+                    self.keyword_tokens.remove(&old_str.to_lowercase())
+                } else {
+                    None
                 };
 
-                if let Some(new_keyword_string) = keyword_value {
-                    let internal_name = setting.name.value.clone();
+                // If we didn't find a token, we can't proceed with this setting.
+                if let Some(token) = token {
+                    match value {
+                        Expression::ArrayLiteral(array) => {
+                            let mut first_keyword = None;
 
-                    // Get the old keyword string to find the token and remove it from the map
-                    if let Some(old_keyword_string) = self.keywords.get(&internal_name) {
-                        if let Some(token) = self
-                            .keyword_tokens
-                            .remove(&old_keyword_string.to_lowercase())
-                        {
-                            // Add the new keyword string with the old token
-                            self.keyword_tokens
-                                .insert(new_keyword_string.to_lowercase(), token);
+                            for element in &array.elements {
+                                let keyword_str = match element {
+                                    Expression::UnquotedLiteral(val) => Some(val.value.clone()),
+                                    Expression::Identifier(val) => Some(val.value.clone()),
+                                    Expression::StringLiteral(val) => Some(val.value.clone()),
+                                    _ => None,
+                                };
+
+                                if let Some(s) = keyword_str {
+                                    if first_keyword.is_none() {
+                                        first_keyword = Some(s.clone());
+                                    }
+                                    self.keyword_tokens.insert(s.to_lowercase(), token.clone());
+                                }
+                            }
+
+                            // Update the primary keyword map to point to the first item in the array.
+                            if let Some(s) = first_keyword {
+                                self.keywords.insert(internal_name, s);
+                            } else if let Some(old_str) = old_keyword_string {
+                                // If array was empty or invalid, restore the old token mapping.
+                                self.keyword_tokens.insert(old_str.to_lowercase(), token);
+                            }
+                        }
+                        _ => { // Handle single values
+                            let keyword_str = match value {
+                                Expression::UnquotedLiteral(val) => Some(val.value.clone()),
+                                Expression::Identifier(val) => Some(val.value.clone()),
+                                Expression::StringLiteral(val) => Some(val.value.clone()),
+                                _ => None,
+                            };
+
+                            if let Some(s) = keyword_str {
+                                self.keyword_tokens.insert(s.to_lowercase(), token);
+                                self.keywords.insert(internal_name, s);
+                            } else if let Some(old_str) = old_keyword_string {
+                                // If expression was invalid, restore the old token mapping.
+                                self.keyword_tokens.insert(old_str.to_lowercase(), token);
+                            }
                         }
                     }
-
-                    // Update the internal name -> string value mapping
-                    self.keywords
-                        .insert(internal_name, new_keyword_string);
                 }
             }
         }

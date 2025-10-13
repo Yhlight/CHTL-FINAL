@@ -45,6 +45,11 @@ impl Evaluator {
             Expression::Index(_) => {
                 todo!()
             }
+            Expression::ArrayLiteral(_) => {
+                // This is a placeholder for now. A real implementation would
+                // return an array object.
+                Object::Error("Array evaluation is not yet implemented.".to_string())
+            }
             Expression::ResponsiveValue(responsive_expr) => {
                 // This is a placeholder. In a real implementation, we'd
                 // generate JS to update this value. For now, we'll just

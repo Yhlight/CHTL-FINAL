@@ -39,6 +39,7 @@ private:
     Token scanStringLiteral(char quote);
     Token scanNumber();
     Token scanIdentifierOrKeyword();
+    Token scanBracketKeyword();  // 扫描 [Template], [Custom] 等
     Token scanUnquotedLiteral();
     Token scanComment();
     

@@ -13,6 +13,39 @@ const char* tokenTypeToString(TokenType type) {
         case TokenType::KEYWORD_TEXT: return "KEYWORD_TEXT";
         case TokenType::KEYWORD_STYLE: return "KEYWORD_STYLE";
         case TokenType::KEYWORD_SCRIPT: return "KEYWORD_SCRIPT";
+        
+        // CHTL 特殊语法块关键字
+        case TokenType::KEYWORD_TEMPLATE: return "KEYWORD_TEMPLATE";
+        case TokenType::KEYWORD_CUSTOM: return "KEYWORD_CUSTOM";
+        case TokenType::KEYWORD_IMPORT: return "KEYWORD_IMPORT";
+        case TokenType::KEYWORD_ORIGIN: return "KEYWORD_ORIGIN";
+        case TokenType::KEYWORD_NAMESPACE: return "KEYWORD_NAMESPACE";
+        case TokenType::KEYWORD_CONFIGURATION: return "KEYWORD_CONFIGURATION";
+        case TokenType::KEYWORD_INFO: return "KEYWORD_INFO";
+        case TokenType::KEYWORD_EXPORT: return "KEYWORD_EXPORT";
+        
+        // @ 前缀关键字
+        case TokenType::KEYWORD_AT_STYLE: return "KEYWORD_AT_STYLE";
+        case TokenType::KEYWORD_AT_ELEMENT: return "KEYWORD_AT_ELEMENT";
+        case TokenType::KEYWORD_AT_VAR: return "KEYWORD_AT_VAR";
+        case TokenType::KEYWORD_AT_HTML: return "KEYWORD_AT_HTML";
+        case TokenType::KEYWORD_AT_JAVASCRIPT: return "KEYWORD_AT_JAVASCRIPT";
+        case TokenType::KEYWORD_AT_CHTL: return "KEYWORD_AT_CHTL";
+        case TokenType::KEYWORD_AT_CONFIG: return "KEYWORD_AT_CONFIG";
+        case TokenType::KEYWORD_AT_CJMOD: return "KEYWORD_AT_CJMOD";
+        
+        // 其他关键字
+        case TokenType::KEYWORD_FROM: return "KEYWORD_FROM";
+        case TokenType::KEYWORD_AS: return "KEYWORD_AS";
+        case TokenType::KEYWORD_INHERIT: return "KEYWORD_INHERIT";
+        case TokenType::KEYWORD_DELETE: return "KEYWORD_DELETE";
+        case TokenType::KEYWORD_INSERT: return "KEYWORD_INSERT";
+        case TokenType::KEYWORD_USE: return "KEYWORD_USE";
+        case TokenType::KEYWORD_EXCEPT: return "KEYWORD_EXCEPT";
+        case TokenType::KEYWORD_AFTER: return "KEYWORD_AFTER";
+        case TokenType::KEYWORD_BEFORE: return "KEYWORD_BEFORE";
+        case TokenType::KEYWORD_REPLACE: return "KEYWORD_REPLACE";
+        
         case TokenType::LEFT_BRACE: return "LEFT_BRACE";
         case TokenType::RIGHT_BRACE: return "RIGHT_BRACE";
         case TokenType::LEFT_BRACKET: return "LEFT_BRACKET";

@@ -171,3 +171,160 @@ TEST_CASE("Lexer - 行列号跟踪", "[lexer]") {
         REQUIRE(tokens[1].line == 2);
     }
 }
+
+TEST_CASE("Lexer - CHTL 特殊语法块", "[lexer][special]") {
+    SECTION("识别 [Template] 关键字") {
+        Lexer lexer("[Template]");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2); // [Template] + EOF
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_TEMPLATE);
+        REQUIRE(tokens[0].value == "[Template]");
+    }
+    
+    SECTION("识别 [Custom] 关键字") {
+        Lexer lexer("[Custom]");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_CUSTOM);
+        REQUIRE(tokens[0].value == "[Custom]");
+    }
+    
+    SECTION("识别 [Import] 关键字") {
+        Lexer lexer("[Import]");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_IMPORT);
+        REQUIRE(tokens[0].value == "[Import]");
+    }
+    
+    SECTION("识别 [Origin] 关键字") {
+        Lexer lexer("[Origin]");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_ORIGIN);
+        REQUIRE(tokens[0].value == "[Origin]");
+    }
+    
+    SECTION("识别 [Namespace] 关键字") {
+        Lexer lexer("[Namespace]");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_NAMESPACE);
+        REQUIRE(tokens[0].value == "[Namespace]");
+    }
+    
+    SECTION("识别 [Configuration] 关键字") {
+        Lexer lexer("[Configuration]");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_CONFIGURATION);
+        REQUIRE(tokens[0].value == "[Configuration]");
+    }
+    
+    SECTION("识别 [Info] 和 [Export] 关键字") {
+        Lexer lexer("[Info] [Export]");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 3); // [Info] + [Export] + EOF
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_INFO);
+        REQUIRE(tokens[0].value == "[Info]");
+        REQUIRE(tokens[1].type == TokenType::KEYWORD_EXPORT);
+        REQUIRE(tokens[1].value == "[Export]");
+    }
+}
+
+TEST_CASE("Lexer - CHTL @ 前缀关键字", "[lexer][special]") {
+    SECTION("识别 @Style 关键字") {
+        Lexer lexer("@Style");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_AT_STYLE);
+        REQUIRE(tokens[0].value == "@Style");
+    }
+    
+    SECTION("识别 @Element 关键字") {
+        Lexer lexer("@Element");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_AT_ELEMENT);
+        REQUIRE(tokens[0].value == "@Element");
+    }
+    
+    SECTION("识别 @Var 关键字") {
+        Lexer lexer("@Var");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_AT_VAR);
+        REQUIRE(tokens[0].value == "@Var");
+    }
+    
+    SECTION("识别 @Html, @JavaScript, @Chtl 关键字") {
+        Lexer lexer("@Html @JavaScript @Chtl");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 4); // 3 + EOF
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_AT_HTML);
+        REQUIRE(tokens[1].type == TokenType::KEYWORD_AT_JAVASCRIPT);
+        REQUIRE(tokens[2].type == TokenType::KEYWORD_AT_CHTL);
+    }
+}
+
+TEST_CASE("Lexer - CHTL 其他关键字", "[lexer][keywords]") {
+    SECTION("识别 from, as, inherit 等关键字") {
+        Lexer lexer("from as inherit delete insert use");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 7); // 6 + EOF
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_FROM);
+        REQUIRE(tokens[0].value == "from");
+        REQUIRE(tokens[1].type == TokenType::KEYWORD_AS);
+        REQUIRE(tokens[1].value == "as");
+        REQUIRE(tokens[2].type == TokenType::KEYWORD_INHERIT);
+        REQUIRE(tokens[2].value == "inherit");
+        REQUIRE(tokens[3].type == TokenType::KEYWORD_DELETE);
+        REQUIRE(tokens[3].value == "delete");
+        REQUIRE(tokens[4].type == TokenType::KEYWORD_INSERT);
+        REQUIRE(tokens[4].value == "insert");
+        REQUIRE(tokens[5].type == TokenType::KEYWORD_USE);
+        REQUIRE(tokens[5].value == "use");
+    }
+    
+    SECTION("识别 except 关键字") {
+        Lexer lexer("except");
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_EXCEPT);
+        REQUIRE(tokens[0].value == "except");
+    }
+}
+
+TEST_CASE("Lexer - 完整的 CHTL Template 示例", "[lexer][integration]") {
+    SECTION("解析 Template 声明") {
+        std::string code = R"(
+            [Template] @Style DefaultText {
+                color: "black";
+                line-height: 1.6;
+            }
+        )";
+        
+        Lexer lexer(code);
+        auto tokens = lexer.tokenize();
+        
+        REQUIRE(tokens.size() > 0);
+        REQUIRE(tokens[0].type == TokenType::KEYWORD_TEMPLATE);
+        REQUIRE(tokens[1].type == TokenType::KEYWORD_AT_STYLE);
+        REQUIRE(tokens[2].type == TokenType::IDENTIFIER);
+        REQUIRE(tokens[2].value == "DefaultText");
+        REQUIRE(tokens[3].type == TokenType::LEFT_BRACE);
+    }
+}

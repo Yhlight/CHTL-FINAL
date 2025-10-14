@@ -1,0 +1,27 @@
+// CHTL Template 示例 - 展示新实现的特殊语法块
+
+[Template] @Style DefaultText {
+    color: "black";
+    line-height: 1.6;
+    font-size: 14px;
+}
+
+[Custom] @Element Box {
+    div {
+        style {
+            width: 100px;
+            height: 100px;
+            background-color: red;
+        }
+    }
+}
+
+[Import] @Chtl from "./other.chtl"
+
+div {
+    style {
+        @Style DefaultText;
+    }
+    
+    text: "Hello from CHTL!";
+}

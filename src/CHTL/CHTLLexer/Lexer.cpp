@@ -39,8 +39,8 @@ Token Lexer::nextToken() {
         return scanNumber();
     }
     
-    // 标识符或关键字
-    if (isAlpha(c) || c == '_') {
+    // 标识符或关键字（包括 @ 前缀）
+    if (isAlpha(c) || c == '_' || c == '@') {
         current_--;
         column_--;
         return scanIdentifierOrKeyword();
@@ -73,7 +73,14 @@ Token Lexer::nextToken() {
     switch (c) {
         case '{': return makeToken(TokenType::LEFT_BRACE, "{");
         case '}': return makeToken(TokenType::RIGHT_BRACE, "}");
-        case '[': return makeToken(TokenType::LEFT_BRACKET, "[");
+        case '[':
+            // 检查是否是 CHTL 特殊语法块 [Template], [Custom] 等
+            if (isAlpha(peek())) {
+                current_--;
+                column_--;
+                return scanBracketKeyword();
+            }
+            return makeToken(TokenType::LEFT_BRACKET, "[");
         case ']': return makeToken(TokenType::RIGHT_BRACKET, "]");
         case '(': return makeToken(TokenType::LEFT_PAREN, "(");
         case ')': return makeToken(TokenType::RIGHT_PAREN, ")");
@@ -192,6 +199,11 @@ Token Lexer::scanIdentifierOrKeyword() {
     size_t start = current_;
     size_t startColumn = column_;
     
+    // 检查是否是 @ 前缀
+    if (peek() == '@') {
+        advance(); // 消费 @
+    }
+    
     while (isAlphaNumeric(peek()) || peek() == '_' || peek() == '-') {
         advance();
     }
@@ -200,6 +212,42 @@ Token Lexer::scanIdentifierOrKeyword() {
     TokenType type = identifierType(value);
     
     return Token(type, value, line_, startColumn);
+}
+
+Token Lexer::scanBracketKeyword() {
+    size_t start = current_;
+    size_t startColumn = column_;
+    
+    // 消费 '['
+    advance();
+    
+    // 扫描关键字名称
+    while (isAlphaNumeric(peek())) {
+        advance();
+    }
+    
+    // 检查是否有 ']'
+    if (peek() == ']') {
+        advance(); // 消费 ']'
+    } else {
+        // 不是有效的关键字，返回 UNKNOWN
+        return makeToken(TokenType::UNKNOWN, source_.substr(start, current_ - start));
+    }
+    
+    std::string value = source_.substr(start, current_ - start);
+    
+    // 识别特殊语法块关键字
+    if (value == "[Template]") return Token(TokenType::KEYWORD_TEMPLATE, value, line_, startColumn);
+    if (value == "[Custom]") return Token(TokenType::KEYWORD_CUSTOM, value, line_, startColumn);
+    if (value == "[Import]") return Token(TokenType::KEYWORD_IMPORT, value, line_, startColumn);
+    if (value == "[Origin]") return Token(TokenType::KEYWORD_ORIGIN, value, line_, startColumn);
+    if (value == "[Namespace]") return Token(TokenType::KEYWORD_NAMESPACE, value, line_, startColumn);
+    if (value == "[Configuration]") return Token(TokenType::KEYWORD_CONFIGURATION, value, line_, startColumn);
+    if (value == "[Info]") return Token(TokenType::KEYWORD_INFO, value, line_, startColumn);
+    if (value == "[Export]") return Token(TokenType::KEYWORD_EXPORT, value, line_, startColumn);
+    
+    // 不是已知的关键字，返回为 UNKNOWN
+    return Token(TokenType::UNKNOWN, value, line_, startColumn);
 }
 
 Token Lexer::scanUnquotedLiteral() {
@@ -269,10 +317,32 @@ bool Lexer::isAlphaNumeric(char c) const {
 }
 
 TokenType Lexer::identifierType(const std::string& text) const {
-    // 检查关键字
+    // 检查基础关键字
     if (text == "text") return TokenType::KEYWORD_TEXT;
     if (text == "style") return TokenType::KEYWORD_STYLE;
     if (text == "script") return TokenType::KEYWORD_SCRIPT;
+    
+    // 检查 @ 前缀关键字
+    if (text == "@Style") return TokenType::KEYWORD_AT_STYLE;
+    if (text == "@Element") return TokenType::KEYWORD_AT_ELEMENT;
+    if (text == "@Var") return TokenType::KEYWORD_AT_VAR;
+    if (text == "@Html") return TokenType::KEYWORD_AT_HTML;
+    if (text == "@JavaScript") return TokenType::KEYWORD_AT_JAVASCRIPT;
+    if (text == "@Chtl") return TokenType::KEYWORD_AT_CHTL;
+    if (text == "@Config") return TokenType::KEYWORD_AT_CONFIG;
+    if (text == "@CJmod") return TokenType::KEYWORD_AT_CJMOD;
+    
+    // 检查其他关键字
+    if (text == "from") return TokenType::KEYWORD_FROM;
+    if (text == "as") return TokenType::KEYWORD_AS;
+    if (text == "inherit") return TokenType::KEYWORD_INHERIT;
+    if (text == "delete") return TokenType::KEYWORD_DELETE;
+    if (text == "insert") return TokenType::KEYWORD_INSERT;
+    if (text == "use") return TokenType::KEYWORD_USE;
+    if (text == "except") return TokenType::KEYWORD_EXCEPT;
+    if (text == "after") return TokenType::KEYWORD_AFTER;
+    if (text == "before") return TokenType::KEYWORD_BEFORE;
+    if (text == "replace") return TokenType::KEYWORD_REPLACE;
     
     return TokenType::IDENTIFIER;
 }

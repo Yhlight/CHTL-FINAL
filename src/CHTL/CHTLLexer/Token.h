@@ -17,10 +17,42 @@ enum class TokenType {
     UNQUOTED_LITERAL,    // 无修饰字面量
     NUMBER,              // 数字
     
-    // 关键字
+    // 基础关键字
     KEYWORD_TEXT,        // text
     KEYWORD_STYLE,       // style
     KEYWORD_SCRIPT,      // script
+    
+    // CHTL 特殊语法块关键字 [...]
+    KEYWORD_TEMPLATE,       // [Template]
+    KEYWORD_CUSTOM,         // [Custom]
+    KEYWORD_IMPORT,         // [Import]
+    KEYWORD_ORIGIN,         // [Origin]
+    KEYWORD_NAMESPACE,      // [Namespace]
+    KEYWORD_CONFIGURATION,  // [Configuration]
+    KEYWORD_INFO,           // [Info]
+    KEYWORD_EXPORT,         // [Export]
+    
+    // @ 前缀关键字
+    KEYWORD_AT_STYLE,       // @Style
+    KEYWORD_AT_ELEMENT,     // @Element
+    KEYWORD_AT_VAR,         // @Var
+    KEYWORD_AT_HTML,        // @Html
+    KEYWORD_AT_JAVASCRIPT,  // @JavaScript
+    KEYWORD_AT_CHTL,        // @Chtl
+    KEYWORD_AT_CONFIG,      // @Config
+    KEYWORD_AT_CJMOD,       // @CJmod
+    
+    // 其他关键字
+    KEYWORD_FROM,           // from
+    KEYWORD_AS,             // as
+    KEYWORD_INHERIT,        // inherit
+    KEYWORD_DELETE,         // delete
+    KEYWORD_INSERT,         // insert
+    KEYWORD_USE,            // use
+    KEYWORD_EXCEPT,         // except
+    KEYWORD_AFTER,          // after
+    KEYWORD_BEFORE,         // before
+    KEYWORD_REPLACE,        // replace
     
     // 括号
     LEFT_BRACE,          // {

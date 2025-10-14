@@ -51,6 +51,43 @@ void Generator::visit(StyleNode& /* node */) {
     // 这里暂时不做处理
 }
 
+void Generator::visit(ScriptNode& node) {
+    // 生成 <script> 标签
+    if (config_.prettyPrint) {
+        writeIndent();
+    }
+    
+    write("<script>");
+    
+    if (!node.getContent().empty()) {
+        if (config_.prettyPrint) {
+            write("\n");
+            increaseIndent();
+        }
+        
+        // 输出脚本内容（可能需要缩进每一行）
+        if (config_.prettyPrint) {
+            std::istringstream iss(node.getContent());
+            std::string line;
+            while (std::getline(iss, line)) {
+                writeIndent();
+                write(line);
+                write("\n");
+            }
+            decreaseIndent();
+            writeIndent();
+        } else {
+            write(node.getContent());
+        }
+    }
+    
+    write("</script>");
+    
+    if (config_.prettyPrint) {
+        write("\n");
+    }
+}
+
 void Generator::reset() {
     output_.str("");
     output_.clear();
@@ -136,7 +173,7 @@ void Generator::generateElement(ElementNode& element) {
                 }
             }
         } else {
-            // 非 style 节点，保留用于后续处理
+            // 非 style 节点，保留用于后续处理（包括 script 块）
             nonStyleChildren.push_back(child.get());
         }
     }

@@ -4,6 +4,7 @@
 #include "CHTL/CHTLNode/ElementNode.h"
 #include "CHTL/CHTLNode/TextNode.h"
 #include "CHTL/CHTLNode/StyleNode.h"
+#include "CHTL/CHTLNode/ScriptNode.h"
 #include "CHTL/CHTLNode/NodeVisitor.h"
 #include <string>
 #include <sstream>
@@ -32,6 +33,7 @@ public:
     void visit(ElementNode& node) override;
     void visit(TextNode& node) override;
     void visit(StyleNode& node) override;
+    void visit(ScriptNode& node) override;
     
     // 获取生成的 HTML
     std::string getOutput() const { return output_.str(); }

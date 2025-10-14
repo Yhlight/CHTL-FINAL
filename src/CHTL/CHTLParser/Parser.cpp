@@ -157,7 +157,9 @@ NodePtr Parser::parseElement() {
             auto child = parseStyleBlock();
             if (child) element->addChild(std::move(child));
         } else if (match(TokenType::KEYWORD_SCRIPT)) {
-            parseScriptBlock(); // 暂时跳过，不添加到子节点
+            // 解析 script 块并添加为子节点
+            auto child = parseScriptBlock();
+            if (child) element->addChild(std::move(child));
         } else if (isElementStart()) {
             auto child = parseElement();
             if (child) element->addChild(std::move(child));
@@ -241,6 +243,15 @@ NodePtr Parser::parseStyleBlock() {
                     // 不是表达式，按原来的方式收集属性值
                     std::string propertyValue;
                     TokenType lastTokenType = TokenType::UNKNOWN;
+                    std::string lastTokenValue;
+                    bool inColorCode = false;  // 跟踪是否在颜色代码中
+                    
+                    // CSS 单位列表
+                    static const std::vector<std::string> cssUnits = {
+                        "px", "em", "rem", "pt", "pc", "in", "cm", "mm", "ex", "ch",
+                        "vw", "vh", "vmin", "vmax", "deg", "rad", "grad", "turn",
+                        "s", "ms", "fr", "dpi", "dpcm", "dppx"
+                    };
                     
                     while (!check(TokenType::SEMICOLON) && 
                            !check(TokenType::RIGHT_BRACE) && 
@@ -250,12 +261,30 @@ NodePtr Parser::parseStyleBlock() {
                         // 判断是否需要添加空格
                         bool needSpace = false;
                         if (!propertyValue.empty()) {
-                            // 数字 + 标识符/百分号 → 不需要空格
-                            if (lastTokenType == TokenType::NUMBER && 
-                                (valueToken.type == TokenType::IDENTIFIER ||
-                                 valueToken.type == TokenType::PERCENT)) {
+                            // 在颜色代码中（但不是#本身） → 不加空格
+                            if (inColorCode && !(valueToken.type == TokenType::UNKNOWN && valueToken.value == "#")) {
                                 needSpace = false;
-                            } 
+                                // 颜色代码通常是 #fff 或 #aabbcc，读取完整个颜色后结束
+                                // 简单判断：如果当前token不是NUMBER也不是IDENTIFIER，颜色代码结束
+                                if (valueToken.type != TokenType::NUMBER && 
+                                    valueToken.type != TokenType::IDENTIFIER &&
+                                    valueToken.type != TokenType::UNKNOWN) {
+                                    inColorCode = false;
+                                }
+                            }
+                            // 数字 + 百分号 → 不加空格
+                            else if (lastTokenType == TokenType::NUMBER && 
+                                     valueToken.type == TokenType::PERCENT) {
+                                needSpace = false;
+                            }
+                            // 数字 + CSS 单位 → 不加空格
+                            else if (lastTokenType == TokenType::NUMBER && 
+                                     valueToken.type == TokenType::IDENTIFIER) {
+                                // 检查是否是 CSS 单位
+                                bool isUnit = std::find(cssUnits.begin(), cssUnits.end(), 
+                                                       valueToken.value) != cssUnits.end();
+                                needSpace = !isUnit;  // 是单位则不加空格，否则加空格
+                            }
                             // 其他情况需要空格
                             else {
                                 needSpace = true;
@@ -268,6 +297,24 @@ NodePtr Parser::parseStyleBlock() {
                         
                         propertyValue += valueToken.value;
                         lastTokenType = valueToken.type;
+                        lastTokenValue = valueToken.value;
+                        
+                        // 检测颜色代码开始（在添加token之后）
+                        if (valueToken.type == TokenType::UNKNOWN && valueToken.value == "#") {
+                            inColorCode = true;
+                        }
+                        
+                        // 颜色代码读取完毕后重置标志
+                        // 如果刚才添加的是NUMBER或IDENTIFIER，且我们在颜色代码中，继续
+                        // 否则，如果下一个token不是NUMBER/IDENTIFIER，结束颜色代码
+                        if (inColorCode && valueToken.type != TokenType::UNKNOWN) {
+                            // 先peek下一个token
+                            if (current_ < tokens_.size() && 
+                                tokens_[current_].type != TokenType::NUMBER &&
+                                tokens_[current_].type != TokenType::IDENTIFIER) {
+                                inColorCode = false;
+                            }
+                        }
                     }
                     
                     // 消费分号（如果存在）
@@ -297,20 +344,54 @@ NodePtr Parser::parseScriptBlock() {
     // script 关键字已经被消费
     consume(TokenType::LEFT_BRACE, "期望 '{'");
     
-    // 暂时跳过脚本块内容
-    int braceCount = 1;
+    auto scriptNode = std::make_unique<ScriptNode>();
+    
+    // 收集 JavaScript 代码
+    // 我们需要保留所有内容，包括花括号（对于 JavaScript 函数等）
+    std::string scriptContent;
+    int braceCount = 1;  // 已经消费了左花括号
+    
     while (braceCount > 0 && !isAtEnd()) {
-        if (match(TokenType::LEFT_BRACE)) {
+        Token token = peek();
+        
+        if (token.type == TokenType::LEFT_BRACE) {
+            scriptContent += "{";
             braceCount++;
-        } else if (match(TokenType::RIGHT_BRACE)) {
+            advance();
+        } else if (token.type == TokenType::RIGHT_BRACE) {
+            if (braceCount == 1) {
+                // 这是 script 块的结束花括号
+                break;
+            }
+            scriptContent += "}";
             braceCount--;
+            advance();
         } else {
+            // 添加其他 token
+            if (!scriptContent.empty() && 
+                token.type != TokenType::SEMICOLON &&
+                token.type != TokenType::LEFT_PAREN &&
+                token.type != TokenType::RIGHT_PAREN &&
+                token.type != TokenType::LEFT_BRACKET &&
+                token.type != TokenType::RIGHT_BRACKET) {
+                // 大多数情况需要空格分隔
+                if (scriptContent.back() != ' ' && 
+                    scriptContent.back() != '{' &&
+                    scriptContent.back() != '(' &&
+                    scriptContent.back() != '[') {
+                    scriptContent += " ";
+                }
+            }
+            
+            scriptContent += token.value;
             advance();
         }
     }
     
-    // TODO: 实现完整的脚本块解析
-    return nullptr;
+    consume(TokenType::RIGHT_BRACE, "期望 '}'");
+    
+    scriptNode->setContent(scriptContent);
+    return scriptNode;
 }
 
 void Parser::synchronize() {

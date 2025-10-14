@@ -6,10 +6,11 @@
 基于 C++20 实现的超文本语言编译器
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![Tests](https://img.shields.io/badge/tests-221%20passed-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-349%20passed-brightgreen)]()
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)]()
 [![C++](https://img.shields.io/badge/C++-20-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
+[![Version](https://img.shields.io/badge/version-v0.4.0-orange)]()
 
 </div>
 

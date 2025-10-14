@@ -1,0 +1,544 @@
+// CHTL 完整网站示例
+// 展示真实的网站结构和样式系统
+
+html {
+    head {
+        title: "CHTL 示例网站";
+        
+        // 元信息
+        meta {
+            charset: "UTF-8";
+        }
+        
+        meta {
+            name: "viewport";
+            content: "width=device-width, initial-scale=1.0";
+        }
+        
+        meta {
+            name: "description";
+            content: "使用 CHTL 构建的示例网站";
+        }
+    }
+    
+    body {
+        style {
+            margin: 0;
+            padding: 0;
+            font-family: Arial;
+            font-size: 16px;
+            line-height: 16px * 1.6;      // 25.6px
+            color: #333;
+        }
+        
+        // ========== 导航栏 ==========
+        header {
+            id: "main-header";
+            class: "header";
+            
+            style {
+                width: 100%;
+                padding: 20px + 0px;        // 20px
+                background-color: #2c3e50;
+                color: white;
+                box-shadow: 0px 2px 4px rgba;
+            }
+            
+            div {
+                class: "container";
+                
+                style {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    padding: 0px + 20px;    // 20px
+                    display: flex;
+                }
+                
+                // Logo
+                h1 {
+                    class: "logo";
+                    
+                    style {
+                        margin: 0;
+                        font-size: 16px * 1.5;  // 24px
+                        font-weight: bold;
+                    }
+                    
+                    text: "CHTL 示例网站";
+                }
+                
+                // 导航菜单
+                nav {
+                    class: "nav-menu";
+                    
+                    style {
+                        margin-left: auto;
+                        display: flex;
+                        gap: 30px;
+                    }
+                    
+                    a {
+                        href: "#home";
+                        style {
+                            color: white;
+                            text-decoration: none;
+                            font-size: 16px;
+                            padding: 8px + 4px;  // 12px
+                        }
+                        text: "首页";
+                    }
+                    
+                    a {
+                        href: "#features";
+                        style {
+                            color: white;
+                            text-decoration: none;
+                            font-size: 16px;
+                            padding: 12px;
+                        }
+                        text: "特性";
+                    }
+                    
+                    a {
+                        href: "#pricing";
+                        style {
+                            color: white;
+                            text-decoration: none;
+                            font-size: 16px;
+                            padding: 12px;
+                        }
+                        text: "价格";
+                    }
+                    
+                    a {
+                        href: "#contact";
+                        style {
+                            color: white;
+                            text-decoration: none;
+                            font-size: 16px;
+                            padding: 12px;
+                        }
+                        text: "联系";
+                    }
+                }
+            }
+        }
+        
+        // ========== 主要内容 ==========
+        main {
+            id: "main-content";
+            
+            // Hero Section
+            section {
+                id: "home";
+                class: "hero";
+                
+                style {
+                    padding: 80px + 40px;         // 120px
+                    background-color: #3498db;
+                    color: white;
+                    text-align: center;
+                }
+                
+                div {
+                    class: "container";
+                    
+                    style {
+                        max-width: 800px;
+                        margin: 0 auto;
+                    }
+                    
+                    h2 {
+                        style {
+                            font-size: 16px * 3;      // 48px
+                            margin: 0px + 0px;        // 0px
+                            margin-bottom: 20px;
+                        }
+                        
+                        text: "欢迎使用 CHTL";
+                    }
+                    
+                    p {
+                        style {
+                            font-size: 16px * 1.25;   // 20px
+                            margin: 20px + 0px;       // 20px
+                            line-height: 20px * 1.6;  // 32px
+                        }
+                        
+                        text: "一种现代化的超文本标记语言，让 Web 开发更简单、更优雅";
+                    }
+                    
+                    button {
+                        class: "cta-button";
+                        
+                        style {
+                            padding: (8px * 2) + (8px * 3);  // 16px 24px
+                            font-size: 18px;
+                            background-color: white;
+                            color: #3498db;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            margin-top: 30px;
+                        }
+                        
+                        text: "立即开始";
+                    }
+                }
+            }
+            
+            // Features Section
+            section {
+                id: "features";
+                class: "features";
+                
+                style {
+                    padding: 80px + 20px;         // 100px
+                    background-color: #f8f9fa;
+                }
+                
+                div {
+                    class: "container";
+                    
+                    style {
+                        max-width: 1200px;
+                        margin: 0 auto;
+                    }
+                    
+                    h2 {
+                        style {
+                            text-align: center;
+                            font-size: 16px * 2.5;    // 40px
+                            margin-bottom: 60px;
+                            color: #2c3e50;
+                        }
+                        
+                        text: "核心特性";
+                    }
+                    
+                    div {
+                        class: "features-grid";
+                        
+                        style {
+                            display: grid;
+                            gap: 40px;
+                        }
+                        
+                        // Feature Card 1
+                        div {
+                            class: "feature-card";
+                            
+                            style {
+                                padding: 40px;
+                                background-color: white;
+                                border-radius: 8px;
+                                box-shadow: 0px 2px 8px rgba;
+                            }
+                            
+                            h3 {
+                                style {
+                                    font-size: 16px * 1.5;  // 24px
+                                    margin-top: 0;
+                                    color: #3498db;
+                                }
+                                
+                                text: "简洁语法";
+                            }
+                            
+                            p {
+                                style {
+                                    font-size: 16px;
+                                    line-height: 16px * 1.6;  // 25.6px
+                                    color: #555;
+                                }
+                                
+                                text: "CHTL 采用简洁直观的语法，让代码更易读、更易维护";
+                            }
+                        }
+                        
+                        // Feature Card 2
+                        div {
+                            class: "feature-card";
+                            
+                            style {
+                                padding: 40px;
+                                background-color: white;
+                                border-radius: 8px;
+                                box-shadow: 0px 2px 8px rgba;
+                            }
+                            
+                            h3 {
+                                style {
+                                    font-size: 24px;
+                                    margin-top: 0;
+                                    color: #3498db;
+                                }
+                                
+                                text: "内联样式";
+                            }
+                            
+                            p {
+                                style {
+                                    font-size: 16px;
+                                    line-height: 25.6px;
+                                    color: #555;
+                                }
+                                
+                                text: "支持在元素内直接定义样式，无需额外的 CSS 文件";
+                            }
+                        }
+                        
+                        // Feature Card 3
+                        div {
+                            class: "feature-card";
+                            
+                            style {
+                                padding: 40px;
+                                background-color: white;
+                                border-radius: 8px;
+                                box-shadow: 0px 2px 8px rgba;
+                            }
+                            
+                            h3 {
+                                style {
+                                    font-size: 24px;
+                                    margin-top: 0;
+                                    color: #3498db;
+                                }
+                                
+                                text: "属性运算";
+                            }
+                            
+                            p {
+                                style {
+                                    font-size: 16px;
+                                    line-height: 25.6px;
+                                    color: #555;
+                                }
+                                
+                                text: "直接在 CSS 属性中进行数学运算，无需 calc() 函数";
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Pricing Section
+            section {
+                id: "pricing";
+                class: "pricing";
+                
+                style {
+                    padding: 100px;
+                    background-color: white;
+                }
+                
+                div {
+                    class: "container";
+                    
+                    style {
+                        max-width: 1200px;
+                        margin: 0 auto;
+                    }
+                    
+                    h2 {
+                        style {
+                            text-align: center;
+                            font-size: 40px;
+                            margin-bottom: 60px;
+                            color: #2c3e50;
+                        }
+                        
+                        text: "定价方案";
+                    }
+                    
+                    div {
+                        class: "pricing-grid";
+                        
+                        style {
+                            display: flex;
+                            gap: 30px;
+                            justify-content: center;
+                        }
+                        
+                        // Pricing Card - Free
+                        div {
+                            class: "pricing-card";
+                            
+                            style {
+                                padding: 40px;
+                                background-color: #f8f9fa;
+                                border-radius: 8px;
+                                border: 2px solid #e9ecef;
+                                width: (1200px - 120px) / 3;  // ~360px
+                                text-align: center;
+                            }
+                            
+                            h3 {
+                                style {
+                                    font-size: 24px;
+                                    margin-top: 0;
+                                }
+                                
+                                text: "免费版";
+                            }
+                            
+                            p {
+                                class: "price";
+                                
+                                style {
+                                    font-size: 16px * 3;      // 48px
+                                    font-weight: bold;
+                                    color: #3498db;
+                                    margin: 20px + 0px;       // 20px
+                                }
+                                
+                                text: "$0";
+                            }
+                            
+                            p {
+                                style {
+                                    font-size: 16px;
+                                    color: #666;
+                                }
+                                
+                                text: "适合个人学习和小项目";
+                            }
+                        }
+                        
+                        // Pricing Card - Pro
+                        div {
+                            class: "pricing-card featured";
+                            
+                            style {
+                                padding: 40px;
+                                background-color: #3498db;
+                                color: white;
+                                border-radius: 8px;
+                                border: 2px solid #3498db;
+                                width: 360px;
+                                text-align: center;
+                                transform: scale;
+                            }
+                            
+                            h3 {
+                                style {
+                                    font-size: 24px;
+                                    margin-top: 0;
+                                }
+                                
+                                text: "专业版";
+                            }
+                            
+                            p {
+                                class: "price";
+                                
+                                style {
+                                    font-size: 48px;
+                                    font-weight: bold;
+                                    margin: 20px;
+                                }
+                                
+                                text: "$29";
+                            }
+                            
+                            p {
+                                style {
+                                    font-size: 16px;
+                                }
+                                
+                                text: "适合专业开发者和团队";
+                            }
+                        }
+                        
+                        // Pricing Card - Enterprise
+                        div {
+                            class: "pricing-card";
+                            
+                            style {
+                                padding: 40px;
+                                background-color: #f8f9fa;
+                                border-radius: 8px;
+                                border: 2px solid #e9ecef;
+                                width: 360px;
+                                text-align: center;
+                            }
+                            
+                            h3 {
+                                style {
+                                    font-size: 24px;
+                                    margin-top: 0;
+                                }
+                                
+                                text: "企业版";
+                            }
+                            
+                            p {
+                                class: "price";
+                                
+                                style {
+                                    font-size: 48px;
+                                    font-weight: bold;
+                                    color: #3498db;
+                                    margin: 20px;
+                                }
+                                
+                                text: "定制";
+                            }
+                            
+                            p {
+                                style {
+                                    font-size: 16px;
+                                    color: #666;
+                                }
+                                
+                                text: "为大型企业定制解决方案";
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // ========== 页脚 ==========
+        footer {
+            id: "main-footer";
+            class: "footer";
+            
+            style {
+                padding: 60px + 20px;         // 80px
+                background-color: #2c3e50;
+                color: white;
+                text-align: center;
+            }
+            
+            div {
+                class: "container";
+                
+                style {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+                
+                p {
+                    style {
+                        font-size: 16px;
+                        margin: 0;
+                    }
+                    
+                    text: "© 2025 CHTL. All rights reserved.";
+                }
+                
+                p {
+                    style {
+                        font-size: 14px;
+                        margin-top: 10px;
+                        color: #95a5a6;
+                    }
+                    
+                    text: "使用 CHTL 构建 | 展示属性运算功能";
+                }
+            }
+        }
+    }
+}

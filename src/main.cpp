@@ -6,18 +6,57 @@
 #include "CHTL/CHTLGenerator/Generator.h"
 
 void printUsage(const char* programName) {
-    std::cout << "用法: " << programName << " <输入文件.chtl> [选项]\n\n";
-    std::cout << "选项:\n";
-    std::cout << "  --tokens              仅输出 token 列表\n";
-    std::cout << "  --ast                 仅输出 AST\n";
-    std::cout << "  --output <文件>       指定输出文件（默认：标准输出）\n";
-    std::cout << "  --doctype             在 HTML 输出中包含 DOCTYPE\n";
-    std::cout << "  --compact             紧凑模式（不格式化）\n";
-    std::cout << "  --help, -h            显示此帮助信息\n\n";
-    std::cout << "示例:\n";
-    std::cout << "  " << programName << " input.chtl\n";
-    std::cout << "  " << programName << " input.chtl --output output.html\n";
-    std::cout << "  " << programName << " input.chtl --doctype --compact\n";
+    std::cout << "╔════════════════════════════════════════════════════════════════╗\n";
+    std::cout << "║                                                                ║\n";
+    std::cout << "║             CHTL 编译器 - v0.4.0                               ║\n";
+    std::cout << "║             将 CHTL 源代码编译为 HTML                          ║\n";
+    std::cout << "║                                                                ║\n";
+    std::cout << "╚════════════════════════════════════════════════════════════════╝\n\n";
+    
+    std::cout << "📖 用法\n";
+    std::cout << "════════════════════════════════════════════════════════════════\n";
+    std::cout << "  " << programName << " <input.chtl> [选项]\n\n";
+    
+    std::cout << "⚙️  选项\n";
+    std::cout << "════════════════════════════════════════════════════════════════\n";
+    std::cout << "  --output <file>     输出文件路径（默认：标准输出）\n";
+    std::cout << "  --doctype           添加 DOCTYPE 声明\n";
+    std::cout << "  --compact           紧凑输出（无格式化）\n";
+    std::cout << "  --tokens            显示词法分析结果（调试用）\n";
+    std::cout << "  --ast               显示抽象语法树（调试用）\n";
+    std::cout << "  --help, -h          显示此帮助信息\n\n";
+    
+    std::cout << "📝 示例\n";
+    std::cout << "════════════════════════════════════════════════════════════════\n";
+    std::cout << "  基础编译:\n";
+    std::cout << "    " << programName << " input.chtl\n\n";
+    std::cout << "  输出到文件:\n";
+    std::cout << "    " << programName << " input.chtl --output output.html\n\n";
+    std::cout << "  添加 DOCTYPE:\n";
+    std::cout << "    " << programName << " input.chtl --doctype --output page.html\n\n";
+    std::cout << "  紧凑输出:\n";
+    std::cout << "    " << programName << " input.chtl --compact\n\n";
+    
+    std::cout << "✨ 功能特性\n";
+    std::cout << "════════════════════════════════════════════════════════════════\n";
+    std::cout << "  ✓ 内联样式 (style {} 块)\n";
+    std::cout << "  ✓ 属性运算 (100px + 50px)\n";
+    std::cout << "  ✓ 运算符优先级和括号\n";
+    std::cout << "  ✓ CE 对等式 (: 和 = 等价)\n";
+    std::cout << "  ✓ 完整的错误处理\n\n";
+    
+    std::cout << "📚 文档\n";
+    std::cout << "════════════════════════════════════════════════════════════════\n";
+    std::cout << "  README.md          - 项目概览\n";
+    std::cout << "  TUTORIAL.md        - 快速教程\n";
+    std::cout << "  EXAMPLES.md        - 示例集合\n";
+    std::cout << "  CHTL.md            - 完整语法规范\n\n";
+    
+    std::cout << "💡 快速开始\n";
+    std::cout << "════════════════════════════════════════════════════════════════\n";
+    std::cout << "  查看示例: " << programName << " examples/simple.chtl\n";
+    std::cout << "  阅读教程: cat TUTORIAL.md\n";
+    std::cout << "  运行测试: python3 build.py --test\n\n";
 }
 
 std::string readFile(const std::string& filename) {
@@ -40,6 +79,15 @@ void writeFile(const std::string& filename, const std::string& content) {
 }
 
 int main(int argc, char* argv[]) {
+    // 检查 --help 或 -h 标志
+    for (int i = 1; i < argc; i++) {
+        std::string arg = argv[i];
+        if (arg == "--help" || arg == "-h") {
+            printUsage(argv[0]);
+            return 0;
+        }
+    }
+    
     if (argc < 2) {
         printUsage(argv[0]);
         return 1;

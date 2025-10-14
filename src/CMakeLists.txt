@@ -5,10 +5,12 @@ add_library(chtl_core STATIC
     CHTL/CHTLLexer/Token.cpp
     
     # Parser 语法分析器
-    # CHTL/CHTLParser/Parser.cpp
+    CHTL/CHTLParser/Parser.cpp
     
     # Node AST 节点
-    # CHTL/CHTLNode/BaseNode.cpp
+    CHTL/CHTLNode/BaseNode.cpp
+    CHTL/CHTLNode/ElementNode.cpp
+    CHTL/CHTLNode/TextNode.cpp
     
     # Context 上下文
     # CHTL/CHTLContext/Context.cpp
@@ -27,3 +29,10 @@ add_executable(chtl
 )
 
 target_link_libraries(chtl PRIVATE chtl_core)
+
+# Parser 演示程序
+add_executable(parser_demo
+    demo_parser.cpp
+)
+
+target_link_libraries(parser_demo PRIVATE chtl_core)

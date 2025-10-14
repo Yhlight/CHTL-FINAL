@@ -9,6 +9,7 @@ target_include_directories(catch2 INTERFACE ${PROJECT_SOURCE_DIR}/third-party)
 add_executable(chtl_tests
     test_main.cpp
     test_lexer.cpp
+    test_parser.cpp
 )
 
 target_link_libraries(chtl_tests PRIVATE 

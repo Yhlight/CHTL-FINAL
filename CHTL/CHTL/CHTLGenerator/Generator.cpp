@@ -15,15 +15,31 @@ namespace CHTL {
                 CollectStyleTemplates(stmt.get());
             }
         } else if (const auto templateDef = dynamic_cast<const TemplateDefinitionStatement*>(node)) {
-            style_templates[templateDef->Name->value] = templateDef;
+            if (templateDef->token.type == TokenType::AT_STYLE) {
+                style_templates[templateDef->Name->value] = templateDef;
+            }
+        }
+    }
+
+    void Generator::CollectElementTemplates(const Node* node) {
+        if (const auto program = dynamic_cast<const Program*>(node)) {
+            for (const auto& stmt : program->statements) {
+                CollectElementTemplates(stmt.get());
+            }
+        } else if (const auto templateDef = dynamic_cast<const TemplateDefinitionStatement*>(node)) {
+            if (templateDef->token.type == TokenType::AT_ELEMENT) {
+                element_templates[templateDef->Name->value] = templateDef;
+            }
         }
     }
 
     std::string Generator::Generate(const Program* program) {
         global_styles.clear();
         style_templates.clear();
+        element_templates.clear();
         CollectStyleRules(program, nullptr);
         CollectStyleTemplates(program);
+        CollectElementTemplates(program);
 
         DocumentMapBuilder docBuilder;
         ElementMap docMap = docBuilder.Build(program);
@@ -99,6 +115,14 @@ namespace CHTL {
     }
 
     std::string Generator::GenerateStatement(const Statement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap) {
+        if (const auto useTemplate = dynamic_cast<const UseTemplateStatement*>(stmt)) {
+            if (useTemplate->token.type == TokenType::AT_ELEMENT) {
+                if (element_templates.count(useTemplate->Name->value)) {
+                    const auto templateDef = element_templates.at(useTemplate->Name->value);
+                    return GenerateBlockStatement(templateDef->Body.get(), evaluator, context, docMap);
+                }
+            }
+        }
         if (const auto elementStmt = dynamic_cast<const ElementStatement*>(stmt)) {
             return GenerateElementStatement(elementStmt, evaluator, context, docMap);
         }

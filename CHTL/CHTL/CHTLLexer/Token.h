@@ -50,6 +50,7 @@ namespace CHTL {
 
         // Keywords
         AT_STYLE,       // @Style
+        AT_ELEMENT,     // @Element
         TEXT,
         STYLE,
         SCRIPT,

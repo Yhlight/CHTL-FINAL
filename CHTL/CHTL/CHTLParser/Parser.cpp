@@ -133,6 +133,9 @@ namespace CHTL {
         if (currentToken.type == TokenType::LBRACKET && peekToken.type == TokenType::IDENT && peekToken.literal == "Template") {
             return ParseTemplateDefinitionStatement();
         }
+        if (currentToken.type == TokenType::AT_ELEMENT) {
+            return ParseUseTemplateStatement();
+        }
         if (currentToken.type == TokenType::IDENT && peekToken.type == TokenType::COLON) {
             return ParseAttribute();
         }
@@ -200,37 +203,43 @@ namespace CHTL {
         NextToken(); // consume 'Template'
         NextToken(); // consume ']'
 
-        if (currentToken.type != TokenType::AT_STYLE) {
+        if (currentToken.type != TokenType::AT_STYLE && currentToken.type != TokenType::AT_ELEMENT) {
             // Error
             return nullptr;
         }
-        NextToken(); // consume '@Style'
+        Token typeToken = currentToken;
+        NextToken(); // consume '@Style' or '@Element'
 
         auto name = std::make_unique<Identifier>(currentToken, currentToken.literal);
-        auto templateStmt = std::make_unique<TemplateDefinitionStatement>(currentToken, std::move(name));
+        auto templateStmt = std::make_unique<TemplateDefinitionStatement>(typeToken, std::move(name));
 
         if (peekToken.type != TokenType::LBRACE) {
             PeekError(TokenType::LBRACE);
             return nullptr;
         }
         NextToken(); // consume name
-        NextToken(); // consume '{'
 
-        while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-            auto prop = ParseStyleProperty();
-            if (prop) {
-                templateStmt->Properties.push_back(std::move(prop));
+        if (typeToken.type == TokenType::AT_STYLE) {
+            NextToken(); // consume '{'
+            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                auto prop = ParseStyleProperty();
+                if (prop) {
+                    templateStmt->Properties.push_back(std::move(prop));
+                }
+                NextToken();
             }
-            NextToken();
+        } else { // AT_ELEMENT
+            templateStmt->Body = ParseBlockStatement();
         }
 
         return templateStmt;
     }
 
     std::unique_ptr<UseTemplateStatement> Parser::ParseUseTemplateStatement() {
-        NextToken(); // consume '@Style'
+        Token typeToken = currentToken;
+        NextToken(); // consume '@Style' or '@Element'
         auto name = std::make_unique<Identifier>(currentToken, currentToken.literal);
-        auto useStmt = std::make_unique<UseTemplateStatement>(currentToken, std::move(name));
+        auto useStmt = std::make_unique<UseTemplateStatement>(typeToken, std::move(name));
         if (peekToken.type == TokenType::SEMICOLON) {
             NextToken();
         }

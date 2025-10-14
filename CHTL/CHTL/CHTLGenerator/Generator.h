@@ -21,6 +21,7 @@ namespace CHTL {
 
     private:
         void CollectStyleTemplates(const Node* node);
+        void CollectElementTemplates(const Node* node);
         void CollectStyleRules(const Node* node, const ElementStatement* parent);
         std::string RenderGlobalStyles(Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap);
 
@@ -31,6 +32,7 @@ namespace CHTL {
 
         std::vector<std::pair<const StyleRule*, const ElementStatement*>> global_styles;
         std::map<std::string, const TemplateDefinitionStatement*> style_templates;
+        std::map<std::string, const TemplateDefinitionStatement*> element_templates;
     };
 
 } // namespace CHTL

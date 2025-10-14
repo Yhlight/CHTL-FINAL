@@ -5,16 +5,15 @@
 
 int main() {
     std::string input = R"(
-        [Template] @Style DefaultText {
-            color: "black";
-            font-size: 16px;
+        [Template] @Element MyComponent {
+            div {
+                class: "component";
+                text { "Hello from a template!" }
+            }
         }
 
-        div {
-            style {
-                @Style DefaultText;
-                background-color: red;
-            }
+        body {
+            @Element MyComponent;
         }
     )";
 

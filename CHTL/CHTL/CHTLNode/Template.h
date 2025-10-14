@@ -2,6 +2,7 @@
 
 #include "Node.h"
 #include "Expression.h"
+#include "Statement.h"
 #include <vector>
 #include <memory>
 #include <utility>
@@ -9,6 +10,7 @@
 namespace CHTL {
 
     class StyleProperty; // Forward declaration
+    class BlockStatement; // Forward declaration
 
     class TemplateDefinitionStatement : public Statement {
     public:
@@ -19,6 +21,7 @@ namespace CHTL {
 
         Token token; // The '[Template]' token
         std::unique_ptr<Identifier> Name;
+        std::unique_ptr<BlockStatement> Body;
         std::vector<std::unique_ptr<StyleProperty>> Properties;
     };
 
@@ -28,10 +31,13 @@ namespace CHTL {
             : token(std::move(token)), Name(std::move(name)) {}
 
         std::string ToString() const override {
-            return "@Style " + Name->ToString() + ";";
+            if (token.type == TokenType::AT_STYLE) {
+                return "@Style " + Name->ToString() + ";";
+            }
+            return "@Element " + Name->ToString() + ";";
         }
 
-        Token token; // The '@Style' token
+        Token token; // The '@Style' or '@Element' token
         std::unique_ptr<Identifier> Name;
     };
 

@@ -13,8 +13,9 @@ namespace CHTL
         END_OF_FILE, // 文件结束符
 
         // 标识符 + 字面量
-        IDENT, // 标识符: div, my_var
+        IDENT, // 标识符: div, my_var, px
         STRING, // "hello world"
+        NUMBER, // 123, 1.5
 
         // 关键字
         KEYWORD_TEXT,  // text

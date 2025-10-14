@@ -113,6 +113,17 @@ std::string Lexer::readString()
     return result;
 }
 
+// 读取一个完整的数字
+std::string Lexer::readNumber()
+{
+    size_t startPosition = m_position;
+    while (isdigit(m_char) || m_char == '.')
+    {
+        readChar();
+    }
+    return m_input.substr(startPosition, m_position - startPosition);
+}
+
 
 Token Lexer::NextToken()
 {
@@ -171,7 +182,13 @@ Token Lexer::NextToken()
             return tok; // 直接返回EOF
 
         default:
-            if (isLetter(m_char))
+            if (isdigit(m_char))
+            {
+                tok.type = TokenType::NUMBER;
+                tok.literal = readNumber();
+                return tok;
+            }
+            else if (isLetter(m_char))
             {
                 tok.literal = readIdentifier();
                 auto it = keywords.find(tok.literal);

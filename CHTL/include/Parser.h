@@ -24,6 +24,7 @@ namespace CHTL
         std::unique_ptr<AstNode> parseStatement();
         std::unique_ptr<ElementNode> parseElementNode();
         std::unique_ptr<TextNode> parseTextNode();
+        Attribute parseAttribute();
 
         Lexer& m_lexer;
         Token m_currentToken;

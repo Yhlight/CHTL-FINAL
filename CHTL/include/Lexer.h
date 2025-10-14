@@ -20,6 +20,7 @@ namespace CHTL
         void skipMultiLineComment();
         std::string readIdentifier();
         std::string readString();
+        std::string readNumber();
         static bool isLetter(char ch);
 
         std::string m_input;         // 输入的源代码

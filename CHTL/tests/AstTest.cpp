@@ -76,3 +76,44 @@ TEST_CASE("Parser correctly parses simple element and text nodes", "[parser]")
         REQUIRE(second_element->tag_name == "span");
     }
 }
+
+TEST_CASE("Parser correctly parses attributes", "[parser]")
+{
+    SECTION("Parses various attribute types")
+    {
+        std::string input = R"(
+            div {
+                id: box;
+                class = "container";
+                width: 100;
+                height = 25.5;
+            }
+        )";
+
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+        REQUIRE(program != nullptr);
+        REQUIRE(program->children.size() == 1);
+
+        auto* el = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+        REQUIRE(el != nullptr);
+        REQUIRE(el->tag_name == "div");
+        REQUIRE(el->attributes.size() == 4);
+
+        // Check attributes
+        REQUIRE(el->attributes[0].name == "id");
+        REQUIRE(el->attributes[0].value == "box");
+
+        REQUIRE(el->attributes[1].name == "class");
+        REQUIRE(el->attributes[1].value == "container");
+
+        REQUIRE(el->attributes[2].name == "width");
+        REQUIRE(el->attributes[2].value == "100");
+
+        REQUIRE(el->attributes[3].name == "height");
+        REQUIRE(el->attributes[3].value == "25.5");
+    }
+}

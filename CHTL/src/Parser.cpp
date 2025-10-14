@@ -65,7 +65,7 @@ namespace CHTL
         return nullptr;
     }
 
-    // 解析元素节点: e.g., div { ... }
+    // 解析元素节点: e.g., div { id: box; ... }
     std::unique_ptr<ElementNode> Parser::parseElementNode()
     {
         auto node = std::make_unique<ElementNode>();
@@ -78,13 +78,21 @@ namespace CHTL
 
         nextToken();
 
-        // 解析子节点
+        // 解析属性和子节点
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            auto stmt = parseStatement();
-            if (stmt)
+            // 判断是属性还是子元素
+            if (m_currentToken.type == TokenType::IDENT && (m_peekToken.type == TokenType::COLON || m_peekToken.type == TokenType::ASSIGN))
             {
-                node->children.push_back(std::move(stmt));
+                node->attributes.push_back(parseAttribute());
+            }
+            else // 否则就是子元素
+            {
+                auto stmt = parseStatement();
+                if (stmt)
+                {
+                    node->children.push_back(std::move(stmt));
+                }
             }
             nextToken();
         }
@@ -124,6 +132,38 @@ namespace CHTL
         }
 
         return node;
+    }
+
+    // 解析属性: e.g., id: "box"; or class = container;
+    Attribute Parser::parseAttribute()
+    {
+        Attribute attr;
+        attr.name = m_currentToken.literal;
+
+        // 跳过 ':' or '='
+        nextToken();
+
+        nextToken(); // 前进到值Token
+
+        // 值的类型可以是 STRING, IDENT (无引号), or NUMBER
+        if (m_currentToken.type == TokenType::STRING ||
+            m_currentToken.type == TokenType::IDENT ||
+            m_currentToken.type == TokenType::NUMBER)
+        {
+            attr.value = m_currentToken.literal;
+        }
+        else
+        {
+            m_errors.push_back("Invalid attribute value token: " + m_currentToken.ToString());
+        }
+
+        // 处理可选的分号
+        if (m_peekToken.type == TokenType::SEMICOLON)
+        {
+            nextToken();
+        }
+
+        return attr;
     }
 
 } // namespace CHTL

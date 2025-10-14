@@ -16,6 +16,7 @@ namespace CHTL
             case TokenType::END_OF_FILE:  return "EOF";
             case TokenType::IDENT:        return "IDENT";
             case TokenType::STRING:       return "STRING";
+            case TokenType::NUMBER:       return "NUMBER";
             case TokenType::KEYWORD_TEXT: return "TEXT";
             case TokenType::KEYWORD_STYLE:return "STYLE";
             case TokenType::ASSIGN:       return "=";

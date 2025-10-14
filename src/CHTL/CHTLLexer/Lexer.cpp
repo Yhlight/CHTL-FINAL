@@ -110,26 +110,25 @@ void Lexer::skipBlockComment() {
 Token Lexer::scanGeneratorComment() {
     SourceLocation loc = getCurrentLocation();
     
-    // 跳过 #
-    advance();
-    
-    // 检查是否有空格（生成器注释必须是 # + 空格）
-    if (peek() != ' ') {
-        // 如果不是空格，这只是一个普通的 # 符号
+    // 先检查是否是生成器注释（# + 空格）
+    if (peek() == '#' && peekNext() == ' ') {
+        // 这是生成器注释
+        advance(); // 跳过 #
+        advance(); // 跳过空格
+        
+        // 读取注释内容直到行尾
+        size_t start = current_;
+        while (peek() != '\n' && !isAtEnd()) {
+            advance();
+        }
+        
+        std::string comment = "# " + source_.substr(start, current_ - start);
+        return Token(TokenType::COMMENT_GENERATOR, comment, loc);
+    } else {
+        // 只是普通的 # 符号
+        advance();
         return Token(TokenType::HASH, "#", loc);
     }
-    
-    // 跳过空格
-    advance();
-    
-    // 读取注释内容直到行尾
-    size_t start = current_;
-    while (peek() != '\n' && !isAtEnd()) {
-        advance();
-    }
-    
-    std::string comment = "# " + source_.substr(start, current_ - start);
-    return Token(TokenType::COMMENT_GENERATOR, comment, loc);
 }
 
 Token Lexer::scanToken() {
@@ -227,7 +226,7 @@ Token Lexer::scanToken() {
         case '+': return Token(TokenType::PLUS, "+", loc);
         case '%': return Token(TokenType::PERCENT, "%", loc);
         case '#':
-            // 可能是生成器注释
+            // 可能是生成器注释，回退一个字符让scanGeneratorComment重新处理
             current_--;
             column_--;
             return scanGeneratorComment();

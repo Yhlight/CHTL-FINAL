@@ -12,6 +12,7 @@ namespace CHTL {
 
     class Evaluator; // Forward declaration
     class Object;    // Forward declaration
+    class TemplateDefinitionStatement; // Forward declaration
     using ElementMap = std::map<std::string, const ElementStatement*>;
 
     class Generator {
@@ -19,6 +20,7 @@ namespace CHTL {
         std::string Generate(const Program* program);
 
     private:
+        void CollectStyleTemplates(const Node* node);
         void CollectStyleRules(const Node* node, const ElementStatement* parent);
         std::string RenderGlobalStyles(Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap);
 
@@ -28,6 +30,7 @@ namespace CHTL {
         std::string GenerateBlockStatement(const BlockStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap);
 
         std::vector<std::pair<const StyleRule*, const ElementStatement*>> global_styles;
+        std::map<std::string, const TemplateDefinitionStatement*> style_templates;
     };
 
 } // namespace CHTL

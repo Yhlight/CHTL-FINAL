@@ -1,6 +1,7 @@
 #include "Evaluator.h"
 #include "../CHTLNode/Expression.h"
 #include "../CHTLNode/Style.h"
+#include "../CHTLNode/Template.h"
 #include <cmath>
 
 namespace CHTL {
@@ -118,9 +119,8 @@ namespace CHTL {
 
     std::unique_ptr<Object> Evaluator::EvalIdentifier(const Identifier* node, std::map<std::string, std::unique_ptr<Object>>& context) {
         if (context.count(node->value)) {
-            // This is a simplified implementation. We should be returning a copy.
-            Object* obj = context[node->value].get();
-             return std::make_unique<Object>(Object{obj->Type, obj->Value, obj->Unit, obj->BoolValue, obj->StringValue});
+            const auto& obj = context.at(node->value);
+            return std::make_unique<Object>(*obj);
         }
         return nullptr;
     }

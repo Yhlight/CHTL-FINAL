@@ -8,6 +8,8 @@
 
 namespace CHTL {
 
+    class UseTemplateStatement; // Forward declaration
+
     class StyleProperty : public Node {
     public:
         StyleProperty(Token token, std::unique_ptr<Identifier> key, std::unique_ptr<Expression> value)
@@ -51,19 +53,10 @@ namespace CHTL {
     public:
         StyleStatement(Token token) : token(std::move(token)) {}
 
-        std::string ToString() const override {
-            std::string out = "style {";
-            for (const auto& prop : Properties) {
-                out += " " + prop->ToString();
-            }
-            for (const auto& rule : Rules) {
-                out += " " + rule->ToString();
-            }
-            out += " }";
-            return out;
-        }
+        std::string ToString() const override;
 
         Token token; // The 'style' token
+        std::vector<std::unique_ptr<UseTemplateStatement>> Uses;
         std::vector<std::unique_ptr<StyleProperty>> Properties;
         std::vector<std::unique_ptr<StyleRule>> Rules;
     };

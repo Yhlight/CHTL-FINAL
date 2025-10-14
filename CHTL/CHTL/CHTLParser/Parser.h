@@ -5,6 +5,7 @@
 #include "../CHTLNode/Statement.h"
 #include "../CHTLNode/Expression.h"
 #include "../CHTLNode/Style.h"
+#include "../CHTLNode/Template.h"
 #include <vector>
 #include <string>
 #include <map>
@@ -58,6 +59,9 @@ namespace CHTL {
         std::unique_ptr<StyleRule> ParseStyleRule();
         std::unique_ptr<StyleProperty> ParseStyleProperty();
         std::unique_ptr<TextStatement> ParseTextStatement();
+
+        std::unique_ptr<TemplateDefinitionStatement> ParseTemplateDefinitionStatement();
+        std::unique_ptr<UseTemplateStatement> ParseUseTemplateStatement();
 
         std::unique_ptr<Expression> ParseExpression(Precedence precedence);
         std::unique_ptr<Expression> ParseIdentifier();

@@ -2,15 +2,28 @@
 #include "../CHTLNode/Statement.h"
 #include "../CHTLNode/Expression.h"
 #include "../CHTLNode/Style.h"
+#include "../CHTLNode/Template.h"
 #include "../CHTLEvaluator/Evaluator.h"
 #include "../CHTLAnalyzer/DocumentMap.h"
 #include <memory>
 
 namespace CHTL {
 
+    void Generator::CollectStyleTemplates(const Node* node) {
+        if (const auto program = dynamic_cast<const Program*>(node)) {
+            for (const auto& stmt : program->statements) {
+                CollectStyleTemplates(stmt.get());
+            }
+        } else if (const auto templateDef = dynamic_cast<const TemplateDefinitionStatement*>(node)) {
+            style_templates[templateDef->Name->value] = templateDef;
+        }
+    }
+
     std::string Generator::Generate(const Program* program) {
         global_styles.clear();
+        style_templates.clear();
         CollectStyleRules(program, nullptr);
+        CollectStyleTemplates(program);
 
         DocumentMapBuilder docBuilder;
         ElementMap docMap = docBuilder.Build(program);
@@ -92,7 +105,7 @@ namespace CHTL {
         if (const auto textStmt = dynamic_cast<const TextStatement*>(stmt)) {
             return GenerateTextStatement(textStmt);
         }
-        // StyleStatements are handled in the two-pass process and don't produce direct output here
+        // StyleStatements and TemplateDefinitionStatements are handled in the pre-passes
         return "";
     }
 
@@ -154,6 +167,24 @@ namespace CHTL {
         std::string style_string;
         for (const auto& child_stmt : stmt->Body->statements) {
             if (const auto styleStmt = dynamic_cast<const StyleStatement*>(child_stmt.get())) {
+                for (const auto& use : styleStmt->Uses) {
+                    if (style_templates.count(use->Name->value)) {
+                        const auto templateDef = style_templates.at(use->Name->value);
+                        for (const auto& prop : templateDef->Properties) {
+                            auto evaluated = evaluator.Eval(prop->Value.get(), context, docMap);
+                            if (evaluated) {
+                                if (evaluated->Type == ObjectType::STRING) {
+                                    style_string += " " + prop->Key->value + ": " + evaluated->StringValue + ";";
+                                } else {
+                                    std::string value_str = std::to_string(evaluated->Value);
+                                    value_str.erase(value_str.find_last_not_of('0') + 1, std::string::npos);
+                                    if (value_str.back() == '.') value_str.pop_back();
+                                    style_string += " " + prop->Key->value + ": " + value_str + evaluated->Unit + ";";
+                                }
+                            }
+                        }
+                    }
+                }
                  for (const auto& prop : styleStmt->Properties) {
                     auto evaluated = evaluator.Eval(prop->Value.get(), context, docMap);
                     if (evaluated) {

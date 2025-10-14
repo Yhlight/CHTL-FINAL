@@ -5,10 +5,15 @@
 
 int main() {
     std::string input = R"(
+        [Template] @Style DefaultText {
+            color: "black";
+            font-size: 16px;
+        }
+
         div {
             style {
-                width: 100px;
-                background-color: width > 50px ? "red" : "blue";
+                @Style DefaultText;
+                background-color: red;
             }
         }
     )";

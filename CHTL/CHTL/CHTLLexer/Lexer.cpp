@@ -6,6 +6,7 @@ namespace CHTL {
 
     namespace {
         const std::unordered_map<std::string, TokenType> keywords = {
+            {"@Style", TokenType::AT_STYLE},
             {"text", TokenType::TEXT},
             {"style", TokenType::STYLE},
             {"script", TokenType::SCRIPT},

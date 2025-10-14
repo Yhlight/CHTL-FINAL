@@ -27,7 +27,7 @@ add_executable(AstTest
 )
 
 # Link the AstTest executable against the parser and lexer libraries
-target_link_libraries(AstTest CHTLGenerator CHTLParser CHTLLexer)
+target_link_libraries(AstTest CHTLGenerator CHTLParser CHTLLexer CHTLEvaluator CHTLAnalyzer CHTLNode)
 
 # Define the generator library
 add_library(CHTLGenerator STATIC
@@ -44,10 +44,16 @@ add_library(CHTLAnalyzer STATIC
     CHTL/CHTLAnalyzer/DocumentMap.cpp
 )
 
+# Define the Node library
+add_library(CHTLNode STATIC
+    CHTL/CHTLNode/Style.cpp
+    CHTL/CHTLNode/Template.cpp
+)
+
 # Define the GeneratorTest executable
 add_executable(GeneratorTest
     Test/GeneratorTest/main.cpp
 )
 
 # Link the GeneratorTest executable against the generator, parser, and lexer libraries
-target_link_libraries(GeneratorTest CHTLGenerator CHTLParser CHTLLexer CHTLEvaluator CHTLAnalyzer)
+target_link_libraries(GeneratorTest CHTLGenerator CHTLParser CHTLLexer CHTLEvaluator CHTLAnalyzer CHTLNode)

@@ -130,6 +130,9 @@ namespace CHTL {
     }
 
     std::unique_ptr<Statement> Parser::ParseStatement() {
+        if (currentToken.type == TokenType::LBRACKET && peekToken.type == TokenType::IDENT && peekToken.literal == "Template") {
+            return ParseTemplateDefinitionStatement();
+        }
         if (currentToken.type == TokenType::IDENT && peekToken.type == TokenType::COLON) {
             return ParseAttribute();
         }
@@ -192,6 +195,48 @@ namespace CHTL {
         return leftExp;
     }
 
+    std::unique_ptr<TemplateDefinitionStatement> Parser::ParseTemplateDefinitionStatement() {
+        NextToken(); // consume '['
+        NextToken(); // consume 'Template'
+        NextToken(); // consume ']'
+
+        if (currentToken.type != TokenType::AT_STYLE) {
+            // Error
+            return nullptr;
+        }
+        NextToken(); // consume '@Style'
+
+        auto name = std::make_unique<Identifier>(currentToken, currentToken.literal);
+        auto templateStmt = std::make_unique<TemplateDefinitionStatement>(currentToken, std::move(name));
+
+        if (peekToken.type != TokenType::LBRACE) {
+            PeekError(TokenType::LBRACE);
+            return nullptr;
+        }
+        NextToken(); // consume name
+        NextToken(); // consume '{'
+
+        while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+            auto prop = ParseStyleProperty();
+            if (prop) {
+                templateStmt->Properties.push_back(std::move(prop));
+            }
+            NextToken();
+        }
+
+        return templateStmt;
+    }
+
+    std::unique_ptr<UseTemplateStatement> Parser::ParseUseTemplateStatement() {
+        NextToken(); // consume '@Style'
+        auto name = std::make_unique<Identifier>(currentToken, currentToken.literal);
+        auto useStmt = std::make_unique<UseTemplateStatement>(currentToken, std::move(name));
+        if (peekToken.type == TokenType::SEMICOLON) {
+            NextToken();
+        }
+        return useStmt;
+    }
+
     std::unique_ptr<StyleStatement> Parser::ParseStyleStatement() {
         auto styleStmt = std::make_unique<StyleStatement>(currentToken);
         if (peekToken.type != TokenType::LBRACE) {
@@ -202,7 +247,12 @@ namespace CHTL {
         NextToken(); // consume '{'
 
         while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-            if (currentToken.type == TokenType::DOT || currentToken.type == TokenType::HASH) {
+            if (currentToken.type == TokenType::AT_STYLE) {
+                auto useStmt = ParseUseTemplateStatement();
+                if (useStmt) {
+                    styleStmt->Uses.push_back(std::move(useStmt));
+                }
+            } else if (currentToken.type == TokenType::DOT || currentToken.type == TokenType::HASH || currentToken.type == TokenType::AMPERSAND) {
                 auto rule = ParseStyleRule();
                 if (rule) {
                     styleStmt->Rules.push_back(std::move(rule));

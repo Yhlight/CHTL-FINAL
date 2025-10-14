@@ -49,6 +49,7 @@ namespace CHTL {
         OR,             // ||
 
         // Keywords
+        AT_STYLE,       // @Style
         TEXT,
         STYLE,
         SCRIPT,

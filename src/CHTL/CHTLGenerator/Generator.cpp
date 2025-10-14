@@ -45,6 +45,12 @@ void Generator::visit(TextNode& node) {
     }
 }
 
+void Generator::visit(StyleNode& /* node */) {
+    // StyleNode 不直接输出内容
+    // 它的内容会被 ElementNode 收集并生成为 style 属性
+    // 这里暂时不做处理
+}
+
 void Generator::reset() {
     output_.str("");
     output_.clear();

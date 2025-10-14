@@ -3,6 +3,7 @@
 #include "CHTL/CHTLNode/BaseNode.h"
 #include "CHTL/CHTLNode/ElementNode.h"
 #include "CHTL/CHTLNode/TextNode.h"
+#include "CHTL/CHTLNode/StyleNode.h"
 #include "CHTL/CHTLNode/NodeVisitor.h"
 #include <string>
 #include <sstream>
@@ -30,6 +31,7 @@ public:
     // 访问者模式实现
     void visit(ElementNode& node) override;
     void visit(TextNode& node) override;
+    void visit(StyleNode& node) override;
     
     // 获取生成的 HTML
     std::string getOutput() const { return output_.str(); }

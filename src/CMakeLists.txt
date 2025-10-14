@@ -11,6 +11,7 @@ add_library(chtl_core STATIC
     CHTL/CHTLNode/BaseNode.cpp
     CHTL/CHTLNode/ElementNode.cpp
     CHTL/CHTLNode/TextNode.cpp
+    CHTL/CHTLNode/StyleNode.cpp
     
     # Context 上下文
     # CHTL/CHTLContext/Context.cpp

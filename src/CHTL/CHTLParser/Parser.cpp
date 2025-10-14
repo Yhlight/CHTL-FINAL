@@ -1,11 +1,14 @@
 #include "Parser.h"
+#include "CHTL/CHTLCommon/CompilerError.h"
+#include "CHTL/CHTLCommon/CompilerConfig.h"
 #include <sstream>
 
 namespace CHTL {
 
 Parser::Parser(std::vector<Token> tokens)
     : tokens_(std::move(tokens))
-    , current_(0) {}
+    , current_(0)
+    , currentDepth_(0) {}
 
 std::vector<NodePtr> Parser::parse() {
     std::vector<NodePtr> statements;
@@ -90,6 +93,16 @@ NodePtr Parser::parseStatement() {
 }
 
 NodePtr Parser::parseElement() {
+    // 增加嵌套深度
+    currentDepth_++;
+    if (currentDepth_ > CompilerConfig::MAX_NESTING_DEPTH) {
+        throw ResourceLimitError(
+            "元素嵌套深度超限",
+            "当前深度: " + std::to_string(currentDepth_) + 
+            ", 最大深度: " + std::to_string(CompilerConfig::MAX_NESTING_DEPTH)
+        );
+    }
+    
     // 获取元素名称（标签名）
     Token tagToken = consume(TokenType::IDENTIFIER, "期望元素名称");
     
@@ -153,6 +166,17 @@ NodePtr Parser::parseElement() {
     }
     
     consume(TokenType::RIGHT_BRACE, "期望 '}'");
+    
+    // 检查子节点数量
+    if (element->getChildCount() > CompilerConfig::MAX_CHILDREN) {
+        throw ResourceLimitError(
+            "子节点数量超限",
+            "节点 " + element->getTagName() + " 有 " + std::to_string(element->getChildCount()) + " 个子节点"
+        );
+    }
+    
+    // 减少嵌套深度
+    currentDepth_--;
     
     return element;
 }

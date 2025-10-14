@@ -1,31 +1,17 @@
 #pragma once
 
-#include "CHTL/CHTLLexer/Lexer.h"
 #include "CHTL/CHTLLexer/Token.h"
 #include "CHTL/CHTLNode/BaseNode.h"
 #include "CHTL/CHTLNode/ElementNode.h"
 #include "CHTL/CHTLNode/TextNode.h"
+#include "CHTL/CHTLCommon/CompilerConfig.h"
+#include "CHTL/CHTLCommon/CompilerError.h"
+#include "CHTL/CHTLCommon/Validation.h"
 #include <vector>
 #include <memory>
 #include <stdexcept>
 
 namespace CHTL {
-
-// 解析错误异常
-class ParseError : public std::runtime_error {
-public:
-    ParseError(const std::string& message, size_t line, size_t column)
-        : std::runtime_error(message)
-        , line_(line)
-        , column_(column) {}
-    
-    size_t getLine() const { return line_; }
-    size_t getColumn() const { return column_; }
-
-private:
-    size_t line_;
-    size_t column_;
-};
 
 // 语法分析器
 class Parser {
@@ -42,6 +28,7 @@ public:
 private:
     std::vector<Token> tokens_;
     size_t current_;
+    size_t currentDepth_;  // 当前嵌套深度
     std::vector<std::string> errors_;
     
     // Token 操作

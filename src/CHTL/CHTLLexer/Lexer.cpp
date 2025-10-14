@@ -1,4 +1,6 @@
 #include "Lexer.h"
+#include "CHTL/CHTLCommon/CompilerError.h"
+#include "CHTL/CHTLCommon/CompilerConfig.h"
 #include <cctype>
 
 namespace CHTL {
@@ -152,14 +154,35 @@ Token Lexer::makeToken(TokenType type, std::string value) {
 
 Token Lexer::scanStringLiteral(char quote) {
     std::string value;
+    value.reserve(CompilerConfig::STRING_RESERVE_SIZE);
     size_t startLine = line_;
     size_t startColumn = column_;
     
     while (!isAtEnd() && peek() != quote) {
+        // 检查字符串长度限制
+        if (value.length() >= CompilerConfig::MAX_LINE_LENGTH) {
+            throw LexerError(
+                "字符串字面量过长",
+                line_,
+                startColumn,
+                "字符串超过最大长度限制 " + std::to_string(CompilerConfig::MAX_LINE_LENGTH)
+            );
+        }
+        
         if (peek() == '\\') {
             advance(); // 跳过反斜杠
             if (!isAtEnd()) {
-                value += advance();
+                char escaped = advance();
+                // 处理转义字符
+                switch (escaped) {
+                    case 'n': value += '\n'; break;
+                    case 't': value += '\t'; break;
+                    case 'r': value += '\r'; break;
+                    case '\\': value += '\\'; break;
+                    case '"': value += '"'; break;
+                    case '\'': value += '\''; break;
+                    default: value += escaped; break;
+                }
             }
         } else {
             value += advance();
@@ -167,8 +190,13 @@ Token Lexer::scanStringLiteral(char quote) {
     }
     
     if (isAtEnd()) {
-        // 未闭合的字符串
-        return Token(TokenType::UNKNOWN, value, startLine, startColumn);
+        // 未闭合的字符串 - 抛出异常
+        throw LexerError(
+            "未闭合的字符串字面量",
+            startLine,
+            startColumn,
+            "字符串缺少结束引号 " + std::string(1, quote)
+        );
     }
     
     advance(); // 消费结束引号

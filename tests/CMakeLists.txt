@@ -10,6 +10,7 @@ add_executable(chtl_tests
     test_main.cpp
     test_lexer.cpp
     test_parser.cpp
+    test_generator.cpp
 )
 
 target_link_libraries(chtl_tests PRIVATE 

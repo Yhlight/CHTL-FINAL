@@ -137,13 +137,15 @@ NodePtr Parser::parseElement() {
         
         // 解析子元素或特殊块
         if (match(TokenType::KEYWORD_TEXT)) {
-            element->addChild(parseTextBlock());
+            auto child = parseTextBlock();
+            if (child) element->addChild(std::move(child));
         } else if (match(TokenType::KEYWORD_STYLE)) {
-            element->addChild(parseStyleBlock());
+            parseStyleBlock(); // 暂时跳过，不添加到子节点
         } else if (match(TokenType::KEYWORD_SCRIPT)) {
-            element->addChild(parseScriptBlock());
+            parseScriptBlock(); // 暂时跳过，不添加到子节点
         } else if (isElementStart()) {
-            element->addChild(parseElement());
+            auto child = parseElement();
+            if (child) element->addChild(std::move(child));
         } else {
             // 跳过未知 token
             advance();

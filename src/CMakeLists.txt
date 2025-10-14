@@ -16,7 +16,7 @@ add_library(chtl_core STATIC
     # CHTL/CHTLContext/Context.cpp
     
     # Generator 生成器
-    # CHTL/CHTLGenerator/Generator.cpp
+    CHTL/CHTLGenerator/Generator.cpp
 )
 
 target_include_directories(chtl_core PUBLIC

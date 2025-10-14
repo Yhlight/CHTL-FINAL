@@ -168,6 +168,8 @@ def main():
     parser.add_argument("--build", action="store_true", help="构建项目")
     parser.add_argument("--test", action="store_true", help="运行测试")
     parser.add_argument("--run", metavar="FILE", help="运行 CHTL 编译器")
+    parser.add_argument("--compile", metavar="FILE", help="编译 CHTL 文件并输出 HTML")
+    parser.add_argument("--output", metavar="FILE", help="指定输出文件（配合 --compile 使用）")
     parser.add_argument("--list", action="store_true", help="列出所有生成的二进制文件")
     parser.add_argument("--build-type", default="Debug", 
                        choices=["Debug", "Release"], 
@@ -217,6 +219,13 @@ def main():
     
     if args.run and success:
         if not builder.run(args.run):
+            success = False
+    
+    if args.compile and success:
+        extra_args = []
+        if args.output:
+            extra_args.extend(["--output", args.output])
+        if not builder.run(args.compile, extra_args):
             success = False
     
     if args.list:

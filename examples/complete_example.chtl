@@ -1,0 +1,52 @@
+// 完整的 CHTL 示例 - 展示编译器的完整功能
+
+html {
+    head {
+        title: "CHTL 完整示例";
+    }
+    
+    body {
+        id: "main";
+        class: "container";
+        
+        div {
+            class: "header";
+            
+            text {
+                "欢迎使用 CHTL 编译器"
+            }
+        }
+        
+        div {
+            class: "content";
+            
+            div {
+                class: "section";
+                
+                text {
+                    "这是第一个段落"
+                }
+                
+                span {
+                    text: "内联文本";
+                }
+            }
+            
+            div {
+                class: "section";
+                
+                text {
+                    "这是第二个段落"
+                }
+            }
+        }
+        
+        div {
+            class: "footer";
+            
+            span {
+                text: "版权所有 © 2025 CHTL";
+            }
+        }
+    }
+}

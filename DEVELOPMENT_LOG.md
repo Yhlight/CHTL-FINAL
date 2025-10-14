@@ -245,34 +245,120 @@ All tests passed (181 assertions in 17 test cases)
 
 ---
 
-## 下一步计划
+## Step 4: 代码生成器 (Generator)
 
-### Step 4: 代码生成器 (Generator)
+**日期**: 2025-10-14  
+**状态**: ✅ 完成
 
-**目标**: 从 AST 生成 HTML 输出
+### 成果
 
-#### 计划功能
-1. **HTML Generator**
+1. **HTML 代码生成器**
    - 从 AST 生成 HTML
-   - 属性处理
-   - 文本内容输出
-   - 格式化输出
+   - 属性处理和 HTML 转义
+   - 文本内容生成
+   - 格式化和紧凑两种模式
+   - 自闭合标签支持
+   - DOCTYPE 选项
 
-2. **样式处理**
-   - 内联样式支持
-   - style 块处理
-   - CSS 生成
+2. **访问者模式实现**
+   - `Generator` 继承 `NodeVisitor`
+   - `visit(ElementNode&)` - 元素生成
+   - `visit(TextNode&)` - 文本生成
 
 3. **完整编译流程**
    - Lexer → Parser → Generator
-   - 文件输出
-   - 错误报告
+   - 文件输入输出
+   - 多种命令行选项
+   - 完整的错误处理
 
-#### TDD 计划
-1. 编写 Generator 测试
-2. 实现基础 HTML 生成
-3. 添加样式支持
-4. 完整集成测试
+4. **TDD 测试**
+   - 测试用例：17 → **25** (+8)
+   - 断言数量：181 → **221** (+40)
+   - Generator 专项测试：8 个
+   - 通过率：**100%**
+
+### 关键文件
+
+- `src/CHTL/CHTLGenerator/*` - Generator 实现（2 个文件）
+- `tests/test_generator.cpp` - Generator 测试
+- `src/main.cpp` - 完善的主程序
+- `examples/showcase.chtl` - 功能展示示例
+- `showcase.html` - 生成的 HTML 示例
+- `STEP4_SUMMARY.md` - 详细总结
+
+### 技术亮点
+
+**设计模式**:
+- 访问者模式 - 代码生成
+- 配置对象 - 生成选项
+- RAII - 资源管理
+
+**功能特性**:
+- HTML 转义 (`<` → `&lt;`)
+- 自闭合标签识别
+- 格式化输出（缩进、换行）
+- 紧凑模式支持
+
+### 编译器完整性
+
+✅ **词法分析** - 100% 完成  
+✅ **语法分析** - 100% 完成  
+✅ **代码生成** - 100% 完成  
+✅ **端到端编译** - 100% 完成  
+
+### 使用示例
+
+```bash
+# 基本编译
+./build/bin/chtl input.chtl --output output.html
+
+# 带 DOCTYPE
+./build/bin/chtl input.chtl --doctype --output output.html
+
+# 紧凑模式
+./build/bin/chtl input.chtl --compact
+
+# 查看 Tokens
+./build/bin/chtl input.chtl --tokens
+
+# 查看 AST
+./build/bin/chtl input.chtl --ast
+```
+
+---
+
+## 下一步计划
+
+### Step 5: 高级功能实现
+
+**目标**: 实现 CHTL 的高级特性
+
+#### 优先级 P0（核心功能）
+1. **样式处理**
+   - 内联样式生成
+   - 局部 style 块解析
+   - CSS 属性提取
+
+2. **CSS 生成**
+   - 从 style 块生成 CSS
+   - 类选择器支持
+   - 全局样式块
+
+#### 优先级 P1（重要功能）
+1. **模板系统**
+   - [Template] 语法块解析
+   - 样式组模板
+   - 元素模板
+
+2. **属性增强**
+   - 属性运算 (`width: 100px + 50px`)
+   - 属性条件表达式
+
+#### 优先级 P2（扩展功能）
+1. **高级语法**
+   - [Custom] 语法块
+   - [Import] 导入系统
+   - 命名空间
 
 ---
 

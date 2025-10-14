@@ -8,6 +8,7 @@
 #include "CHTL/CHTLCommon/CompilerConfig.h"
 #include "CHTL/CHTLCommon/CompilerError.h"
 #include "CHTL/CHTLCommon/Validation.h"
+#include "CHTL/CHTLParser/CSSExpression.h"
 #include <vector>
 #include <memory>
 #include <stdexcept>

@@ -403,30 +403,98 @@ div {
 
 ---
 
-## 下一步计划
+## Step 5.2: 属性运算实现
 
-### Step 5.2: 属性运算
+**日期**: 2025-10-14  
+**状态**: ✅ 完成  
+**规范依据**: CHTL.md 第 175-202 行
 
-**目标**: 实现 CHTL.md 第 175-202 行
+### 成果
 
-**计划功能**:
-```chtl
-div {
-    style {
-        width: 100px + 50px;     // 150px
-        height: 200px * 2;       // 400px
-        margin: 100px / 4;       // 25px
-    }
+1. **CSSValue 类**
+   - 表示带单位的 CSS 值
+   - 完整的算术运算符重载（+ - * / % **）
+   - 单位合并和验证逻辑
+   - 左结合规则实现
+   - 智能数值格式化
+
+2. **CSSExpression 解析器**
+   - 递归下降解析
+   - 运算符优先级处理
+   - 括号表达式支持
+   - 一元运算符
+   - 完整错误处理
+
+3. **集成到 Parser**
+   - 自动检测表达式
+   - 自动求值并存储结果
+   - 与普通属性值共存
+
+4. **TDD 测试**
+   - 测试用例：39 → **51** (+12)
+   - 断言数量：303 → **349** (+46)
+   - 通过率：**100%**
+
+### 关键文件
+
+- `src/CHTL/CHTLCommon/CSSValue.h` - CSS值类
+- `src/CHTL/CHTLParser/CSSExpression.h` - 表达式解析器
+- `tests/test_expression.cpp` - 表达式测试（12个用例）
+- `STEP5_2_PLAN.md` - 实现计划
+- `STEP5_2_SUMMARY.md` - 详细总结
+
+### 技术亮点
+
+**递归下降解析**:
+```
+expression → term (('+' | '-') term)*
+term       → factor (('*' | '/' | '%') factor)*
+factor     → unary ('**' unary)?
+unary      → ('-' | '+')? primary
+primary    → NUMBER UNIT? | '(' expression ')'
+```
+
+**运算符重载**:
+```cpp
+CSSValue operator+(const CSSValue& other) const {
+    if (!canMergeWith(other, '+')) throw ...;
+    return CSSValue(value_ + other.value_, unit_);
 }
 ```
 
-**实现要点**:
-- CSS 表达式解析器
-- 单位合并和验证
-- 运算符优先级
-- 括号支持
+**智能格式化**:
+- `100.0000px` → `100px`（去除尾随零）
+- `100.5000px` → `100.5px`
+
+### 功能示例
+
+```chtl
+// 输入
+div {
+    style {
+        width: 100px + 50px;           // 150px
+        height: 200px * 2;             // 400px
+        margin: (100px + 50px) / 3;    // 50px
+    }
+}
+
+// 输出
+<div style="height: 400px; margin: 50px; width: 150px" />
+```
+
+### 规范符合度
+
+**已实现**（8/20+ 章节）:
+- ✅ 注释、文本、字面量、CE对等式
+- ✅ 元素、属性
+- ✅ 内联样式
+- ✅ **属性运算** ← 新增
+
+**进度**: 85%
 
 ---
+
+## 下一步计划
 
 ### Step 5.3: 引用属性
 

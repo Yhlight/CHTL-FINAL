@@ -221,48 +221,62 @@ NodePtr Parser::parseStyleBlock() {
             if (check(TokenType::COLON) || check(TokenType::EQUALS)) {
                 advance(); // 消费 : 或 =
                 
-                // 收集属性值（直到遇到分号或右花括号）
-                std::string propertyValue;
-                TokenType lastTokenType = TokenType::UNKNOWN;
-                
-                while (!check(TokenType::SEMICOLON) && 
-                       !check(TokenType::RIGHT_BRACE) && 
-                       !isAtEnd()) {
-                    Token valueToken = advance();
+                // 检查是否是表达式（包含运算符）
+                if (CSSExpression::isExpression(tokens_, current_)) {
+                    // 解析并求值表达式
+                    try {
+                        CSSValue result = CSSExpression::evaluate(tokens_, current_);
+                        
+                        // 消费分号（如果存在）
+                        match(TokenType::SEMICOLON);
+                        
+                        // 添加求值后的属性
+                        styleNode->addProperty(propertyName, result.toString());
+                    } catch (const std::exception& e) {
+                        // 表达式求值失败，抛出错误
+                        throw ParseError(std::string("CSS 表达式求值失败: ") + e.what(), 
+                                         tokens_[current_].line, tokens_[current_].column);
+                    }
+                } else {
+                    // 不是表达式，按原来的方式收集属性值
+                    std::string propertyValue;
+                    TokenType lastTokenType = TokenType::UNKNOWN;
                     
-                    // 判断是否需要添加空格
-                    // 数字后跟标识符（如 100px）不需要空格
-                    // 数字后跟百分号（如 100%）不需要空格
-                    // 标识符后跟标识符（如 1px solid）需要空格
-                    bool needSpace = false;
-                    if (!propertyValue.empty()) {
-                        // 数字 + 标识符 → 不需要空格（100px）
-                        // 数字 + 百分号 → 不需要空格（100%）
-                        if (lastTokenType == TokenType::NUMBER && 
-                            (valueToken.type == TokenType::IDENTIFIER ||
-                             valueToken.type == TokenType::PERCENT)) {
-                            needSpace = false;
-                        } 
-                        // 其他情况需要空格
-                        else {
-                            needSpace = true;
+                    while (!check(TokenType::SEMICOLON) && 
+                           !check(TokenType::RIGHT_BRACE) && 
+                           !isAtEnd()) {
+                        Token valueToken = advance();
+                        
+                        // 判断是否需要添加空格
+                        bool needSpace = false;
+                        if (!propertyValue.empty()) {
+                            // 数字 + 标识符/百分号 → 不需要空格
+                            if (lastTokenType == TokenType::NUMBER && 
+                                (valueToken.type == TokenType::IDENTIFIER ||
+                                 valueToken.type == TokenType::PERCENT)) {
+                                needSpace = false;
+                            } 
+                            // 其他情况需要空格
+                            else {
+                                needSpace = true;
+                            }
                         }
+                        
+                        if (needSpace) {
+                            propertyValue += " ";
+                        }
+                        
+                        propertyValue += valueToken.value;
+                        lastTokenType = valueToken.type;
                     }
                     
-                    if (needSpace) {
-                        propertyValue += " ";
-                    }
+                    // 消费分号（如果存在）
+                    match(TokenType::SEMICOLON);
                     
-                    propertyValue += valueToken.value;
-                    lastTokenType = valueToken.type;
-                }
-                
-                // 消费分号（如果存在）
-                match(TokenType::SEMICOLON);
-                
-                // 添加属性
-                if (!propertyValue.empty()) {
-                    styleNode->addProperty(propertyName, propertyValue);
+                    // 添加属性
+                    if (!propertyValue.empty()) {
+                        styleNode->addProperty(propertyName, propertyValue);
+                    }
                 }
             } else {
                 // 不是有效的属性语法，跳过

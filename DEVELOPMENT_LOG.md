@@ -327,38 +327,142 @@ All tests passed (181 assertions in 17 test cases)
 
 ---
 
+## Step 5.1: 内联样式实现
+
+**日期**: 2025-10-14  
+**状态**: ✅ 完成  
+**规范依据**: CHTL.md 第 109-125 行
+
+### 成果
+
+1. **StyleNode AST 节点**
+   - CSS 属性存储
+   - 访问者模式支持
+   - 类型安全的属性管理
+
+2. **增强的 Parser**
+   - 完整的 `parseStyleBlock()` 实现
+   - 智能 CSS 值拼接（100px, 1px solid black, 100%）
+   - 支持 : 和 = （CE 对等式）
+
+3. **增强的 Generator**
+   - StyleNode 收集和处理
+   - 生成 `style=""` 属性
+   - 只渲染非 StyleNode 子节点
+
+4. **TDD 测试**
+   - 测试用例：33 → **39** (+6)
+   - 断言数量：263 → **303** (+40)
+   - 通过率：**100%**
+
+### 关键文件
+
+- `src/CHTL/CHTLNode/StyleNode.h` - 样式节点
+- `src/CHTL/CHTLNode/StyleNode.cpp` - 样式节点实现
+- `tests/test_style.cpp` - 样式测试（6个用例）
+- `examples/style_demo.chtl` - 样式演示
+- `STEP5_PLAN.md` - 实现计划
+- `STEP5_SUMMARY.md` - 详细总结
+
+### 技术亮点
+
+**智能值拼接**:
+- `100` + `px` → `100px` （无空格）
+- `1px` + `solid` + `black` → `1px solid black` （有空格）
+- `100` + `%` → `100%` （无空格）
+
+**支持的 CSS**:
+- 所有 CSS 单位（px, em, rem, %, vh, vw等）
+- 所有 CSS 属性类型
+- 复杂属性值（border, font-family等）
+
+### 功能示例
+
+```chtl
+// 输入
+div {
+    style {
+        width: 100px;
+        height: 200px;
+        color: red;
+    }
+}
+
+// 输出
+<div style="color: red; height: 200px; width: 100px" />
+```
+
+### 规范符合度
+
+**已实现** (7/20+ 章节):
+- ✅ 注释、文本、字面量、CE对等式
+- ✅ 元素、属性
+- ✅ **内联样式** ← 新增
+
+**进度**: 82%
+
+---
+
 ## 下一步计划
 
-### Step 5: 高级功能实现
+### Step 5.2: 属性运算
 
-**目标**: 实现 CHTL 的高级特性
+**目标**: 实现 CHTL.md 第 175-202 行
 
-#### 优先级 P0（核心功能）
-1. **样式处理**
-   - 内联样式生成
-   - 局部 style 块解析
-   - CSS 属性提取
+**计划功能**:
+```chtl
+div {
+    style {
+        width: 100px + 50px;     // 150px
+        height: 200px * 2;       // 400px
+        margin: 100px / 4;       // 25px
+    }
+}
+```
 
-2. **CSS 生成**
-   - 从 style 块生成 CSS
-   - 类选择器支持
-   - 全局样式块
+**实现要点**:
+- CSS 表达式解析器
+- 单位合并和验证
+- 运算符优先级
+- 括号支持
 
-#### 优先级 P1（重要功能）
-1. **模板系统**
-   - [Template] 语法块解析
-   - 样式组模板
-   - 元素模板
+---
 
-2. **属性增强**
-   - 属性运算 (`width: 100px + 50px`)
-   - 属性条件表达式
+### Step 5.3: 引用属性
 
-#### 优先级 P2（扩展功能）
-1. **高级语法**
-   - [Custom] 语法块
-   - [Import] 导入系统
-   - 命名空间
+**目标**: 实现 CHTL.md 第 203-236 行
+
+**计划功能**:
+```chtl
+div {
+    id: box;
+    style {
+        width: 100px;
+    }
+}
+
+div {
+    style {
+        width: box.width + 50px;  // 150px
+    }
+}
+```
+
+---
+
+### Step 5.4: 条件表达式
+
+**目标**: 实现 CHTL.md 第 238-334 行
+
+**计划功能**:
+```chtl
+div {
+    style {
+        width: 100px;
+        color: width > 50px ? "red" : "blue";
+    }
+}
+```
 
 ---
 

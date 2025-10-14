@@ -119,17 +119,44 @@ std::string Generator::escapeHtml(const std::string& text) const {
 void Generator::generateElement(ElementNode& element) {
     const std::string& tagName = element.getTagName();
     
+    // 收集内联样式（从 StyleNode 子节点）
+    std::string inlineStyle;
+    std::vector<const BaseNode*> nonStyleChildren;
+    
+    for (const auto& child : element.getChildren()) {
+        if (child->getType() == NodeType::STYLE_BLOCK) {
+            // 收集 style 属性
+            auto* styleNode = dynamic_cast<StyleNode*>(child.get());
+            if (styleNode) {
+                for (const auto& [name, value] : styleNode->getProperties()) {
+                    if (!inlineStyle.empty()) {
+                        inlineStyle += "; ";
+                    }
+                    inlineStyle += name + ": " + value;
+                }
+            }
+        } else {
+            // 非 style 节点，保留用于后续处理
+            nonStyleChildren.push_back(child.get());
+        }
+    }
+    
     // 写入开始标签
     if (config_.prettyPrint) {
         writeIndent();
     }
     write("<" + tagName);
     
-    // 写入属性
+    // 写入普通属性
     generateAttributes(element.getAttributes());
     
+    // 写入内联样式属性
+    if (!inlineStyle.empty()) {
+        write(" style=\"" + inlineStyle + "\"");
+    }
+    
     // 检查是否是自闭合标签或空元素
-    bool isEmpty = element.getChildCount() == 0;
+    bool isEmpty = nonStyleChildren.empty();
     bool isSelfClosing = isSelfClosingTag(tagName);
     
     if (isEmpty && (isSelfClosing || config_.selfClosingTags)) {
@@ -142,17 +169,17 @@ void Generator::generateElement(ElementNode& element) {
         // 闭合开始标签
         write(">");
         
-        // 处理子节点
-        if (element.getChildCount() > 0) {
+        // 处理非 style 子节点
+        if (!nonStyleChildren.empty()) {
             if (config_.prettyPrint) {
                 write("\n");
             }
             
             increaseIndent();
             
-            // 遍历子节点
-            for (const auto& child : element.getChildren()) {
-                child->accept(*this);
+            // 遍历非 style 子节点
+            for (const auto* child : nonStyleChildren) {
+                const_cast<BaseNode*>(child)->accept(*this);
             }
             
             decreaseIndent();

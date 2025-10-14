@@ -153,7 +153,9 @@ NodePtr Parser::parseElement() {
             auto child = parseTextBlock();
             if (child) element->addChild(std::move(child));
         } else if (match(TokenType::KEYWORD_STYLE)) {
-            parseStyleBlock(); // 暂时跳过，不添加到子节点
+            // 解析 style 块并添加为子节点
+            auto child = parseStyleBlock();
+            if (child) element->addChild(std::move(child));
         } else if (match(TokenType::KEYWORD_SCRIPT)) {
             parseScriptBlock(); // 暂时跳过，不添加到子节点
         } else if (isElementStart()) {
@@ -207,20 +209,74 @@ NodePtr Parser::parseStyleBlock() {
     // style 关键字已经被消费
     consume(TokenType::LEFT_BRACE, "期望 '{'");
     
-    // 暂时跳过样式块内容
-    int braceCount = 1;
-    while (braceCount > 0 && !isAtEnd()) {
-        if (match(TokenType::LEFT_BRACE)) {
-            braceCount++;
-        } else if (match(TokenType::RIGHT_BRACE)) {
-            braceCount--;
+    auto styleNode = std::make_unique<StyleNode>();
+    
+    // 解析 CSS 属性：property-name: value;
+    while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        // 检查是否是 CSS 属性名（标识符）
+        if (check(TokenType::IDENTIFIER)) {
+            std::string propertyName = advance().value;
+            
+            // 检查冒号或等号
+            if (check(TokenType::COLON) || check(TokenType::EQUALS)) {
+                advance(); // 消费 : 或 =
+                
+                // 收集属性值（直到遇到分号或右花括号）
+                std::string propertyValue;
+                TokenType lastTokenType = TokenType::UNKNOWN;
+                
+                while (!check(TokenType::SEMICOLON) && 
+                       !check(TokenType::RIGHT_BRACE) && 
+                       !isAtEnd()) {
+                    Token valueToken = advance();
+                    
+                    // 判断是否需要添加空格
+                    // 数字后跟标识符（如 100px）不需要空格
+                    // 数字后跟百分号（如 100%）不需要空格
+                    // 标识符后跟标识符（如 1px solid）需要空格
+                    bool needSpace = false;
+                    if (!propertyValue.empty()) {
+                        // 数字 + 标识符 → 不需要空格（100px）
+                        // 数字 + 百分号 → 不需要空格（100%）
+                        if (lastTokenType == TokenType::NUMBER && 
+                            (valueToken.type == TokenType::IDENTIFIER ||
+                             valueToken.type == TokenType::PERCENT)) {
+                            needSpace = false;
+                        } 
+                        // 其他情况需要空格
+                        else {
+                            needSpace = true;
+                        }
+                    }
+                    
+                    if (needSpace) {
+                        propertyValue += " ";
+                    }
+                    
+                    propertyValue += valueToken.value;
+                    lastTokenType = valueToken.type;
+                }
+                
+                // 消费分号（如果存在）
+                match(TokenType::SEMICOLON);
+                
+                // 添加属性
+                if (!propertyValue.empty()) {
+                    styleNode->addProperty(propertyName, propertyValue);
+                }
+            } else {
+                // 不是有效的属性语法，跳过
+                advance();
+            }
         } else {
+            // 跳过非标识符 token
             advance();
         }
     }
     
-    // TODO: 实现完整的样式块解析
-    return nullptr;
+    consume(TokenType::RIGHT_BRACE, "期望 '}'");
+    
+    return styleNode;
 }
 
 NodePtr Parser::parseScriptBlock() {

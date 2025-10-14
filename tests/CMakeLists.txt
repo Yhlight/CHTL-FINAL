@@ -12,6 +12,7 @@ add_executable(chtl_tests
     test_parser.cpp
     test_generator.cpp
     test_production.cpp
+    test_style.cpp
 )
 
 target_link_libraries(chtl_tests PRIVATE 

@@ -4,6 +4,7 @@
 #include "CHTL/CHTLNode/BaseNode.h"
 #include "CHTL/CHTLNode/ElementNode.h"
 #include "CHTL/CHTLNode/TextNode.h"
+#include "CHTL/CHTLNode/StyleNode.h"
 #include "CHTL/CHTLCommon/CompilerConfig.h"
 #include "CHTL/CHTLCommon/CompilerError.h"
 #include "CHTL/CHTLCommon/Validation.h"

@@ -1,0 +1,330 @@
+// CHTL 交互式应用示例
+// 一个完整的 TODO 应用，展示 CHTL 的所有功能
+
+html {
+    head {
+        title: "CHTL TODO 应用";
+        
+        meta {
+            charset: "UTF-8";
+        }
+        
+        meta {
+            name: "viewport";
+            content: "width=device-width, initial-scale=1.0";
+        }
+    }
+    
+    body {
+        style {
+            margin: 0;
+            padding: 0;
+            font-family: Arial;
+            background-color: #667eea;
+            min-height: 100vh;
+        }
+        
+        // ========== 应用容器 ==========
+        div {
+            class: "app-container";
+            
+            style {
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 40px + 20px;
+            }
+            
+            // ========== 标题 ==========
+            h1 {
+                style {
+                    text-align: center;
+                    color: white;
+                    font-size: 16px * 2.5;
+                    margin: 0px + 0px;
+                    margin-bottom: 30px;
+                    text-shadow: 0px 2px 4px rgba;
+                }
+                
+                text: "📝 CHTL TODO";
+            }
+            
+            // ========== 输入区域 ==========
+            div {
+                class: "input-section";
+                
+                style {
+                    background-color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0px 4px 6px rgba;
+                    margin-bottom: 20px;
+                }
+                
+                input {
+                    id: "todoInput";
+                    type: "text";
+                    placeholder: "输入新的待办事项...";
+                    
+                    style {
+                        width: 100%;
+                        padding: 12px + 15px;
+                        font-size: 16px;
+                        border: 2px solid #e0e0e0;
+                        border-radius: 8px;
+                        box-sizing: border-box;
+                    }
+                    
+                    script {
+                        this.addEventListener("keypress", function(e) {
+                            if (e.key === "Enter") {
+                                document.getElementById("addButton").click();
+                            }
+                        });
+                    }
+                }
+                
+                button {
+                    id: "addButton";
+                    
+                    style {
+                        width: 100%;
+                        padding: 12px;
+                        margin-top: 10px;
+                        font-size: 16px;
+                        font-weight: bold;
+                        background-color: #4CAF50;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    }
+                    
+                    script {
+                        var todoId = 0;
+                        
+                        this.addEventListener("click", function() {
+                            var input = document.getElementById("todoInput");
+                            var text = input.value.trim();
+                            
+                            if (text) {
+                                var list = document.getElementById("todoList");
+                                var item = document.createElement("div");
+                                item.className = "todo-item";
+                                item.id = "todo-" + todoId++;
+                                
+                                item.innerHTML = 
+                                    "<span class='todo-text'>" + text + "</span>" +
+                                    "<button class='delete-btn' onclick='this.parentElement.remove()'>删除</button>";
+                                
+                                list.appendChild(item);
+                                input.value = "";
+                                
+                                updateCount();
+                            }
+                        });
+                        
+                        function updateCount() {
+                            var count = document.querySelectorAll(".todo-item").length;
+                            document.getElementById("todoCount").textContent = 
+                                "共 " + count + " 项待办";
+                        }
+                    }
+                    
+                    text: "添加待办";
+                }
+            }
+            
+            // ========== TODO 列表 ==========
+            div {
+                class: "list-section";
+                
+                style {
+                    background-color: white;
+                    padding: 20px;
+                    border-radius: 10px;
+                    box-shadow: 0px 4px 6px rgba;
+                    margin-bottom: 20px;
+                    min-height: 200px;
+                }
+                
+                h2 {
+                    style {
+                        margin: 0px + 0px;
+                        margin-bottom: 15px;
+                        color: #333;
+                        font-size: 20px;
+                    }
+                    
+                    text: "待办列表";
+                }
+                
+                div {
+                    id: "todoList";
+                    
+                    style {
+                        min-height: 150px;
+                    }
+                    
+                    // 初始提示
+                    div {
+                        class: "empty-hint";
+                        
+                        style {
+                            text-align: center;
+                            color: #999;
+                            padding: 40px + 20px;
+                        }
+                        
+                        text: "暂无待办事项，添加一个吧！";
+                    }
+                }
+                
+                div {
+                    id: "todoCount";
+                    
+                    style {
+                        text-align: center;
+                        color: #666;
+                        margin-top: 15px;
+                        font-size: 14px;
+                    }
+                    
+                    text: "共 0 项待办";
+                }
+            }
+            
+            // ========== 功能按钮 ==========
+            div {
+                class: "action-buttons";
+                
+                style {
+                    display: flex;
+                    gap: 10px;
+                }
+                
+                button {
+                    id: "clearAllButton";
+                    
+                    style {
+                        flex: 1;
+                        padding: 10px;
+                        font-size: 14px;
+                        background-color: #f44336;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    }
+                    
+                    script {
+                        this.addEventListener("click", function() {
+                            if (confirm("确定要清空所有待办吗?")) {
+                                document.getElementById("todoList").innerHTML = 
+                                    "<div class='empty-hint' style='text-align: center; color: #999; padding: 60px 20px;'>" +
+                                    "暂无待办事项，添加一个吧！</div>";
+                                document.getElementById("todoCount").textContent = "共 0 项待办";
+                            }
+                        });
+                    }
+                    
+                    text: "清空全部";
+                }
+                
+                button {
+                    id: "refreshButton";
+                    
+                    style {
+                        flex: 1;
+                        padding: 10px;
+                        font-size: 14px;
+                        background-color: #2196F3;
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        cursor: pointer;
+                    }
+                    
+                    script {
+                        this.addEventListener("click", function() {
+                            location.reload();
+                        });
+                    }
+                    
+                    text: "刷新页面";
+                }
+            }
+        }
+        
+        // ========== 全局样式脚本 ==========
+        script {
+            // 添加全局 CSS 样式
+            var style = document.createElement("style");
+            style.textContent = `
+                .todo-item {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    padding: 12px;
+                    margin: 8px 0;
+                    background-color: #f9f9f9;
+                    border-radius: 6px;
+                    border-left: 4px solid #4CAF50;
+                }
+                
+                .todo-text {
+                    flex: 1;
+                    font-size: 16px;
+                    color: #333;
+                }
+                
+                .delete-btn {
+                    padding: 6px 12px;
+                    background-color: #f44336;
+                    color: white;
+                    border: none;
+                    border-radius: 4px;
+                    cursor: pointer;
+                    font-size: 14px;
+                }
+                
+                .delete-btn:hover {
+                    background-color: #da190b;
+                }
+                
+                .empty-hint {
+                    display: block !important;
+                }
+                
+                input:focus {
+                    outline: none;
+                    border-color: #4CAF50;
+                }
+                
+                button:hover {
+                    opacity: 0.9;
+                }
+                
+                button:active {
+                    transform: scale(0.98);
+                }
+            `;
+            document.head.appendChild(style);
+            
+            console.log("CHTL TODO 应用已加载");
+            console.log("版本: v0.5.0");
+            console.log("功能: 内联样式 + 属性运算 + 脚本块");
+        }
+        
+        // ========== 页脚 ==========
+        div {
+            style {
+                text-align: center;
+                color: white;
+                margin-top: 30px;
+                font-size: 14px;
+            }
+            
+            text: "使用 CHTL v0.5.0 构建 | 展示完整功能";
+        }
+    }
+}

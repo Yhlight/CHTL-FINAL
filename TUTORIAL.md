@@ -1,12 +1,16 @@
 # CHTL 快速教程
 
+**版本**: v0.5.0-script-support  
+**更新日期**: 2025-10-14
+
 ## 📚 目录
 
 1. [Hello World](#hello-world)
 2. [元素和属性](#元素和属性)
 3. [内联样式](#内联样式)
 4. [属性运算](#属性运算)
-5. [实战示例](#实战示例)
+5. [脚本块](#脚本块) ⭐ 新增
+6. [实战示例](#实战示例)
 
 ---
 
@@ -204,6 +208,104 @@ div {
 
 ---
 
+## 脚本块
+
+### 基础用法 ⭐ v0.5.0 新功能
+
+```chtl
+button {
+    script {
+        alert("Hello!");
+    }
+    
+    text: "点击我";
+}
+```
+
+### 事件监听器
+
+```chtl
+button {
+    id: "myBtn";
+    
+    script {
+        this.addEventListener("click", function() {
+            alert("按钮被点击了!");
+        });
+    }
+    
+    text: "Click Me";
+}
+```
+
+### DOM 操作
+
+```chtl
+div {
+    div {
+        id: "output";
+        text: "初始文本";
+    }
+    
+    button {
+        script {
+            this.addEventListener("click", function() {
+                document.getElementById("output").textContent = "文本已更新!";
+            });
+        }
+        
+        text: "更新文本";
+    }
+}
+```
+
+### 计数器示例
+
+```chtl
+div {
+    div {
+        id: "counter";
+        text: "计数: 0";
+    }
+    
+    button {
+        script {
+            var count = 0;
+            this.addEventListener("click", function() {
+                count++;
+                document.getElementById("counter").textContent = "计数: " + count;
+            });
+        }
+        
+        text: "增加";
+    }
+}
+```
+
+### 结合样式
+
+```chtl
+button {
+    style {
+        padding: 10px 20px;
+        background-color: #007bff;
+        color: white;
+        border: none;
+        border-radius: 4px;
+    }
+    
+    script {
+        this.addEventListener("click", function() {
+            this.style.backgroundColor = "#0056b3";
+        });
+    }
+    
+    text: "悬停变色";
+}
+```
+
+---
+
 ## 实战示例
 
 ### 卡片组件
@@ -358,6 +460,89 @@ div {
 
 ---
 
+## 脚本块
+
+### 基础脚本
+
+CHTL v0.5.0 新增了 `script {}` 块支持：
+
+```chtl
+button {
+    id: "myButton";
+    
+    script {
+        this.addEventListener("click", function() {
+            alert("按钮被点击了!");
+        });
+    }
+    
+    text: "点击我";
+}
+```
+
+**输出**:
+```html
+<button id="myButton" text="点击我">
+  <script>
+    this.addEventListener("click", function() {
+        alert("按钮被点击了!");
+    });
+  </script>
+</button>
+```
+
+### 结合样式和脚本
+
+```chtl
+div {
+    id: "counter";
+    
+    style {
+        padding: 20px;
+        background-color: #f0f0f0;
+        text-align: center;
+    }
+    
+    script {
+        var count = 0;
+        var btn = document.createElement("button");
+        btn.textContent = "点击计数";
+        btn.onclick = function() {
+            count++;
+            this.parentElement.querySelector("p").textContent = "计数: " + count;
+        };
+        this.appendChild(btn);
+    }
+    
+    p {
+        text: "计数: 0";
+    }
+}
+```
+
+### DOM 操作
+
+```chtl
+input {
+    id: "nameInput";
+    type: "text";
+    placeholder: "输入名字";
+}
+
+button {
+    script {
+        this.addEventListener("click", function() {
+            var name = document.getElementById("nameInput").value;
+            alert("你好, " + name);
+        });
+    }
+    
+    text: "问候";
+}
+```
+
+---
+
 ## 💡 最佳实践
 
 ### 1. 使用变量式的计算
@@ -488,4 +673,73 @@ A: CHTL 会显示详细的错误信息，包括文件名、行号、列号。
 3. 实验属性运算
 4. 构建完整的网站
 
-**Happy Coding with CHTL!** 🎉
+---
+
+## 🎯 完整示例
+
+### 交互式 TODO 应用
+
+查看 `examples/simple_todo.chtl` 获取一个完整的交互式应用示例，包含：
+- ✅ 输入框和按钮
+- ✅ 动态添加列表项
+- ✅ 事件处理
+- ✅ DOM 操作
+
+```bash
+./build/bin/chtl examples/simple_todo.chtl --output todo.html
+```
+
+### Script 演示
+
+查看 `examples/script_demo.chtl` 获取 script 块的各种用法：
+- ✅ 按钮点击事件
+- ✅ 计数器（状态管理）
+- ✅ 文本交互
+- ✅ 页面初始化
+
+```bash
+./build/bin/chtl examples/script_demo.chtl --doctype --output demo.html
+```
+
+---
+
+**Happy Coding with CHTL v0.5.0!** 🎉
+
+**新功能**: script {} 块 | 优化的样式处理 | 56个测试用例
+
+---
+
+## 🆕 v0.5.0 新特性
+
+### script {} 块
+
+v0.5.0 引入了完整的脚本块支持！
+
+**特点**:
+- ✅ 完整的 JavaScript 代码支持
+- ✅ 支持事件监听器
+- ✅ 支持 DOM 操作
+- ✅ 可与 style {} 块结合
+
+**示例**:
+```bash
+# 查看脚本演示
+./build/bin/chtl examples/script_demo.chtl --doctype
+
+# 查看 TODO 应用
+./build/bin/chtl examples/simple_todo.chtl --doctype --output todo.html
+open todo.html
+```
+
+### 颜色代码优化
+
+现在颜色代码不再有空格问题：
+- ✅ `#fff` → `#fff` (正确)
+- ✅ `#3498db` → `#3498db` (正确)
+
+### CSS 空格优化
+
+现在多值属性的空格正确了：
+- ✅ `margin: 0 auto` → `margin: 0 auto` (正确)
+- ✅ `padding: 10px 20px` → `padding: 10px 20px` (正确)
+

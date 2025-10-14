@@ -17,10 +17,14 @@ namespace CHTL {
         {TokenType::ASTERISK, Precedence::PRODUCT},
         {TokenType::MODULO,   Precedence::PRODUCT},
         {TokenType::POWER,    Precedence::POWER},
+        {TokenType::AND,      Precedence::LOGICAL},
+        {TokenType::OR,       Precedence::LOGICAL},
+        {TokenType::QUESTION, Precedence::CONDITIONAL},
     };
 
     // Forward declarations for parse functions
     std::unique_ptr<Expression> ParseInfixExpression(Parser* parser, std::unique_ptr<Expression> left);
+    std::unique_ptr<Expression> ParseConditionalExpression(Parser* parser, std::unique_ptr<Expression> left);
     std::unique_ptr<Expression> ParseIdentifier(Parser* parser);
     std::unique_ptr<Expression> ParseNumberLiteral(Parser* parser);
     std::unique_ptr<Expression> ParseStringLiteral(Parser* parser);
@@ -42,6 +46,9 @@ namespace CHTL {
         {TokenType::NOT_EQ,   ParseInfixExpression},
         {TokenType::LT,       ParseInfixExpression},
         {TokenType::GT,       ParseInfixExpression},
+        {TokenType::AND,      ParseInfixExpression},
+        {TokenType::OR,       ParseInfixExpression},
+        {TokenType::QUESTION, ParseConditionalExpression},
     };
 
     std::unique_ptr<Expression> ParseInfixExpression(Parser* parser, std::unique_ptr<Expression> left) {
@@ -51,6 +58,15 @@ namespace CHTL {
         parser->NextToken();
         auto right = parser->ParseExpression(precedence);
         return std::make_unique<InfixExpression>(token, std::move(left), op, std::move(right));
+    }
+
+    std::unique_ptr<Expression> ParseConditionalExpression(Parser* parser, std::unique_ptr<Expression> left) {
+        Token token = parser->currentToken;
+        parser->NextToken();
+        auto consequence = parser->ParseExpression(Precedence::LOWEST);
+        parser->NextToken(); // consume ':'
+        auto alternative = parser->ParseExpression(Precedence::LOWEST);
+        return std::make_unique<ConditionalExpression>(token, std::move(left), std::move(consequence), std::move(alternative));
     }
 
     std::unique_ptr<Expression> ParseIdentifier(Parser* parser) {

@@ -44,6 +44,9 @@ namespace CHTL {
         DOT,            // .
         HASH,           // #
         AMPERSAND,      // &
+        QUESTION,       // ?
+        AND,            // &&
+        OR,             // ||
 
         // Keywords
         TEXT,

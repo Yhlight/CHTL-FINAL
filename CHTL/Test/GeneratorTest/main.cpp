@@ -8,10 +8,10 @@ int main() {
         div {
             style {
                 .my-class {
-                    width: 100px + 50px;
+                    width: 100.500px + 49.5px;
                 }
-                &:hover {
-                    color: blue;
+                #my-id {
+                    height: 200px;
                 }
             }
         }

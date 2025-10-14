@@ -14,6 +14,8 @@ namespace CHTL {
 
     enum class Precedence {
         LOWEST,
+        LOGICAL,     // && or ||
+        CONDITIONAL, // ?
         SUM,         // + or -
         PRODUCT,     // * or / or %
         POWER,       // **
@@ -38,6 +40,7 @@ namespace CHTL {
         const std::vector<std::string>& Errors() const { return errors; }
 
         friend std::unique_ptr<Expression> ParseInfixExpression(Parser* parser, std::unique_ptr<Expression> left);
+        friend std::unique_ptr<Expression> ParseConditionalExpression(Parser* parser, std::unique_ptr<Expression> left);
         friend std::unique_ptr<Expression> ParseIdentifier(Parser* parser);
         friend std::unique_ptr<Expression> ParseNumberLiteral(Parser* parser);
         friend std::unique_ptr<Expression> ParseStringLiteral(Parser* parser);

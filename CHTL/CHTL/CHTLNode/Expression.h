@@ -68,4 +68,26 @@ namespace CHTL {
         std::unique_ptr<Expression> Right;
     };
 
+    class ConditionalExpression : public Expression {
+    public:
+        ConditionalExpression(Token token, std::unique_ptr<Expression> condition, std::unique_ptr<Expression> consequence, std::unique_ptr<Expression> alternative)
+            : token(std::move(token)), Condition(std::move(condition)), Consequence(std::move(consequence)), Alternative(std::move(alternative)) {}
+
+        std::string ToString() const override {
+            std::string out = "(";
+            out += Condition->ToString();
+            out += " ? ";
+            out += Consequence->ToString();
+            out += " : ";
+            out += Alternative->ToString();
+            out += ")";
+            return out;
+        }
+
+        Token token; // The '?' token
+        std::unique_ptr<Expression> Condition;
+        std::unique_ptr<Expression> Consequence;
+        std::unique_ptr<Expression> Alternative;
+    };
+
 } // namespace CHTL

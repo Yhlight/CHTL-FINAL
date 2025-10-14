@@ -162,7 +162,23 @@ namespace CHTL {
             tok = { TokenType::HASH, "#" };
             break;
         case '&':
-            tok = { TokenType::AMPERSAND, "&" };
+            if (PeekChar() == '&') {
+                ReadChar();
+                tok = { TokenType::AND, "&&" };
+            } else {
+                tok = { TokenType::AMPERSAND, "&" };
+            }
+            break;
+        case '|':
+            if (PeekChar() == '|') {
+                ReadChar();
+                tok = { TokenType::OR, "||" };
+            } else {
+                tok = { TokenType::ILLEGAL, "|" };
+            }
+            break;
+        case '?':
+            tok = { TokenType::QUESTION, "?" };
             break;
         case '"':
             tok.type = TokenType::STRING;

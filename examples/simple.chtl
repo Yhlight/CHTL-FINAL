@@ -1,0 +1,34 @@
+# 这是一个简单的CHTL示例文件
+# CHTL编译器当前版本仅支持Token解析
+
+html
+{
+    head
+    {
+        text
+        {
+            "CHTL示例页面"
+        }
+    }
+
+    body
+    {
+        div
+        {
+            id: box;
+            class: container;
+
+            style
+            {
+                width: 100px;
+                height: 100px;
+                background-color: red;
+            }
+
+            text
+            {
+                "Hello, CHTL!"
+            }
+        }
+    }
+}

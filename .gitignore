@@ -1,1 +1,57 @@
-third-party/
+# CMake构建产物
+/build/
+/cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# 编译产物
+*.o
+*.a
+*.so
+*.dylib
+*.dll
+*.exe
+*.out
+
+# 二进制文件
+/bin/
+/lib/
+
+# IDE文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# 测试输出
+Testing/
+CTestTestfile.cmake
+
+# 生成的文件
+*.log
+*.html
+*.css
+*.js
+!third-party/**
+
+# Python缓存
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# 模块文件
+/module/
+*.cmod
+*.cjmod
+
+# 临时文件
+*.tmp
+*.temp

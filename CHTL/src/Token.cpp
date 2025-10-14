@@ -22,6 +22,12 @@ namespace CHTL
             case TokenType::ASSIGN:       return "=";
             case TokenType::COLON:        return ":";
             case TokenType::SEMICOLON:    return ";";
+            case TokenType::PLUS:         return "+";
+            case TokenType::MINUS:        return "-";
+            case TokenType::ASTERISK:     return "*";
+            case TokenType::SLASH:        return "/";
+            case TokenType::LPAREN:       return "(";
+            case TokenType::RPAREN:       return ")";
             case TokenType::LBRACE:       return "{";
             case TokenType::RBRACE:       return "}";
             default:                      return "UNKNOWN";

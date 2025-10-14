@@ -125,9 +125,9 @@ TEST_CASE("Parser correctly parses style blocks", "[parser]")
         std::string input = R"(
             div {
                 style {
-                    width: 100px;
-                    color: red;
-                    background-color = "nice blue";
+                    width: 100;
+                    color: 1;
+                    background-color = 2;
                 }
             }
         )";
@@ -150,12 +150,43 @@ TEST_CASE("Parser correctly parses style blocks", "[parser]")
 
         // Check style properties
         REQUIRE(style_node->properties[0].name == "width");
-        REQUIRE(style_node->properties[0].value == "100px");
+        REQUIRE(style_node->properties[0].value->ToString() == "100.000000");
 
         REQUIRE(style_node->properties[1].name == "color");
-        REQUIRE(style_node->properties[1].value == "red");
+        REQUIRE(style_node->properties[1].value->ToString() == "1.000000");
 
         REQUIRE(style_node->properties[2].name == "background-color");
-        REQUIRE(style_node->properties[2].value == "nice blue");
+        REQUIRE(style_node->properties[2].value->ToString() == "2.000000");
+    }
+}
+
+TEST_CASE("Parser correctly parses infix expressions", "[parser]")
+{
+    SECTION("Parses a simple addition expression")
+    {
+        std::string input = "style { width: 100 + 50; }";
+
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+        REQUIRE(program != nullptr);
+
+        auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
+        REQUIRE(style_node != nullptr);
+        REQUIRE(style_node->properties.size() == 1);
+
+        auto* infix_expr = dynamic_cast<CHTL::InfixExpression*>(style_node->properties[0].value.get());
+        REQUIRE(infix_expr != nullptr);
+        REQUIRE(infix_expr->op == "+");
+
+        auto* left = dynamic_cast<CHTL::NumberLiteral*>(infix_expr->left.get());
+        REQUIRE(left != nullptr);
+        REQUIRE(left->value == 100.0);
+
+        auto* right = dynamic_cast<CHTL::NumberLiteral*>(infix_expr->right.get());
+        REQUIRE(right != nullptr);
+        REQUIRE(right->value == 50.0);
     }
 }

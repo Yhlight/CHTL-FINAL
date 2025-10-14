@@ -1,4 +1,5 @@
 #include "Generator.h"
+#include "Evaluator.h"
 #include <stdexcept>
 #include <vector>
 
@@ -66,10 +67,12 @@ namespace CHTL
 
         if (style_node && !style_node->properties.empty())
         {
+            Evaluator evaluator;
             m_output << " style=\"";
             for (size_t i = 0; i < style_node->properties.size(); ++i)
             {
-                m_output << style_node->properties[i].name << ":" << style_node->properties[i].value;
+                double result = evaluator.Eval(style_node->properties[i].value.get());
+                m_output << style_node->properties[i].name << ":" << result;
                 if (i < style_node->properties.size() - 1)
                 {
                     m_output << ";";

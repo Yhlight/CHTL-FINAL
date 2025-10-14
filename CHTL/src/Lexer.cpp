@@ -146,6 +146,41 @@ Token Lexer::NextToken()
         case ';':
             tok = {TokenType::SEMICOLON, std::string(1, m_char), tok.line, tok.column};
             break;
+        case '+':
+            tok = {TokenType::PLUS, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case '-':
+            tok = {TokenType::MINUS, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case '*':
+            tok = {TokenType::ASTERISK, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case '/':
+            if (peekChar() == '/')
+            {
+                readChar();
+                readChar();
+                skipSingleLineComment();
+                return NextToken();
+            }
+            else if (peekChar() == '*')
+            {
+                readChar();
+                readChar();
+                skipMultiLineComment();
+                return NextToken();
+            }
+            else
+            {
+                tok = {TokenType::SLASH, std::string(1, m_char), tok.line, tok.column};
+            }
+            break;
+        case '(':
+            tok = {TokenType::LPAREN, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case ')':
+            tok = {TokenType::RPAREN, std::string(1, m_char), tok.line, tok.column};
+            break;
         case '{':
             tok = {TokenType::LBRACE, std::string(1, m_char), tok.line, tok.column};
             break;
@@ -157,24 +192,6 @@ Token Lexer::NextToken()
             tok.literal = readString();
             // readString 更新了行列号，所以不需要额外处理
             return tok;
-        case '/':
-            if (peekChar() == '/')
-            {
-                readChar(); // 消耗第一个'/'
-                readChar(); // 消耗第二个'/'
-                skipSingleLineComment();
-                return NextToken(); // 递归调用以获取下一个有效Token
-            }
-            else if (peekChar() == '*')
-            {
-                readChar(); // 消耗'/'
-                readChar(); // 消耗'*'
-                skipMultiLineComment();
-                return NextToken(); // 递归调用以获取下一个有效Token
-            }
-            // 如果不是注释，暂时作为非法字符处理 (后续会是除号)
-            tok = {TokenType::ILLEGAL, std::string(1, m_char), tok.line, tok.column};
-            break;
 
         case 0:
             tok.type = TokenType::END_OF_FILE;

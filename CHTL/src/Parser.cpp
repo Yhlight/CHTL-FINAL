@@ -3,6 +3,13 @@
 
 namespace CHTL
 {
+    std::unordered_map<TokenType, Parser::Precedence> Parser::precedences = {
+        {TokenType::PLUS,     Parser::Precedence::SUM},
+        {TokenType::MINUS,    Parser::Precedence::SUM},
+        {TokenType::ASTERISK, Parser::Precedence::PRODUCT},
+        {TokenType::SLASH,    Parser::Precedence::PRODUCT},
+    };
+
     Parser::Parser(Lexer& lexer)
         : m_lexer(lexer)
     {
@@ -198,21 +205,18 @@ namespace CHTL
                 nextToken(); // 消费属性名
                 nextToken(); // 消费':'或'='
 
-                std::string value = "";
-                // 拼接属性值，直到';'或'}'
-                while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
-                {
-                    value += m_currentToken.literal;
-                    nextToken();
-                }
-                prop.value = value;
-                node->properties.push_back(prop);
+                prop.value = parseExpression(LOWEST);
+                node->properties.push_back(std::move(prop));
 
-                // 如果有分号，消费它
-                if (m_currentToken.type == TokenType::SEMICOLON)
+                // 在解析完一个表达式后，当前Token是表达式的最后一个Token。
+                // 我们需要前进到下一个Token，以准备解析下一个属性或'}'。
+                // 如果下一个是分号，我们也消费它。
+                if (m_peekToken.type == TokenType::SEMICOLON)
                 {
                     nextToken();
                 }
+                nextToken();
+
             } else {
                  m_errors.push_back("Invalid token in style block: " + m_currentToken.ToString());
                  nextToken(); // 跳过无法识别的Token，避免无限循环
@@ -226,6 +230,61 @@ namespace CHTL
         }
 
         return node;
+    }
+
+    // --- Expression Parsing Methods ---
+
+    std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence)
+    {
+        // Prefix position
+        std::unique_ptr<Expression> leftExp;
+        if (m_currentToken.type == TokenType::NUMBER)
+        {
+            leftExp = parseNumberLiteral();
+        }
+        else
+        {
+            // No prefix parse function for the token, record an error
+            m_errors.push_back("No prefix parse function for " + TokenTypeToString(m_currentToken.type) + " found.");
+            return nullptr;
+        }
+
+        // Infix position
+        while (m_peekToken.type != TokenType::SEMICOLON && precedence < (precedences.count(m_peekToken.type) ? precedences[m_peekToken.type] : LOWEST))
+        {
+            nextToken();
+            leftExp = parseInfixExpression(std::move(leftExp));
+        }
+
+        return leftExp;
+    }
+
+    std::unique_ptr<Expression> Parser::parseNumberLiteral()
+    {
+        auto literal = std::make_unique<NumberLiteral>();
+        try
+        {
+            literal->value = std::stod(m_currentToken.literal);
+        }
+        catch (const std::invalid_argument& e)
+        {
+            m_errors.push_back("Could not parse " + m_currentToken.literal + " as double.");
+            return nullptr;
+        }
+        return literal;
+    }
+
+    std::unique_ptr<Expression> Parser::parseInfixExpression(std::unique_ptr<Expression> left)
+    {
+        auto expr = std::make_unique<InfixExpression>();
+        expr->left = std::move(left);
+        expr->op = m_currentToken.literal;
+
+        Precedence curPrecedence = precedences.count(m_currentToken.type) ? precedences[m_currentToken.type] : LOWEST;
+        nextToken();
+        expr->right = parseExpression(curPrecedence);
+
+        return expr;
     }
 
 } // namespace CHTL

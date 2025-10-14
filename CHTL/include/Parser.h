@@ -18,14 +18,34 @@ namespace CHTL
         const std::vector<std::string>& GetErrors() const { return m_errors; }
 
     private:
+        // Pratt Parser related types
+        using prefixParseFn = std::unique_ptr<Expression> (Parser::*)();
+        using infixParseFn = std::unique_ptr<Expression> (Parser::*)(std::unique_ptr<Expression>);
+
+        enum Precedence
+        {
+            LOWEST = 0,
+            SUM,     // + -
+            PRODUCT, // * /
+            PREFIX,  // -X or !X
+        };
+
+        static std::unordered_map<TokenType, Precedence> precedences;
+
         void nextToken();
         bool expectPeek(TokenType t);
 
+        // Statement parsing
         std::unique_ptr<AstNode> parseStatement();
         std::unique_ptr<ElementNode> parseElementNode();
         std::unique_ptr<TextNode> parseTextNode();
         std::unique_ptr<StyleNode> parseStyleNode();
         Attribute parseAttribute();
+
+        // Expression parsing
+        std::unique_ptr<Expression> parseExpression(Precedence precedence);
+        std::unique_ptr<Expression> parseNumberLiteral();
+        std::unique_ptr<Expression> parseInfixExpression(std::unique_ptr<Expression> left);
 
         Lexer& m_lexer;
         Token m_currentToken;

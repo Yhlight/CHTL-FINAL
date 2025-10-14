@@ -15,6 +15,7 @@ set(CHTL_SOURCES
     src/AstNode.cpp
     src/Parser.cpp
     src/Generator.cpp
+    src/Evaluator.cpp
 )
 set(CHTL_HEADERS
     include/Token.h
@@ -22,6 +23,7 @@ set(CHTL_HEADERS
     include/AstNode.h
     include/Parser.h
     include/Generator.h
+    include/Evaluator.h
 )
 
 # 添加库

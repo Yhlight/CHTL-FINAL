@@ -13,6 +13,9 @@ namespace CHTL
         Element,
         Text,
         Style,
+        // Expressions
+        NumberLiteral,
+        InfixExpression,
     };
 
     // AST节点基类
@@ -22,6 +25,32 @@ namespace CHTL
         virtual NodeType GetType() const = 0;
         virtual std::string ToString() const = 0;
     };
+
+    // Expression 基类
+    struct Expression : public AstNode {};
+
+    // 数字字面量节点
+    struct NumberLiteral : public Expression
+    {
+        double value;
+
+        NodeType GetType() const override { return NodeType::NumberLiteral; }
+        std::string ToString() const override { return std::to_string(value); }
+    };
+
+    // 中缀表达式节点
+    struct InfixExpression : public Expression
+    {
+        std::unique_ptr<Expression> left;
+        std::string op;
+        std::unique_ptr<Expression> right;
+
+        NodeType GetType() const override { return NodeType::InfixExpression; }
+        std::string ToString() const override {
+            return "(" + left->ToString() + " " + op + " " + right->ToString() + ")";
+        }
+    };
+
 
     // 属性结构体
     struct Attribute
@@ -50,11 +79,11 @@ namespace CHTL
         std::string ToString() const override { return "TextNode(\"" + value + "\")"; }
     };
 
-    // 样式属性结构体, e.g., width: 100px;
+    // 样式属性结构体, e.g., width: 100 + 50;
     struct StyleProperty
     {
         std::string name;
-        std::string value;
+        std::unique_ptr<Expression> value;
     };
 
     // 样式节点, e.g., style { ... }

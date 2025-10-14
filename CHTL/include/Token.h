@@ -25,8 +25,14 @@ namespace CHTL
         ASSIGN,     // =
         COLON,      // :
         SEMICOLON,  // ;
+        PLUS,       // +
+        MINUS,      // -
+        ASTERISK,   // *
+        SLASH,      // /
 
         // 分隔符
+        LPAREN,     // (
+        RPAREN,     // )
         LBRACE,     // {
         RBRACE,     // }
     };

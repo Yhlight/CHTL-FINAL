@@ -34,7 +34,7 @@ namespace CHTL
         ss << "StyleNode(properties: [";
         for (size_t i = 0; i < properties.size(); ++i)
         {
-            ss << properties[i].name << ": \"" << properties[i].value << "\"";
+            ss << properties[i].name << ": " << properties[i].value->ToString();
             if (i < properties.size() - 1)
             {
                 ss << ", ";

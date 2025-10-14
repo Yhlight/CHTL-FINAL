@@ -31,8 +31,8 @@ TEST_CASE("Generator correctly generates HTML from AST", "[generator]")
                 id: box;
                 class = "container";
                 style {
-                    width: 100 + 50;
-                    height: 20;
+                    width: 100px + 50px;
+                    height: 20px;
                 }
                 text { "Hello CHTL" }
                 p {
@@ -50,7 +50,7 @@ TEST_CASE("Generator correctly generates HTML from AST", "[generator]")
         std::string html_output = generator.Generate(program.get());
 
         std::string expected_html =
-            "<div id=\"box\" class=\"container\" style=\"width:150;height:20;\">"
+            "<div id=\"box\" class=\"container\" style=\"width:150px;height:20px;\">"
             "Hello CHTL"
             "<p>A paragraph.</p>"
             "</div>";

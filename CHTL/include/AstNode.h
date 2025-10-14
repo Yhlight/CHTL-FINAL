@@ -33,9 +33,10 @@ namespace CHTL
     struct NumberLiteral : public Expression
     {
         double value;
+        std::string unit;
 
         NodeType GetType() const override { return NodeType::NumberLiteral; }
-        std::string ToString() const override { return std::to_string(value); }
+        std::string ToString() const override { return std::to_string(value) + unit; }
     };
 
     // 中缀表达式节点

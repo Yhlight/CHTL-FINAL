@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AstNode.h"
+#include "Value.h"
 #include <memory>
 
 namespace CHTL
@@ -8,9 +9,9 @@ namespace CHTL
     class Evaluator
     {
     public:
-        double Eval(Expression* node);
+        Value Eval(Expression* node);
 
     private:
-        double eval(Expression* node);
+        Value eval(Expression* node);
     };
 }

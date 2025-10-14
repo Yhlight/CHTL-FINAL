@@ -71,8 +71,8 @@ namespace CHTL
             m_output << " style=\"";
             for (size_t i = 0; i < style_node->properties.size(); ++i)
             {
-                double result = evaluator.Eval(style_node->properties[i].value.get());
-                m_output << style_node->properties[i].name << ":" << result;
+                Value result = evaluator.Eval(style_node->properties[i].value.get());
+                m_output << style_node->properties[i].name << ":" << result.num << result.unit;
                 if (i < style_node->properties.size() - 1)
                 {
                     m_output << ";";

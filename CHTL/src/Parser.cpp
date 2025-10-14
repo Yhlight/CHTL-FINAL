@@ -271,6 +271,14 @@ namespace CHTL
             m_errors.push_back("Could not parse " + m_currentToken.literal + " as double.");
             return nullptr;
         }
+
+        // Check for a unit identifier (e.g., "px", "em")
+        if (m_peekToken.type == TokenType::IDENT)
+        {
+            nextToken();
+            literal->unit = m_currentToken.literal;
+        }
+
         return literal;
     }
 

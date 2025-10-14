@@ -14,12 +14,14 @@ set(CHTL_SOURCES
     src/Lexer.cpp
     src/AstNode.cpp
     src/Parser.cpp
+    src/Generator.cpp
 )
 set(CHTL_HEADERS
     include/Token.h
     include/Lexer.h
     include/AstNode.h
     include/Parser.h
+    include/Generator.h
 )
 
 # 添加库

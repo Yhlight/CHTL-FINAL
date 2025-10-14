@@ -12,6 +12,7 @@ namespace CHTL {
 
     class Evaluator; // Forward declaration
     class Object;    // Forward declaration
+    using ElementMap = std::map<std::string, const ElementStatement*>;
 
     class Generator {
     public:
@@ -19,12 +20,12 @@ namespace CHTL {
 
     private:
         void CollectStyleRules(const Node* node, const ElementStatement* parent);
-        std::string RenderGlobalStyles(Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context);
+        std::string RenderGlobalStyles(Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap);
 
-        std::string GenerateStatement(const Statement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context);
-        std::string GenerateElementStatement(const ElementStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context);
+        std::string GenerateStatement(const Statement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap);
+        std::string GenerateElementStatement(const ElementStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap);
         std::string GenerateTextStatement(const TextStatement* stmt);
-        std::string GenerateBlockStatement(const BlockStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context);
+        std::string GenerateBlockStatement(const BlockStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap);
 
         std::vector<std::pair<const StyleRule*, const ElementStatement*>> global_styles;
     };

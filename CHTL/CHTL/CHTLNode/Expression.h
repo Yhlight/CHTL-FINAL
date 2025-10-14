@@ -90,4 +90,18 @@ namespace CHTL {
         std::unique_ptr<Expression> Alternative;
     };
 
+    class PropertyAccessExpression : public Expression {
+    public:
+        PropertyAccessExpression(Token token, std::unique_ptr<Expression> selector, std::unique_ptr<Identifier> property)
+            : token(std::move(token)), Selector(std::move(selector)), Property(std::move(property)) {}
+
+        std::string ToString() const override {
+            return Selector->ToString() + "." + Property->ToString();
+        }
+
+        Token token; // The '.' token
+        std::unique_ptr<Expression> Selector;
+        std::unique_ptr<Identifier> Property;
+    };
+
 } // namespace CHTL

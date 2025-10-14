@@ -20,17 +20,21 @@ namespace CHTL {
         {TokenType::AND,      Precedence::LOGICAL},
         {TokenType::OR,       Precedence::LOGICAL},
         {TokenType::QUESTION, Precedence::CONDITIONAL},
+        {TokenType::DOT,      Precedence::PROPERTY},
     };
 
     // Forward declarations for parse functions
     std::unique_ptr<Expression> ParseInfixExpression(Parser* parser, std::unique_ptr<Expression> left);
     std::unique_ptr<Expression> ParseConditionalExpression(Parser* parser, std::unique_ptr<Expression> left);
+    std::unique_ptr<Expression> ParsePropertyAccessExpression(Parser* parser, std::unique_ptr<Expression> left);
     std::unique_ptr<Expression> ParseIdentifier(Parser* parser);
     std::unique_ptr<Expression> ParseNumberLiteral(Parser* parser);
     std::unique_ptr<Expression> ParseStringLiteral(Parser* parser);
 
     const std::map<TokenType, PrefixParseFn> prefixParseFns = {
         {TokenType::IDENT,  ParseIdentifier},
+        {TokenType::HASH,   ParseIdentifier},
+        {TokenType::DOT,    ParseIdentifier},
         {TokenType::NUMBER, ParseNumberLiteral},
         {TokenType::STRING, ParseStringLiteral},
     };
@@ -49,7 +53,15 @@ namespace CHTL {
         {TokenType::AND,      ParseInfixExpression},
         {TokenType::OR,       ParseInfixExpression},
         {TokenType::QUESTION, ParseConditionalExpression},
+        {TokenType::DOT,      ParsePropertyAccessExpression},
     };
+
+    std::unique_ptr<Expression> ParsePropertyAccessExpression(Parser* parser, std::unique_ptr<Expression> left) {
+        Token token = parser->currentToken;
+        parser->NextToken();
+        auto property = std::make_unique<Identifier>(parser->currentToken, parser->currentToken.literal);
+        return std::make_unique<PropertyAccessExpression>(token, std::move(left), std::move(property));
+    }
 
     std::unique_ptr<Expression> ParseInfixExpression(Parser* parser, std::unique_ptr<Expression> left) {
         Token token = parser->currentToken;

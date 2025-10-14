@@ -19,6 +19,7 @@ namespace CHTL {
         SUM,         // + or -
         PRODUCT,     // * or / or %
         POWER,       // **
+        PROPERTY,    // .
         PREFIX,      // -X or !X
     };
 
@@ -41,6 +42,7 @@ namespace CHTL {
 
         friend std::unique_ptr<Expression> ParseInfixExpression(Parser* parser, std::unique_ptr<Expression> left);
         friend std::unique_ptr<Expression> ParseConditionalExpression(Parser* parser, std::unique_ptr<Expression> left);
+        friend std::unique_ptr<Expression> ParsePropertyAccessExpression(Parser* parser, std::unique_ptr<Expression> left);
         friend std::unique_ptr<Expression> ParseIdentifier(Parser* parser);
         friend std::unique_ptr<Expression> ParseNumberLiteral(Parser* parser);
         friend std::unique_ptr<Expression> ParseStringLiteral(Parser* parser);

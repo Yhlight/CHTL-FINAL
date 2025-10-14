@@ -3,6 +3,7 @@
 #include "../CHTLNode/Expression.h"
 #include "../CHTLNode/Style.h"
 #include "../CHTLEvaluator/Evaluator.h"
+#include "../CHTLAnalyzer/DocumentMap.h"
 #include <memory>
 
 namespace CHTL {
@@ -11,14 +12,17 @@ namespace CHTL {
         global_styles.clear();
         CollectStyleRules(program, nullptr);
 
+        DocumentMapBuilder docBuilder;
+        ElementMap docMap = docBuilder.Build(program);
+
         Evaluator evaluator;
         std::map<std::string, std::unique_ptr<Object>> context;
         std::string body_content;
         for (const auto& stmt : program->statements) {
-            body_content += GenerateStatement(stmt.get(), evaluator, context);
+            body_content += GenerateStatement(stmt.get(), evaluator, context, docMap);
         }
 
-        std::string global_style_content = RenderGlobalStyles(evaluator, context);
+        std::string global_style_content = RenderGlobalStyles(evaluator, context, docMap);
 
         // A basic HTML structure. A more robust solution would be to build this
         // from the AST, but this is a simple way to inject the head and style.
@@ -38,7 +42,7 @@ namespace CHTL {
         }
     }
 
-    std::string Generator::RenderGlobalStyles(Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context) {
+    std::string Generator::RenderGlobalStyles(Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap) {
         std::string out;
         for (const auto& pair : global_styles) {
             const auto rule = pair.first;
@@ -68,7 +72,7 @@ namespace CHTL {
 
             out += selector + " {";
             for (const auto& prop : rule->Properties) {
-                auto evaluated = evaluator.Eval(prop->Value.get(), context);
+                auto evaluated = evaluator.Eval(prop->Value.get(), context, docMap);
                 if (evaluated) {
                     std::string value_str = std::to_string(evaluated->Value);
                     value_str.erase(value_str.find_last_not_of('0') + 1, std::string::npos);
@@ -81,9 +85,9 @@ namespace CHTL {
         return out;
     }
 
-    std::string Generator::GenerateStatement(const Statement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context) {
+    std::string Generator::GenerateStatement(const Statement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap) {
         if (const auto elementStmt = dynamic_cast<const ElementStatement*>(stmt)) {
-            return GenerateElementStatement(elementStmt, evaluator, context);
+            return GenerateElementStatement(elementStmt, evaluator, context, docMap);
         }
         if (const auto textStmt = dynamic_cast<const TextStatement*>(stmt)) {
             return GenerateTextStatement(textStmt);
@@ -102,7 +106,7 @@ namespace CHTL {
         return "";
     }
 
-    std::string Generator::GenerateElementStatement(const ElementStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context) {
+    std::string Generator::GenerateElementStatement(const ElementStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap) {
         std::string out;
         out += "<" + stmt->Tag->value;
 
@@ -151,7 +155,7 @@ namespace CHTL {
         for (const auto& child_stmt : stmt->Body->statements) {
             if (const auto styleStmt = dynamic_cast<const StyleStatement*>(child_stmt.get())) {
                  for (const auto& prop : styleStmt->Properties) {
-                    auto evaluated = evaluator.Eval(prop->Value.get(), context);
+                    auto evaluated = evaluator.Eval(prop->Value.get(), context, docMap);
                     if (evaluated) {
                         context[prop->Key->value] = std::make_unique<Object>(*evaluated);
                          if (evaluated->Type == ObjectType::STRING) {
@@ -172,15 +176,15 @@ namespace CHTL {
         }
 
         out += ">";
-        out += GenerateBlockStatement(stmt->Body.get(), evaluator, context);
+        out += GenerateBlockStatement(stmt->Body.get(), evaluator, context, docMap);
         out += "</" + stmt->Tag->value + ">";
         return out;
     }
 
-    std::string Generator::GenerateBlockStatement(const BlockStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context) {
+    std::string Generator::GenerateBlockStatement(const BlockStatement* stmt, Evaluator& evaluator, std::map<std::string, std::unique_ptr<Object>>& context, const ElementMap& docMap) {
         std::string out;
         for (const auto& innerStmt : stmt->statements) {
-            out += GenerateStatement(innerStmt.get(), evaluator, context);
+            out += GenerateStatement(innerStmt.get(), evaluator, context, docMap);
         }
         return out;
     }

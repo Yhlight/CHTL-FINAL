@@ -1,0 +1,88 @@
+// CHTL 局部样式块演示
+// 严格遵循 CHTL.md 第103-125行规范
+
+html {
+    head {
+        title: "CHTL 样式演示";
+    }
+    
+    body {
+        // 示例 1: 基础内联样式
+        div {
+            id: "header";
+            class: "container";
+            
+            style {
+                width: 100%;
+                padding: 20px;
+                margin: 0;
+                background-color: #333;
+                color: white;
+            }
+            
+            text {
+                "欢迎使用 CHTL 样式系统"
+            }
+        }
+        
+        // 示例 2: 多种CSS单位
+        div {
+            class: "box";
+            
+            style {
+                width: 300px;
+                height: 200px;
+                margin: 10px 20px;
+                padding: 1em 2em;
+                font-size: 16px;
+                line-height: 1.5;
+            }
+            
+            div {
+                style {
+                    width: 50%;
+                    height: 100%;
+                    padding: 10px;
+                }
+                
+                text: "嵌套元素样式";
+            }
+        }
+        
+        // 示例 3: 复杂样式属性
+        div {
+            style {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                box-shadow: 0 2px 4px rgba;
+            }
+            
+            span {
+                style {
+                    color: #007bff;
+                    font-weight: bold;
+                    text-decoration: none;
+                }
+                
+                text: "样式化文本";
+            }
+        }
+        
+        // 示例 4: 响应式设计相关
+        div {
+            style {
+                width: 100%;
+                max-width: 1200px;
+                min-height: 400px;
+                padding: 2rem;
+                margin: 0 auto;
+            }
+            
+            text: "响应式容器";
+        }
+    }
+}

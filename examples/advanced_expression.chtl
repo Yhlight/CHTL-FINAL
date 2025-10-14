@@ -1,0 +1,238 @@
+// CHTL 高级属性运算演示
+// 展示各种复杂的 CSS 表达式
+
+html {
+    head {
+        title: "CHTL 高级表达式演示";
+    }
+    
+    body {
+        style {
+            margin: 0;
+            padding: 0;
+            font-family: Arial;
+        }
+        
+        // 示例 1: 响应式布局计算
+        div {
+            id: "container";
+            class: "main-container";
+            
+            style {
+                width: 1200px - 40px * 2;        // 1120px (减去左右 padding)
+                max-width: 100% - 20px;          // 80%
+                margin: 20px + 10px;             // 30px
+                padding: 20px;
+            }
+            
+            // 子容器 - 三列布局
+            div {
+                class: "column";
+                
+                style {
+                    width: (1120px - 40px) / 3;  // 360px (三列平分)
+                    padding: 10px + 10px;        // 20px
+                    margin: 5px;
+                }
+                
+                text: "列 1";
+            }
+            
+            div {
+                class: "column";
+                
+                style {
+                    width: (1120px - 40px) / 3;
+                    padding: 20px;
+                    margin: 5px;
+                }
+                
+                text: "列 2";
+            }
+            
+            div {
+                class: "column";
+                
+                style {
+                    width: (1120px - 40px) / 3;
+                    padding: 20px;
+                    margin: 5px;
+                }
+                
+                text: "列 3";
+            }
+        }
+        
+        // 示例 2: 字体大小层级
+        div {
+            id: "typography";
+            
+            style {
+                font-size: 16px;                 // 基准字体
+            }
+            
+            h1 {
+                style {
+                    font-size: 16px * 2.5;       // 40px (标题1)
+                    margin: 20px + 10px;         // 30px
+                }
+                
+                text: "主标题";
+            }
+            
+            h2 {
+                style {
+                    font-size: 16px * 2;         // 32px (标题2)
+                    margin: 15px + 10px;         // 25px
+                }
+                
+                text: "副标题";
+            }
+            
+            p {
+                style {
+                    font-size: 16px * 1;         // 16px (正文)
+                    line-height: 16px * 1.5;     // 24px
+                    margin: 10px + 5px;          // 15px
+                }
+                
+                text: "这是正文内容";
+            }
+            
+            small {
+                style {
+                    font-size: 16px * 0.875;     // 14px (小字)
+                }
+                
+                text: "小号文字";
+            }
+        }
+        
+        // 示例 3: 间距系统（基于 8px 倍数）
+        div {
+            id: "spacing-demo";
+            
+            div {
+                class: "space-1";
+                style {
+                    padding: 8px * 1;            // 8px
+                    margin: 8px * 1;
+                }
+                text: "间距 1x";
+            }
+            
+            div {
+                class: "space-2";
+                style {
+                    padding: 8px * 2;            // 16px
+                    margin: 8px * 2;
+                }
+                text: "间距 2x";
+            }
+            
+            div {
+                class: "space-3";
+                style {
+                    padding: 8px * 3;            // 24px
+                    margin: 8px * 3;
+                }
+                text: "间距 3x";
+            }
+            
+            div {
+                class: "space-4";
+                style {
+                    padding: 8px * 4;            // 32px
+                    margin: 8px * 4;
+                }
+                text: "间距 4x";
+            }
+        }
+        
+        // 示例 4: 复杂计算
+        div {
+            id: "complex-calc";
+            
+            style {
+                // 黄金比例宽度
+                width: 1000px / 1.618;                     // 618px
+                
+                // 复杂嵌套计算
+                height: ((200px + 100px) * 2) / 3;         // 200px
+                
+                // 组合运算
+                padding: (50px - 10px) / 2 + 5px;         // 25px
+                
+                // 百分比运算
+                margin: (100% - 80%) / 2;                  // 10%
+            }
+            
+            text: "复杂计算示例";
+        }
+        
+        // 示例 5: 网格系统
+        div {
+            id: "grid-system";
+            class: "grid-container";
+            
+            style {
+                width: 1200px;
+            }
+            
+            // 12 列网格，每列 100px
+            div {
+                class: "col-6";  // 占 6 列
+                style {
+                    width: 100px * 6;         // 600px (半宽)
+                    padding: 15px;
+                }
+                text: "6 列宽";
+            }
+            
+            div {
+                class: "col-4";  // 占 4 列
+                style {
+                    width: 100px * 4;         // 400px (三分之一)
+                    padding: 15px;
+                }
+                text: "4 列宽";
+            }
+            
+            div {
+                class: "col-3";  // 占 3 列
+                style {
+                    width: 100px * 3;         // 300px (四分之一)
+                    padding: 15px;
+                }
+                text: "3 列宽";
+            }
+        }
+        
+        // 示例 6: 动画时序
+        div {
+            id: "animation-timing";
+            
+            div {
+                style {
+                    // 动画延迟：基础延迟 * 索引
+                    animation-delay: 0.1s + 0s;       // 0.1s
+                }
+                text: "元素 1";
+            }
+            
+            div {
+                style {
+                    animation-delay: 0.1s + 0.1s;     // 0.2s
+                }
+                text: "元素 2";
+            }
+            
+            div {
+                style {
+                    animation-delay: 0.1s + 0.2s;     // 0.3s
+                }
+                text: "元素 3";
+            }
+        }
+    }
+}

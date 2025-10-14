@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head title="CHTL 示例网站">
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <meta content="使用 CHTL 构建的示例网站" name="description" />
+  </head>
+  <body style="color: # 333; font-family: Arial; font-size: 16px; line-height: 25.6px; margin: 0; padding: 0">
+    <header class="header" id="main-header" style="background-color: # 2c3e50; box-shadow: 0px 2px 4px rgba; color: white; padding: 20px; width: 100%">
+      <div class="container" style="display: flex; margin: 0auto; max-width: 1200px; padding: 20px">
+        <h1 class="logo" text="CHTL 示例网站" style="font-size: 24px; font-weight: bold; margin: 0" />
+        <nav class="nav-menu" style="display: flex; gap: 30px; margin-left: auto">
+          <a href="#home" text="首页" style="color: white; font-size: 16px; padding: 12px; text-decoration: none" />
+          <a href="#features" text="特性" style="color: white; font-size: 16px; padding: 12px; text-decoration: none" />
+          <a href="#pricing" text="价格" style="color: white; font-size: 16px; padding: 12px; text-decoration: none" />
+          <a href="#contact" text="联系" style="color: white; font-size: 16px; padding: 12px; text-decoration: none" />
+        </nav>
+      </div>
+    </header>
+    <main id="main-content">
+      <section class="hero" id="home" style="background-color: # 3498db; color: white; padding: 120px; text-align: center">
+        <div class="container" style="margin: 0auto; max-width: 800px">
+          <h2 text="欢迎使用 CHTL" style="font-size: 48px; margin: 0px; margin-bottom: 20px" />
+          <p text="一种现代化的超文本标记语言，让 Web 开发更简单、更优雅" style="font-size: 20px; line-height: 32px; margin: 20px" />
+          <button class="cta-button" text="立即开始" style="background-color: white; border: none; border-radius: 5px; color: # 3498db; cursor: pointer; font-size: 18px; margin-top: 30px; padding: 40px" />
+        </div>
+      </section>
+      <section class="features" id="features" style="background-color: # f8f9fa; padding: 100px">
+        <div class="container" style="margin: 0auto; max-width: 1200px">
+          <h2 text="核心特性" style="color: # 2c3e50; font-size: 40px; margin-bottom: 60px; text-align: center" />
+          <div class="features-grid" style="display: grid; gap: 40px">
+            <div class="feature-card" style="background-color: white; border-radius: 8px; box-shadow: 0px 2px 8px rgba; padding: 40px">
+              <h3 text="简洁语法" style="color: # 3498db; font-size: 24px; margin-top: 0" />
+              <p text="CHTL 采用简洁直观的语法，让代码更易读、更易维护" style="color: # 555; font-size: 16px; line-height: 25.6px" />
+            </div>
+            <div class="feature-card" style="background-color: white; border-radius: 8px; box-shadow: 0px 2px 8px rgba; padding: 40px">
+              <h3 text="内联样式" style="color: # 3498db; font-size: 24px; margin-top: 0" />
+              <p text="支持在元素内直接定义样式，无需额外的 CSS 文件" style="color: # 555; font-size: 16px; line-height: 25.6px" />
+            </div>
+            <div class="feature-card" style="background-color: white; border-radius: 8px; box-shadow: 0px 2px 8px rgba; padding: 40px">
+              <h3 text="属性运算" style="color: # 3498db; font-size: 24px; margin-top: 0" />
+              <p text="直接在 CSS 属性中进行数学运算，无需 calc() 函数" style="color: # 555; font-size: 16px; line-height: 25.6px" />
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="pricing" id="pricing" style="background-color: white; padding: 100px">
+        <div class="container" style="margin: 0auto; max-width: 1200px">
+          <h2 text="定价方案" style="color: # 2c3e50; font-size: 40px; margin-bottom: 60px; text-align: center" />
+          <div class="pricing-grid" style="display: flex; gap: 30px; justify-content: center">
+            <div class="pricing-card" style="background-color: # f8f9fa; border: 2px solid # e9ecef; border-radius: 8px; padding: 40px; text-align: center; width: 360px">
+              <h3 text="免费版" style="font-size: 24px; margin-top: 0" />
+              <p class="price" text="$0" style="color: # 3498db; font-size: 48px; font-weight: bold; margin: 20px" />
+              <p text="适合个人学习和小项目" style="color: # 666; font-size: 16px" />
+            </div>
+            <div class="pricing-card featured" style="background-color: # 3498db; border: 2px solid # 3498db; border-radius: 8px; color: white; padding: 40px; text-align: center; transform: scale; width: 360px">
+              <h3 text="专业版" style="font-size: 24px; margin-top: 0" />
+              <p class="price" text="$29" style="font-size: 48px; font-weight: bold; margin: 20px" />
+              <p text="适合专业开发者和团队" style="font-size: 16px" />
+            </div>
+            <div class="pricing-card" style="background-color: # f8f9fa; border: 2px solid # e9ecef; border-radius: 8px; padding: 40px; text-align: center; width: 360px">
+              <h3 text="企业版" style="font-size: 24px; margin-top: 0" />
+              <p class="price" text="定制" style="color: # 3498db; font-size: 48px; font-weight: bold; margin: 20px" />
+              <p text="为大型企业定制解决方案" style="color: # 666; font-size: 16px" />
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="footer" id="main-footer" style="background-color: # 2c3e50; color: white; padding: 80px; text-align: center">
+      <div class="container" style="margin: 0auto; max-width: 1200px">
+        <p text="© 2025 CHTL. All rights reserved." style="font-size: 16px; margin: 0" />
+        <p text="使用 CHTL 构建 | 展示属性运算功能" style="color: # 95a5a6; font-size: 14px; margin-top: 10px" />
+      </div>
+    </footer>
+  </body>
+</html>

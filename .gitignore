@@ -1,1 +1,53 @@
-third-party/
+# 构建产物
+build/
+bin/
+lib/
+cmake-build-*/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# 二进制文件
+*.exe
+*.out
+*.app
+*.o
+*.obj
+*.a
+*.so
+*.dylib
+*.dll
+*.lib
+
+# IDE 文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+
+# 测试产物
+*.log
+test_results/
+coverage/
+
+# 编译器生成文件
+*.d
+*.pdb
+*.ilk
+
+# 保留第三方库源码，但忽略其构建产物
+third-party/build/

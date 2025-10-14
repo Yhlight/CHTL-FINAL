@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+  <head title="CHTL Script 演示">
+    <meta charset="UTF-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  </head>
+  <body style="background-color: #f5f5f5; font-family: Arial; margin: 0; padding: 20px">
+    <h1 text="CHTL Script 块演示" style="color: #333; text-align: center" />
+    <div class="demo-section" style="background-color: white; border-radius: 8px; box-shadow: 0px 2px 4px rgba; margin: 20px; padding: 20px">
+      <h2 text="1. 简单按钮点击" style="color: #007bff; margin-top: 0" />
+      <button id="simpleButton" text="点击我" style="background-color: #007bff; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 16px; padding: 10px 20px">
+        <script>
+          this . addEventListener(click , function(){alert(按钮被点击了!);});
+        </script>
+      </button>
+    </div>
+    <div class="demo-section" style="background-color: white; border-radius: 8px; box-shadow: 0px 2px 4px rgba; margin: 20px; padding: 20px">
+      <h2 text="2. 计数器" style="color: #28a745; margin-top: 0" />
+      <div id="counter" text="计数: 0" style="font-size: 24px; margin: 10px; text-align: center" />
+      <button id="incrementButton" text="增加" style="background-color: #28a745; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 16px; margin: 5px; padding: 10px 20px">
+        <script>
+          var count = 0; this . addEventListener(click , function(){count + +; document . getElementById(counter) . textContent = 计数: + count;});
+        </script>
+      </button>
+      <button id="resetButton" text="重置" style="background-color: #dc3545; border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 16px; margin: 5px; padding: 10px 20px">
+        <script>
+          this . addEventListener(click , function(){document . getElementById(counter) . textContent = 计数: 0;});
+        </script>
+      </button>
+    </div>
+    <div class="demo-section" style="background-color: white; border-radius: 8px; box-shadow: 0px 2px 4px rgba; margin: 20px; padding: 20px">
+      <h2 text="3. 文本交互" style="color: #ffc107; margin-top: 0" />
+      <input id="nameInput" placeholder="输入你的名字" type="text" style="border: 1px solid #ddd; border-radius: 4px; font-size: 16px; margin: 10px; padding: 10px" />
+      <button id="greetButton" text="问候" style="background-color: #ffc107; border: none; border-radius: 4px; color: black; cursor: pointer; font-size: 16px; margin: 10px; padding: 10px 20px">
+        <script>
+          this . addEventListener(click , function(){var name = document . getElementById(nameInput) . value; if(name){document . getElementById(greeting) . textContent = 你好, + name + !;} else{document . getElementById(greeting) . textContent = 请输入名字;}});
+        </script>
+      </button>
+      <div id="greeting" style="color: #333; font-size: 20px; margin-top: 15px" />
+    </div>
+    <script>
+      console . log(CHTL Script Demo 页面加载完成); console . log(演示了 script 块的各种用法:); console . log(1. 按钮点击事件); console . log(2. 状态管理（计数器）); console . log(3. DOM 操作（文本交互）);
+    </script>
+    <div text="使用 CHTL v0.5.0 构建 | Script 块功能演示" style="border-top: 1px solid #ddd; color: #666; margin-top: 40px; padding: 20px; text-align: center" />
+  </body>
+</html>

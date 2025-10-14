@@ -57,3 +57,11 @@ add_executable(GeneratorTest
 
 # Link the GeneratorTest executable against the generator, parser, and lexer libraries
 target_link_libraries(GeneratorTest CHTLGenerator CHTLParser CHTLLexer CHTLEvaluator CHTLAnalyzer CHTLNode)
+
+# Define the CHTL executable
+add_executable(CHTL
+    main.cpp
+)
+
+# Link the CHTL executable against all the libraries
+target_link_libraries(CHTL CHTLGenerator CHTLParser CHTLLexer CHTLEvaluator CHTLAnalyzer CHTLNode)

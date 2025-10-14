@@ -1,0 +1,11 @@
+// 简单的 CHTL 示例
+
+div {
+    text: "Hello CHTL";
+    
+    style {
+        width: 100px;
+        height: 100px;
+        background-color: red;
+    }
+}

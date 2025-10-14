@@ -12,6 +12,7 @@ namespace CHTL
         Program,
         Element,
         Text,
+        Style,
     };
 
     // AST节点基类
@@ -47,6 +48,22 @@ namespace CHTL
 
         NodeType GetType() const override { return NodeType::Text; }
         std::string ToString() const override { return "TextNode(\"" + value + "\")"; }
+    };
+
+    // 样式属性结构体, e.g., width: 100px;
+    struct StyleProperty
+    {
+        std::string name;
+        std::string value;
+    };
+
+    // 样式节点, e.g., style { ... }
+    struct StyleNode : public AstNode
+    {
+        std::vector<StyleProperty> properties;
+
+        NodeType GetType() const override { return NodeType::Style; }
+        std::string ToString() const override;
     };
 
     // 程序根节点

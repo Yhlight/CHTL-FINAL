@@ -62,6 +62,10 @@ namespace CHTL
         {
              return parseTextNode();
         }
+        else if (m_currentToken.type == TokenType::KEYWORD_STYLE)
+        {
+            return parseStyleNode();
+        }
         return nullptr;
     }
 
@@ -164,6 +168,64 @@ namespace CHTL
         }
 
         return attr;
+    }
+
+    // 解析样式块: e.g., style { width: 100px; }
+    std::unique_ptr<StyleNode> Parser::parseStyleNode()
+    {
+        auto node = std::make_unique<StyleNode>();
+
+        // 当前Token是'style'，期望下一个是'{'
+        if (!expectPeek(TokenType::LBRACE))
+        {
+            return nullptr;
+        }
+        nextToken(); // 消费'{'
+
+        // 循环解析样式属性
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            if (m_currentToken.type == TokenType::IDENT)
+            {
+                StyleProperty prop;
+                prop.name = m_currentToken.literal;
+
+                // 期望':'或'='
+                if (m_peekToken.type != TokenType::COLON && m_peekToken.type != TokenType::ASSIGN) {
+                     m_errors.push_back("Expected ':' or '=' after style property name.");
+                     return nullptr;
+                }
+                nextToken(); // 消费属性名
+                nextToken(); // 消费':'或'='
+
+                std::string value = "";
+                // 拼接属性值，直到';'或'}'
+                while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+                {
+                    value += m_currentToken.literal;
+                    nextToken();
+                }
+                prop.value = value;
+                node->properties.push_back(prop);
+
+                // 如果有分号，消费它
+                if (m_currentToken.type == TokenType::SEMICOLON)
+                {
+                    nextToken();
+                }
+            } else {
+                 m_errors.push_back("Invalid token in style block: " + m_currentToken.ToString());
+                 nextToken(); // 跳过无法识别的Token，避免无限循环
+            }
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE)
+        {
+             m_errors.push_back("Expected '}' to close style block.");
+             return nullptr;
+        }
+
+        return node;
     }
 
 } // namespace CHTL

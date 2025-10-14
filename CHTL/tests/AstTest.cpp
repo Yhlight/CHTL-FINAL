@@ -117,3 +117,45 @@ TEST_CASE("Parser correctly parses attributes", "[parser]")
         REQUIRE(el->attributes[3].value == "25.5");
     }
 }
+
+TEST_CASE("Parser correctly parses style blocks", "[parser]")
+{
+    SECTION("Parses a style block with multiple properties")
+    {
+        std::string input = R"(
+            div {
+                style {
+                    width: 100px;
+                    color: red;
+                    background-color = "nice blue";
+                }
+            }
+        )";
+
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+        REQUIRE(program != nullptr);
+        REQUIRE(program->children.size() == 1);
+
+        auto* el = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+        REQUIRE(el != nullptr);
+        REQUIRE(el->children.size() == 1);
+
+        auto* style_node = dynamic_cast<CHTL::StyleNode*>(el->children[0].get());
+        REQUIRE(style_node != nullptr);
+        REQUIRE(style_node->properties.size() == 3);
+
+        // Check style properties
+        REQUIRE(style_node->properties[0].name == "width");
+        REQUIRE(style_node->properties[0].value == "100px");
+
+        REQUIRE(style_node->properties[1].name == "color");
+        REQUIRE(style_node->properties[1].value == "red");
+
+        REQUIRE(style_node->properties[2].name == "background-color");
+        REQUIRE(style_node->properties[2].value == "nice blue");
+    }
+}

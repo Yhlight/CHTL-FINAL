@@ -28,6 +28,22 @@ namespace CHTL
         return ss.str();
     }
 
+    std::string StyleNode::ToString() const
+    {
+        std::stringstream ss;
+        ss << "StyleNode(properties: [";
+        for (size_t i = 0; i < properties.size(); ++i)
+        {
+            ss << properties[i].name << ": \"" << properties[i].value << "\"";
+            if (i < properties.size() - 1)
+            {
+                ss << ", ";
+            }
+        }
+        ss << "])";
+        return ss.str();
+    }
+
     std::string ProgramNode::ToString() const
     {
         std::stringstream ss;

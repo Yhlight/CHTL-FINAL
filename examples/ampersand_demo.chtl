@@ -1,0 +1,99 @@
+// CHTL 上下文推导 & 演示
+// 展示 Step 7.2 的功能：&:hover, &::before 等
+
+html {
+    head {}
+    body {
+        // 示例 1: & 与伪类
+        div {
+            style {
+                .box {
+                    width: 200px;
+                    height: 200px;
+                    background-color: #3498db;
+                    transition: all 0.3s;
+                }
+                
+                &:hover {
+                    background-color: #2980b9;
+                    transform: scale(1.05);
+                }
+                
+                &:active {
+                    transform: scale(0.95);
+                }
+            }
+            
+            text: "悬停试试";
+        }
+        
+        // 示例 2: & 与伪元素
+        div {
+            style {
+                .button {
+                    padding: 10px 20px;
+                    background-color: #007bff;
+                    color: white;
+                    position: relative;
+                }
+                
+                &::before {
+                    content: "→";
+                    margin-right: 5px;
+                }
+                
+                &::after {
+                    content: "←";
+                    margin-left: 5px;
+                }
+                
+                &:hover {
+                    background-color: #0056b3;
+                }
+            }
+            
+            text: "按钮";
+        }
+        
+        // 示例 3: id 选择器 + &
+        div {
+            style {
+                #header {
+                    background: #343a40;
+                    color: white;
+                    padding: 15px;
+                }
+                
+                &:hover {
+                    background: #23272b;
+                }
+            }
+            
+            text: "头部";
+        }
+        
+        // 示例 4: 复杂的伪类组合
+        div {
+            style {
+                .input {
+                    border: 1px solid #ccc;
+                    padding: 8px;
+                }
+                
+                &:focus {
+                    border-color: #007bff;
+                    outline: none;
+                }
+                
+                &:disabled {
+                    background-color: #e9ecef;
+                    cursor: not-allowed;
+                }
+                
+                &::placeholder {
+                    color: #6c757d;
+                }
+            }
+        }
+    }
+}

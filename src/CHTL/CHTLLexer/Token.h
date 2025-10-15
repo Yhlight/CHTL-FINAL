@@ -68,6 +68,8 @@ enum class TokenType {
     COMMA,               // ,
     DOT,                 // .
     HASH,                // # (作为选择器，非注释)
+    AMPERSAND,           // & (上下文引用)
+    DOUBLE_COLON,        // :: (伪元素)
     
     // 运算符
     EQUALS,              // =

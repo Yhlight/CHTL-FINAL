@@ -89,13 +89,19 @@ Token Lexer::nextToken() {
         case '(': return makeToken(TokenType::LEFT_PAREN, "(");
         case ')': return makeToken(TokenType::RIGHT_PAREN, ")");
         case ';': return makeToken(TokenType::SEMICOLON, ";");
-        case ':': return makeToken(TokenType::COLON, ":");
+        case ':':
+            if (peek() == ':') {
+                advance();
+                return makeToken(TokenType::DOUBLE_COLON, "::");
+            }
+            return makeToken(TokenType::COLON, ":");
         case ',': return makeToken(TokenType::COMMA, ",");
         case '.': return makeToken(TokenType::DOT, ".");
         case '=': return makeToken(TokenType::EQUALS, "=");
         case '+': return makeToken(TokenType::PLUS, "+");
         case '-': return makeToken(TokenType::MINUS, "-");
         case '%': return makeToken(TokenType::PERCENT, "%");
+        case '&': return makeToken(TokenType::AMPERSAND, "&");
         case '*':
             if (peek() == '*') {
                 advance();

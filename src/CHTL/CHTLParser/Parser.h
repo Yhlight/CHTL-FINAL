@@ -62,6 +62,13 @@ private:
     std::vector<std::string> errors_;
     ElementNode* currentElement_;  // 当前正在解析的元素（用于自动添加类名/id）
     
+    // 上下文跟踪（用于 & 解析）
+    struct StyleContext {
+        std::string currentSelector;  // 当前选择器（如 ".box" 或 "#header"）
+        bool hasSelector = false;
+    };
+    StyleContext styleContext_;
+    
     // Token 操作
     Token peek() const;
     Token previous() const;

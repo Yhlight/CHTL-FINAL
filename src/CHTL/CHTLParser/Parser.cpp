@@ -224,9 +224,13 @@ NodePtr Parser::parseStyleBlock() {
     
     auto styleNode = std::make_unique<StyleNode>();
     
+    // 重置样式上下文
+    styleContext_.currentSelector = "";
+    styleContext_.hasSelector = false;
+    
     // 解析 style 块内容
     while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
-        // 检查是否是选择器（.box {} 或 #id {}）
+        // 检查是否是选择器（.box {} 或 #id {} 或 & {}）
         if (isSelector()) {
             // 解析 CSS 规则
             CSSRule rule = parseCSSRule();
@@ -450,9 +454,9 @@ bool Parser::isElementStart() const {
     return true;
 }
 
-// 检查当前 token 是否是选择器开始（. 或 #）
+// 检查当前 token 是否是选择器开始（. 或 # 或 &）
 bool Parser::isSelector() const {
-    return check(TokenType::DOT) || check(TokenType::HASH);
+    return check(TokenType::DOT) || check(TokenType::HASH) || check(TokenType::AMPERSAND);
 }
 
 // 解析 CSS 选择器
@@ -469,6 +473,49 @@ CSSSelector Parser::parseSelector() {
         return CSSSelector(SelectorType::ID, nameToken.value);
     }
     
+    if (match(TokenType::AMPERSAND)) {
+        // & 上下文引用
+        // 检查是否跟着伪类或伪元素
+        if (check(TokenType::COLON)) {
+            advance(); // 消费 :
+            
+            // 检查是否是伪元素（::）
+            if (check(TokenType::COLON)) {
+                advance(); // 消费第二个 :
+                // 伪元素名可以是标识符或某些关键字（如 before, after）
+                Token nameToken = advance();
+                if (nameToken.type != TokenType::IDENTIFIER && 
+                    nameToken.type != TokenType::KEYWORD_BEFORE &&
+                    nameToken.type != TokenType::KEYWORD_AFTER) {
+                    throw ParseError("期望伪元素名", nameToken.line, nameToken.column);
+                }
+                return CSSSelector(SelectorType::PSEUDO_ELEMENT, nameToken.value);
+            } else {
+                // 伪类（:）
+                Token nameToken = advance();
+                if (nameToken.type != TokenType::IDENTIFIER) {
+                    throw ParseError("期望伪类名", nameToken.line, nameToken.column);
+                }
+                return CSSSelector(SelectorType::PSEUDO_CLASS, nameToken.value);
+            }
+        } else if (check(TokenType::DOUBLE_COLON)) {
+            // :: 伪元素
+            advance(); // 消费 ::
+            // 伪元素名可以是标识符或某些关键字（如 before, after）
+            Token nameToken = advance();
+            if (nameToken.type != TokenType::IDENTIFIER && 
+                nameToken.type != TokenType::KEYWORD_BEFORE &&
+                nameToken.type != TokenType::KEYWORD_AFTER) {
+                throw ParseError("期望伪元素名", nameToken.line, nameToken.column);
+            }
+            return CSSSelector(SelectorType::PSEUDO_ELEMENT, nameToken.value);
+        } else {
+            // 单独的 &，引用当前上下文
+            // 返回一个特殊的选择器，稍后处理
+            return CSSSelector(SelectorType::CLASS, "&");  // 临时标记
+        }
+    }
+    
     throw ParseError("无效的选择器", peek().line, peek().column);
 }
 
@@ -479,22 +526,35 @@ CSSRule Parser::parseCSSRule() {
     
     // 构建选择器字符串
     std::string selectorStr;
+    bool updateContext = false;
+    
     if (selector.type == SelectorType::CLASS) {
-        selectorStr = "." + selector.name;
-        
-        // 自动为当前元素添加类名
-        if (currentElement_) {
-            std::string className = selector.name;
-            if (!currentElement_->hasAttribute("class")) {
-                currentElement_->addAttribute("class", className);
-            } else {
-                // 追加到现有类名
-                std::string existingClass = currentElement_->getAttribute("class");
-                currentElement_->addAttribute("class", existingClass + " " + className);
+        if (selector.name == "&") {
+            // 单独的 &，使用当前上下文
+            if (!styleContext_.hasSelector) {
+                throw ParseError("& 必须在类或 id 选择器之后使用", peek().line, peek().column);
+            }
+            selectorStr = styleContext_.currentSelector;
+        } else {
+            // 普通类选择器
+            selectorStr = "." + selector.name;
+            updateContext = true;
+            
+            // 自动为当前元素添加类名
+            if (currentElement_) {
+                std::string className = selector.name;
+                if (!currentElement_->hasAttribute("class")) {
+                    currentElement_->addAttribute("class", className);
+                } else {
+                    // 追加到现有类名
+                    std::string existingClass = currentElement_->getAttribute("class");
+                    currentElement_->addAttribute("class", existingClass + " " + className);
+                }
             }
         }
     } else if (selector.type == SelectorType::ID) {
         selectorStr = "#" + selector.name;
+        updateContext = true;
         
         // 自动为当前元素添加 id
         if (currentElement_) {
@@ -507,6 +567,24 @@ CSSRule Parser::parseCSSRule() {
                 currentElement_->addAttribute("id", idName);
             }
         }
+    } else if (selector.type == SelectorType::PSEUDO_CLASS) {
+        // 伪类：&:hover → .box:hover
+        if (!styleContext_.hasSelector) {
+            throw ParseError("伪类必须在类或 id 选择器之后使用", peek().line, peek().column);
+        }
+        selectorStr = styleContext_.currentSelector + ":" + selector.name;
+    } else if (selector.type == SelectorType::PSEUDO_ELEMENT) {
+        // 伪元素：&::before → .box::before
+        if (!styleContext_.hasSelector) {
+            throw ParseError("伪元素必须在类或 id 选择器之后使用", peek().line, peek().column);
+        }
+        selectorStr = styleContext_.currentSelector + "::" + selector.name;
+    }
+    
+    // 更新上下文（如果是新的类/id选择器）
+    if (updateContext) {
+        styleContext_.currentSelector = selectorStr;
+        styleContext_.hasSelector = true;
     }
     
     CSSRule rule(selectorStr);

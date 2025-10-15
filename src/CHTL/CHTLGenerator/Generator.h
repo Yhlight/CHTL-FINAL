@@ -65,6 +65,11 @@ private:
     // 全局样式注入
     void injectGlobalStyles();
     bool globalStylesInjected_;  // 标记是否已注入全局样式
+    
+    // HTML 结构操作
+    ElementNode* findHtmlElement(const std::vector<NodePtr>& ast);
+    ElementNode* findOrCreateHeadElement(ElementNode* htmlElement);
+    void ensureGlobalStylesInjected(std::vector<NodePtr>& ast);
 };
 
 } // namespace CHTL

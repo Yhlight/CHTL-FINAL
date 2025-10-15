@@ -1,0 +1,146 @@
+// CHTL v0.6.0 功能展示
+// 展示所有 Step 7 的新功能
+
+html {
+    // 注意：没有手写 <head>，它会自动创建！
+    
+    body {
+        // 示例 1: 自动类名
+        div {
+            style {
+                .container {
+                    width: 1200px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }
+            }
+            
+            // 示例 2: 自动 id + 伪类
+            div {
+                style {
+                    #header {
+                        background: #007bff;
+                        color: white;
+                        padding: 15px;
+                        border-radius: 5px;
+                    }
+                    
+                    &:hover {
+                        background: #0056b3;
+                    }
+                }
+                
+                text: "网站头部";
+            }
+            
+            // 示例 3: 多类名 + 伪元素
+            div {
+                style {
+                    .card {
+                        background: white;
+                        padding: 20px;
+                        border-radius: 8px;
+                        box-shadow: 0 2px 4px #ddd;
+                    }
+                    
+                    .featured {
+                        border-left: 4px solid #28a745;
+                    }
+                    
+                    &:hover {
+                        box-shadow: 0 4px 8px #ccc;
+                        transform: translateY(-2px);
+                    }
+                    
+                    &::before {
+                        content: "⭐";
+                        margin-right: 10px;
+                    }
+                }
+                
+                div {
+                    text: "特色卡片";
+                }
+            }
+            
+            // 示例 4: 带运算的样式
+            div {
+                style {
+                    .button {
+                        padding: 10px * 2;
+                        background-color: #17a2b8;
+                        color: white;
+                        border: none;
+                        border-radius: 100px / 4;
+                    }
+                    
+                    &:hover {
+                        background-color: #138496;
+                        cursor: pointer;
+                    }
+                    
+                    &:active {
+                        transform: scale(0.95);
+                    }
+                    
+                    &::after {
+                        content: "→";
+                        margin-left: 8px;
+                    }
+                }
+                
+                text: "点击按钮";
+            }
+            
+            // 示例 5: 复杂的嵌套
+            div {
+                style {
+                    .sidebar {
+                        width: 300px;
+                        background: #f8f9fa;
+                        padding: 15px;
+                    }
+                }
+                
+                div {
+                    style {
+                        .menu-item {
+                            padding: 10px;
+                            border-bottom: 1px solid #dee2e6;
+                        }
+                        
+                        &:hover {
+                            background: #e9ecef;
+                        }
+                        
+                        &:first-child {
+                            border-top: 1px solid #dee2e6;
+                        }
+                    }
+                    
+                    text: "菜单项";
+                }
+            }
+            
+            // 示例 6: 内联样式 + 全局样式混合
+            div {
+                style {
+                    .footer {
+                        background: #343a40;
+                        color: white;
+                    }
+                    
+                    &:hover {
+                        background: #23272b;
+                    }
+                    
+                    // 内联样式（不会添加到全局）
+                    padding: 30px;
+                    text-align: center;
+                }
+                
+                text: "页脚 © 2025";
+            }
+        }
+    }
+}

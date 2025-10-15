@@ -1,0 +1,72 @@
+<html>
+  <head>
+    <style>
+      #header {
+        background: #343a40;
+        color: white;
+        padding: 15px;
+      }
+
+      #header:hover {
+        background: #23272b;
+      }
+
+      .box {
+        background-color: #3498db;
+        height: 200px;
+        transition: all 0.3s;
+        width: 200px;
+      }
+
+      .box:hover {
+        background-color: #2980b9;
+      }
+
+      .button {
+        background-color: #007bff;
+        color: white;
+        padding: 10px 20px;
+        position: relative;
+      }
+
+      .button::after {
+        content: ←;
+        margin-left: 5px;
+      }
+
+      .button::before {
+        content: →;
+        margin-right: 5px;
+      }
+
+      .button:hover {
+        background-color: #0056b3;
+      }
+
+      .input {
+        border: 1px solid #ccc;
+        padding: 8px;
+      }
+
+      .input::placeholder {
+        color: #6c757d;
+      }
+
+      .input:disabled {
+        background-color: #e9ecef;
+        cursor: not-allowed;
+      }
+
+      .input:focus {
+        border-color: #007bff;
+        outline: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="box" text="悬停试试" />
+    <div class="button" text="按钮" />
+    <div id="header" text="头部" />
+    <div class="input" />
+  </body>
+</html>

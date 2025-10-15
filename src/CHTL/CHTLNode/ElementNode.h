@@ -39,7 +39,15 @@ public:
         children_.push_back(std::move(child));
     }
     
+    void prependChild(NodePtr child) {
+        children_.insert(children_.begin(), std::move(child));
+    }
+    
     const std::vector<NodePtr>& getChildren() const {
+        return children_;
+    }
+    
+    std::vector<NodePtr>& getChildren() {
         return children_;
     }
     

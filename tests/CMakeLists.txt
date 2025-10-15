@@ -16,6 +16,8 @@ add_executable(chtl_tests
     test_expression.cpp
     test_script.cpp
     test_auto_class.cpp
+    test_ampersand.cpp
+    test_auto_head.cpp
 )
 
 target_link_libraries(chtl_tests PRIVATE 

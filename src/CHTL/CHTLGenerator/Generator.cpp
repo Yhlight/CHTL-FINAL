@@ -12,6 +12,11 @@ std::string Generator::generate(const std::vector<NodePtr>& ast) {
     reset();
     globalStylesInjected_ = false;
     
+    // 如果有全局样式，确保它们被注入到 <head>
+    if (GlobalStyleCollector::getInstance().hasRules()) {
+        ensureGlobalStylesInjected(const_cast<std::vector<NodePtr>&>(ast));
+    }
+    
     // 添加 DOCTYPE（如果需要）
     if (config_.includeDoctype) {
         writeLine("<!DOCTYPE html>");
@@ -285,6 +290,67 @@ void Generator::injectGlobalStyles() {
     
     if (config_.prettyPrint) {
         write("\n");
+    }
+}
+
+// 查找 <html> 元素
+ElementNode* Generator::findHtmlElement(const std::vector<NodePtr>& ast) {
+    for (const auto& node : ast) {
+        if (node->getType() == NodeType::ELEMENT) {
+            ElementNode* elem = dynamic_cast<ElementNode*>(node.get());
+            if (elem && elem->getTagName() == "html") {
+                return elem;
+            }
+        }
+    }
+    return nullptr;
+}
+
+// 在 <html> 中查找或创建 <head> 元素
+ElementNode* Generator::findOrCreateHeadElement(ElementNode* htmlElement) {
+    if (!htmlElement) return nullptr;
+    
+    // 查找现有的 <head>
+    for (const auto& child : htmlElement->getChildren()) {
+        if (child->getType() == NodeType::ELEMENT) {
+            ElementNode* elem = dynamic_cast<ElementNode*>(child.get());
+            if (elem && elem->getTagName() == "head") {
+                return elem;
+            }
+        }
+    }
+    
+    // 如果没有 <head>，创建一个（但实际上在 ensureGlobalStylesInjected 中处理）
+    return nullptr;
+}
+
+// 确保全局样式被注入（必要时创建 <head>）
+void Generator::ensureGlobalStylesInjected(std::vector<NodePtr>& ast) {
+    // 查找 <html> 元素
+    ElementNode* htmlElement = findHtmlElement(ast);
+    
+    if (!htmlElement) {
+        // 如果没有 <html> 元素，无法注入全局样式
+        // 这种情况下，样式将不会被注入（但仍会为元素添加类名/id）
+        return;
+    }
+    
+    // 查找 <head> 元素
+    bool hasHead = false;
+    for (const auto& child : htmlElement->getChildren()) {
+        if (child->getType() == NodeType::ELEMENT) {
+            ElementNode* elem = dynamic_cast<ElementNode*>(child.get());
+            if (elem && elem->getTagName() == "head") {
+                hasHead = true;
+                break;
+            }
+        }
+    }
+    
+    // 如果没有 <head>，创建一个并插入到开头
+    if (!hasHead) {
+        auto headElement = std::make_unique<ElementNode>("head");
+        htmlElement->prependChild(std::move(headElement));
     }
 }
 

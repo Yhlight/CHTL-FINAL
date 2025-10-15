@@ -19,6 +19,9 @@ add_library(chtl_core STATIC
     
     # Generator 生成器
     CHTL/CHTLGenerator/Generator.cpp
+    
+    # Common 公共模块
+    CHTL/CHTLCommon/GlobalStyleCollector.cpp
 )
 
 target_include_directories(chtl_core PUBLIC

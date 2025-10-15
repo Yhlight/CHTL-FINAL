@@ -1,0 +1,65 @@
+// CHTL 自动类名演示
+// 这个文件展示了 Step 7.1 的新功能：自动化类名/id
+
+html {
+    head {
+        title: "自动类名演示";
+    }
+    
+    body {
+        // 示例 1: 基础的自动类名
+        div {
+            style {
+                .container {
+                    width: 1200px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }
+            }
+            
+            // 示例 2: 嵌套元素的自动类名
+            div {
+                style {
+                    .header {
+                        background-color: #007bff;
+                        color: white;
+                        padding: 15px;
+                        border-radius: 5px;
+                    }
+                }
+                
+                text: "欢迎使用 CHTL";
+            }
+            
+            // 示例 3: 多个类选择器
+            div {
+                style {
+                    .content {
+                        margin-top: 20px;
+                        padding: 30px;
+                    }
+                    
+                    .section {
+                        background: #f8f9fa;
+                        border: 1px solid #dee2e6;
+                    }
+                }
+                
+                text: "这是内容区域";
+            }
+            
+            // 示例 4: 带运算的样式
+            div {
+                style {
+                    .footer {
+                        margin-top: 100px + 50px;
+                        padding: 10px * 2;
+                        background-color: #6c757d;
+                    }
+                }
+                
+                text: "页脚";
+            }
+        }
+    }
+}

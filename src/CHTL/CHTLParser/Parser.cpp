@@ -8,7 +8,11 @@ namespace CHTL {
 Parser::Parser(std::vector<Token> tokens)
     : tokens_(std::move(tokens))
     , current_(0)
-    , currentDepth_(0) {}
+    , currentDepth_(0)
+    , currentElement_(nullptr) {
+    // 清空全局样式收集器（每次编译开始）
+    GlobalStyleCollector::getInstance().clear();
+}
 
 std::vector<NodePtr> Parser::parse() {
     std::vector<NodePtr> statements;
@@ -109,6 +113,10 @@ NodePtr Parser::parseElement() {
     auto element = std::make_unique<ElementNode>(tagToken.value);
     element->setPosition(tagToken.line, tagToken.column);
     
+    // 保存之前的 currentElement_（支持嵌套）
+    ElementNode* previousElement = currentElement_;
+    currentElement_ = element.get();
+    
     // 解析元素体 { ... }
     consume(TokenType::LEFT_BRACE, "期望 '{'");
     
@@ -179,6 +187,9 @@ NodePtr Parser::parseElement() {
         );
     }
     
+    // 恢复之前的 currentElement_
+    currentElement_ = previousElement;
+    
     // 减少嵌套深度
     currentDepth_--;
     
@@ -213,8 +224,23 @@ NodePtr Parser::parseStyleBlock() {
     
     auto styleNode = std::make_unique<StyleNode>();
     
-    // 解析 CSS 属性：property-name: value;
+    // 解析 style 块内容
     while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        // 检查是否是选择器（.box {} 或 #id {}）
+        if (isSelector()) {
+            // 解析 CSS 规则
+            CSSRule rule = parseCSSRule();
+            
+            // 添加到全局样式收集器
+            GlobalStyleCollector::getInstance().addRule(rule.selector, rule.properties);
+            
+            continue;
+        }
+        
+        // 否则是内联样式，调用 parseInlineStyles()
+        // 注意：这里不能调用 parseInlineStyles()，因为它期望在 while 循环内
+        // 所以保持原有的内联样式解析逻辑
+        
         // 检查是否是 CSS 属性名（标识符）
         if (check(TokenType::IDENTIFIER)) {
             std::string propertyName = advance().value;
@@ -422,6 +448,290 @@ bool Parser::isElementStart() const {
     // 排除一些特殊关键字
     // 这里简单判断，后续可以优化
     return true;
+}
+
+// 检查当前 token 是否是选择器开始（. 或 #）
+bool Parser::isSelector() const {
+    return check(TokenType::DOT);  // 目前只支持类选择器
+    // TODO: 添加 # (ID 选择器) 支持
+}
+
+// 解析 CSS 选择器
+CSSSelector Parser::parseSelector() {
+    if (match(TokenType::DOT)) {
+        // 类选择器：.box
+        Token nameToken = consume(TokenType::IDENTIFIER, "期望类名");
+        return CSSSelector(SelectorType::CLASS, nameToken.value);
+    }
+    // TODO: 支持 # (ID 选择器)
+    
+    throw ParseError("无效的选择器", peek().line, peek().column);
+}
+
+// 解析 CSS 规则块
+CSSRule Parser::parseCSSRule() {
+    // 解析选择器
+    CSSSelector selector = parseSelector();
+    
+    // 构建选择器字符串
+    std::string selectorStr;
+    if (selector.type == SelectorType::CLASS) {
+        selectorStr = "." + selector.name;
+        
+        // 自动为当前元素添加类名
+        if (currentElement_) {
+            std::string className = selector.name;
+            if (!currentElement_->hasAttribute("class")) {
+                currentElement_->addAttribute("class", className);
+            } else {
+                // 追加到现有类名
+                std::string existingClass = currentElement_->getAttribute("class");
+                currentElement_->addAttribute("class", existingClass + " " + className);
+            }
+        }
+    }
+    
+    CSSRule rule(selectorStr);
+    
+    // 解析规则块 { ... }
+    consume(TokenType::LEFT_BRACE, "期望 '{'");
+    
+    // 解析 CSS 属性
+    while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        if (check(TokenType::IDENTIFIER)) {
+            std::string propertyName = advance().value;
+            
+            if (check(TokenType::COLON) || check(TokenType::EQUALS)) {
+                advance(); // 消费 : 或 =
+                
+                // 检查是否是表达式（包含运算符）
+                if (CSSExpression::isExpression(tokens_, current_)) {
+                    // 解析并求值表达式
+                    try {
+                        CSSValue result = CSSExpression::evaluate(tokens_, current_);
+                        
+                        // 消费分号（如果存在）
+                        match(TokenType::SEMICOLON);
+                        
+                        // 添加求值后的属性
+                        rule.properties[propertyName] = result.toString();
+                    } catch (const std::exception& e) {
+                        // 表达式求值失败，跳过
+                        while (!check(TokenType::SEMICOLON) && 
+                               !check(TokenType::RIGHT_BRACE) && 
+                               !isAtEnd()) {
+                            advance();
+                        }
+                        match(TokenType::SEMICOLON);
+                    }
+                } else {
+                    // 不是表达式，收集属性值（使用与内联样式相同的逻辑）
+                    std::string propertyValue;
+                    TokenType lastTokenType = TokenType::UNKNOWN;
+                    bool inColorCode = false;
+                    
+                    // CSS 单位列表
+                    static const std::vector<std::string> cssUnits = {
+                        "px", "em", "rem", "pt", "pc", "in", "cm", "mm", "ex", "ch",
+                        "vw", "vh", "vmin", "vmax", "deg", "rad", "grad", "turn",
+                        "s", "ms", "fr", "dpi", "dpcm", "dppx"
+                    };
+                    
+                    while (!check(TokenType::SEMICOLON) && 
+                           !check(TokenType::RIGHT_BRACE) && 
+                           !isAtEnd()) {
+                        Token valueToken = advance();
+                        
+                        // 判断是否需要添加空格
+                        bool needSpace = false;
+                        if (!propertyValue.empty()) {
+                            // 在颜色代码中 → 不加空格
+                            if (inColorCode && !(valueToken.type == TokenType::UNKNOWN && valueToken.value == "#")) {
+                                needSpace = false;
+                                if (valueToken.type != TokenType::NUMBER && 
+                                    valueToken.type != TokenType::IDENTIFIER &&
+                                    valueToken.type != TokenType::UNKNOWN) {
+                                    inColorCode = false;
+                                }
+                            }
+                            // 数字 + 百分号 → 不加空格
+                            else if (lastTokenType == TokenType::NUMBER && 
+                                     valueToken.type == TokenType::PERCENT) {
+                                needSpace = false;
+                            }
+                            // 数字 + CSS 单位 → 不加空格
+                            else if (lastTokenType == TokenType::NUMBER && 
+                                     valueToken.type == TokenType::IDENTIFIER) {
+                                bool isUnit = std::find(cssUnits.begin(), cssUnits.end(), 
+                                                       valueToken.value) != cssUnits.end();
+                                needSpace = !isUnit;
+                            }
+                            // 其他情况需要空格
+                            else {
+                                needSpace = true;
+                            }
+                        }
+                        
+                        if (needSpace) {
+                            propertyValue += " ";
+                        }
+                        
+                        propertyValue += valueToken.value;
+                        lastTokenType = valueToken.type;
+                        
+                        // 检测颜色代码开始
+                        if (valueToken.type == TokenType::UNKNOWN && valueToken.value == "#") {
+                            inColorCode = true;
+                        }
+                        
+                        // 颜色代码读取完毕后重置标志
+                        if (inColorCode && valueToken.type != TokenType::UNKNOWN) {
+                            if (current_ < tokens_.size() && 
+                                tokens_[current_].type != TokenType::NUMBER &&
+                                tokens_[current_].type != TokenType::IDENTIFIER) {
+                                inColorCode = false;
+                            }
+                        }
+                    }
+                    
+                    // 消费分号（如果存在）
+                    match(TokenType::SEMICOLON);
+                    
+                    // 添加属性到规则
+                    if (!propertyValue.empty()) {
+                        rule.properties[propertyName] = propertyValue;
+                    }
+                }
+            }
+        } else {
+            advance(); // 跳过非标识符
+        }
+    }
+    
+    consume(TokenType::RIGHT_BRACE, "期望 '}'");
+    
+    return rule;
+}
+
+// 解析内联样式（原有的内联样式逻辑）
+void Parser::parseInlineStyles(StyleNode* styleNode) {
+    // 解析 CSS 属性：property-name: value;
+    while (!check(TokenType::RIGHT_BRACE) && !isAtEnd()) {
+        // 检查是否是 CSS 属性名（标识符）
+        if (check(TokenType::IDENTIFIER)) {
+            std::string propertyName = advance().value;
+            
+            // 检查冒号或等号
+            if (check(TokenType::COLON) || check(TokenType::EQUALS)) {
+                advance(); // 消费 : 或 =
+                
+                // 检查是否是表达式（包含运算符）
+                if (CSSExpression::isExpression(tokens_, current_)) {
+                    // 解析并求值表达式
+                    try {
+                        CSSValue result = CSSExpression::evaluate(tokens_, current_);
+                        
+                        // 消费分号（如果存在）
+                        match(TokenType::SEMICOLON);
+                        
+                        // 添加求值后的属性
+                        styleNode->addProperty(propertyName, result.toString());
+                    } catch (const std::exception& e) {
+                        // 表达式求值失败，抛出错误
+                        throw ParseError(std::string("CSS 表达式求值失败: ") + e.what(), 
+                                         tokens_[current_].line, tokens_[current_].column);
+                    }
+                } else {
+                    // 不是表达式，按原来的方式收集属性值
+                    std::string propertyValue;
+                    TokenType lastTokenType = TokenType::UNKNOWN;
+                    std::string lastTokenValue;
+                    bool inColorCode = false;  // 跟踪是否在颜色代码中
+                    
+                    // CSS 单位列表
+                    static const std::vector<std::string> cssUnits = {
+                        "px", "em", "rem", "pt", "pc", "in", "cm", "mm", "ex", "ch",
+                        "vw", "vh", "vmin", "vmax", "deg", "rad", "grad", "turn",
+                        "s", "ms", "fr", "dpi", "dpcm", "dppx"
+                    };
+                    
+                    while (!check(TokenType::SEMICOLON) && 
+                           !check(TokenType::RIGHT_BRACE) && 
+                           !isAtEnd()) {
+                        Token valueToken = advance();
+                        
+                        // 判断是否需要添加空格
+                        bool needSpace = false;
+                        if (!propertyValue.empty()) {
+                            // 在颜色代码中（但不是#本身） → 不加空格
+                            if (inColorCode && !(valueToken.type == TokenType::UNKNOWN && valueToken.value == "#")) {
+                                needSpace = false;
+                                if (valueToken.type != TokenType::NUMBER && 
+                                    valueToken.type != TokenType::IDENTIFIER &&
+                                    valueToken.type != TokenType::UNKNOWN) {
+                                    inColorCode = false;
+                                }
+                            }
+                            // 数字 + 百分号 → 不加空格
+                            else if (lastTokenType == TokenType::NUMBER && 
+                                     valueToken.type == TokenType::PERCENT) {
+                                needSpace = false;
+                            }
+                            // 数字 + CSS 单位 → 不加空格
+                            else if (lastTokenType == TokenType::NUMBER && 
+                                     valueToken.type == TokenType::IDENTIFIER) {
+                                // 检查是否是 CSS 单位
+                                bool isUnit = std::find(cssUnits.begin(), cssUnits.end(), 
+                                                       valueToken.value) != cssUnits.end();
+                                needSpace = !isUnit;  // 是单位则不加空格，否则加空格
+                            }
+                            // 其他情况需要空格
+                            else {
+                                needSpace = true;
+                            }
+                        }
+                        
+                        if (needSpace) {
+                            propertyValue += " ";
+                        }
+                        
+                        propertyValue += valueToken.value;
+                        lastTokenType = valueToken.type;
+                        lastTokenValue = valueToken.value;
+                        
+                        // 检测颜色代码开始（在添加token之后）
+                        if (valueToken.type == TokenType::UNKNOWN && valueToken.value == "#") {
+                            inColorCode = true;
+                        }
+                        
+                        // 颜色代码读取完毕后重置标志
+                        if (inColorCode && valueToken.type != TokenType::UNKNOWN) {
+                            // 先peek下一个token
+                            if (current_ < tokens_.size() && 
+                                tokens_[current_].type != TokenType::NUMBER &&
+                                tokens_[current_].type != TokenType::IDENTIFIER) {
+                                inColorCode = false;
+                            }
+                        }
+                    }
+                    
+                    // 消费分号（如果存在）
+                    match(TokenType::SEMICOLON);
+                    
+                    // 添加属性
+                    if (!propertyValue.empty()) {
+                        styleNode->addProperty(propertyName, propertyValue);
+                    }
+                }
+            } else {
+                // 不是有效的属性语法，跳过
+                advance();
+            }
+        } else {
+            // 跳过非标识符 token
+            advance();
+        }
+    }
 }
 
 } // namespace CHTL

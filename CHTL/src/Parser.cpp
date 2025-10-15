@@ -127,19 +127,39 @@ namespace CHTL
             return nullptr;
         }
 
-        nextToken();
+        nextToken(); // 消费 '{'
 
-        if (m_currentToken.type != TokenType::STRING)
+        // 检查是带引号的字符串还是无引号的字面量
+        if (m_currentToken.type == TokenType::STRING)
         {
-            m_errors.push_back("Expected a string literal inside text block.");
-            return nullptr;
+            // 带引号的字符串
+            node->value = m_currentToken.literal;
+
+            if (!expectPeek(TokenType::RBRACE))
+            {
+                return nullptr;
+            }
         }
-
-        node->value = m_currentToken.literal;
-
-        if (!expectPeek(TokenType::RBRACE))
+        else
         {
-            return nullptr;
+            // 无引号的字面量
+            std::string literal_value = "";
+            while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+            {
+                literal_value += m_currentToken.literal;
+                if (m_peekToken.type != TokenType::RBRACE)
+                {
+                    literal_value += " ";
+                }
+                nextToken();
+            }
+
+            if (m_currentToken.type != TokenType::RBRACE)
+            {
+                 m_errors.push_back("Unterminated text block, expected '}'.");
+                 return nullptr;
+            }
+            node->value = literal_value;
         }
 
         return node;

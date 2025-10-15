@@ -16,6 +16,7 @@ namespace CHTL
         // Expressions
         NumberLiteral,
         InfixExpression,
+        Identifier,
     };
 
     // AST节点基类
@@ -50,6 +51,15 @@ namespace CHTL
         std::string ToString() const override {
             return "(" + left->ToString() + " " + op + " " + right->ToString() + ")";
         }
+    };
+
+    // 标识符节点
+    struct Identifier : public Expression
+    {
+        std::string value;
+
+        NodeType GetType() const override { return NodeType::Identifier; }
+        std::string ToString() const override { return value; }
     };
 
 

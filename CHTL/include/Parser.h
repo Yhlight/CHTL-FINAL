@@ -44,6 +44,7 @@ namespace CHTL
 
         // Expression parsing
         std::unique_ptr<Expression> parseExpression(Precedence precedence);
+        std::unique_ptr<Expression> parseIdentifier();
         std::unique_ptr<Expression> parseNumberLiteral();
         std::unique_ptr<Expression> parseInfixExpression(std::unique_ptr<Expression> left);
 

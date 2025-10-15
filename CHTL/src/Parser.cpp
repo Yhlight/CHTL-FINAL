@@ -127,39 +127,19 @@ namespace CHTL
             return nullptr;
         }
 
-        nextToken(); // 消费 '{'
+        nextToken();
 
-        // 检查是带引号的字符串还是无引号的字面量
-        if (m_currentToken.type == TokenType::STRING)
+        if (m_currentToken.type != TokenType::STRING)
         {
-            // 带引号的字符串
-            node->value = m_currentToken.literal;
-
-            if (!expectPeek(TokenType::RBRACE))
-            {
-                return nullptr;
-            }
+            m_errors.push_back("Expected a string literal inside text block.");
+            return nullptr;
         }
-        else
-        {
-            // 无引号的字面量
-            std::string literal_value = "";
-            while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
-            {
-                literal_value += m_currentToken.literal;
-                if (m_peekToken.type != TokenType::RBRACE)
-                {
-                    literal_value += " ";
-                }
-                nextToken();
-            }
 
-            if (m_currentToken.type != TokenType::RBRACE)
-            {
-                 m_errors.push_back("Unterminated text block, expected '}'.");
-                 return nullptr;
-            }
-            node->value = literal_value;
+        node->value = m_currentToken.literal;
+
+        if (!expectPeek(TokenType::RBRACE))
+        {
+            return nullptr;
         }
 
         return node;
@@ -262,6 +242,10 @@ namespace CHTL
         {
             leftExp = parseNumberLiteral();
         }
+        else if (m_currentToken.type == TokenType::IDENT)
+        {
+            leftExp = parseIdentifier();
+        }
         else
         {
             // No prefix parse function for the token, record an error
@@ -313,6 +297,13 @@ namespace CHTL
         expr->right = parseExpression(curPrecedence);
 
         return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseIdentifier()
+    {
+        auto ident = std::make_unique<Identifier>();
+        ident->value = m_currentToken.literal;
+        return ident;
     }
 
 } // namespace CHTL

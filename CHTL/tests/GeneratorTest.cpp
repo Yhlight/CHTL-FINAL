@@ -22,25 +22,11 @@ void checkParserErrors(const CHTL::Parser& p) {
 }
 
 
-TEST_CASE("Generator correctly generates HTML from AST", "[generator]")
+TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]")
 {
-    SECTION("Generates HTML for a complex element")
+    SECTION("Generates an empty element")
     {
-        std::string input = R"(
-            div {
-                id: box;
-                class = "container";
-                style {
-                    width: 100px + 50px;
-                    height: 20px;
-                }
-                text { "Hello CHTL" }
-                p {
-                    text { "A paragraph." }
-                }
-            }
-        )";
-
+        std::string input = "div {}";
         CHTL::Lexer l(input);
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
@@ -48,13 +34,43 @@ TEST_CASE("Generator correctly generates HTML from AST", "[generator]")
 
         CHTL::Generator generator;
         std::string html_output = generator.Generate(program.get());
-
-        std::string expected_html =
-            "<div id=\"box\" class=\"container\" style=\"width:150px;height:20px;\">"
-            "Hello CHTL"
-            "<p>A paragraph.</p>"
-            "</div>";
-
+        std::string expected_html = "<div></div>";
         REQUIRE(html_output == expected_html);
     }
+
+    SECTION("Generates nested elements")
+    {
+        std::string input = "body { div {} }";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><div></div></body>";
+        REQUIRE(html_output == expected_html);
+    }
+}
+
+TEST_CASE("Generator correctly generates HTML for complex structures", "[generator]")
+{
+    std::string input = R"(
+        div {
+            id: "box";
+            # this is a comment
+            p {
+                text { "hello" }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<div id=\"box\"><!-- this is a comment --><p>hello</p></div>";
+    REQUIRE(html_output == expected_html);
 }

@@ -31,6 +31,9 @@ namespace CHTL
             case NodeType::Style:
                 // Style nodes are handled by their parent ElementNode, so we do nothing here.
                 break;
+            case NodeType::Comment:
+                visit(static_cast<CommentNode*>(node));
+                break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
         }
@@ -98,5 +101,10 @@ namespace CHTL
     void Generator::visit(TextNode* node)
     {
         m_output << node->value;
+    }
+
+    void Generator::visit(CommentNode* node)
+    {
+        m_output << "<!-- " << node->value << " -->";
     }
 }

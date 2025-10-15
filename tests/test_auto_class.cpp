@@ -291,3 +291,199 @@ TEST_CASE("Auto Class - Global style collector", "[auto-class]") {
     REQUIRE(GlobalStyleCollector::getInstance().getRuleCount() == 0);
     REQUIRE_FALSE(GlobalStyleCollector::getInstance().hasRules());
 }
+
+TEST_CASE("Auto ID - Basic id selector", "[auto-id]") {
+    std::string input = R"(
+        html {
+            head {}
+            body {
+                div {
+                    style {
+                        #header {
+                            width: 100%;
+                            background-color: #007bff;
+                        }
+                    }
+                }
+            }
+        }
+    )";
+    
+    Lexer lexer(input);
+    auto tokens = lexer.tokenize();
+    
+    Parser parser(tokens);
+    auto ast = parser.parse();
+    
+    Generator generator;
+    std::string output = generator.generate(ast);
+    
+    // 检查 id 是否自动添加
+    REQUIRE(output.find("id=\"header\"") != std::string::npos);
+    
+    // 检查全局样式是否生成
+    REQUIRE(output.find("<style>") != std::string::npos);
+    REQUIRE(output.find("#header") != std::string::npos);
+    REQUIRE(output.find("width: 100%") != std::string::npos);
+    
+    // 检查颜色代码正确（没有空格）
+    REQUIRE(output.find("#007bff") != std::string::npos);
+}
+
+TEST_CASE("Auto ID - Multiple elements", "[auto-id]") {
+    std::string input = R"(
+        html {
+            head {}
+            body {
+                div {
+                    style {
+                        #header {
+                            width: 100%;
+                        }
+                    }
+                }
+                div {
+                    style {
+                        #footer {
+                            height: 50px;
+                        }
+                    }
+                }
+            }
+        }
+    )";
+    
+    Lexer lexer(input);
+    auto tokens = lexer.tokenize();
+    
+    Parser parser(tokens);
+    auto ast = parser.parse();
+    
+    Generator generator;
+    std::string output = generator.generate(ast);
+    
+    // 检查两个 id 都被添加
+    REQUIRE(output.find("id=\"header\"") != std::string::npos);
+    REQUIRE(output.find("id=\"footer\"") != std::string::npos);
+    
+    // 检查两个样式规则
+    REQUIRE(output.find("#header") != std::string::npos);
+    REQUIRE(output.find("#footer") != std::string::npos);
+}
+
+TEST_CASE("Auto ID - Class and ID混合", "[auto-id][auto-class]") {
+    std::string input = R"(
+        html {
+            head {}
+            body {
+                div {
+                    style {
+                        .container {
+                            width: 1200px;
+                        }
+                        
+                        #main {
+                            padding: 20px;
+                        }
+                    }
+                }
+            }
+        }
+    )";
+    
+    Lexer lexer(input);
+    auto tokens = lexer.tokenize();
+    
+    Parser parser(tokens);
+    auto ast = parser.parse();
+    
+    Generator generator;
+    std::string output = generator.generate(ast);
+    
+    // 检查同时有 class 和 id
+    REQUIRE(output.find("class=\"container\"") != std::string::npos);
+    REQUIRE(output.find("id=\"main\"") != std::string::npos);
+    
+    // 检查两个样式规则
+    REQUIRE(output.find(".container") != std::string::npos);
+    REQUIRE(output.find("#main") != std::string::npos);
+}
+
+TEST_CASE("Boundary - Empty selector", "[boundary]") {
+    std::string input = R"(
+        html {
+            head {}
+            body {
+                div {
+                    style {
+                        .box {
+                        }
+                    }
+                }
+            }
+        }
+    )";
+    
+    Lexer lexer(input);
+    auto tokens = lexer.tokenize();
+    
+    Parser parser(tokens);
+    auto ast = parser.parse();
+    
+    Generator generator;
+    std::string output = generator.generate(ast);
+    
+    // 空选择器应该仍然添加类名
+    REQUIRE(output.find("class=\"box\"") != std::string::npos);
+    
+    // 空选择器不应该生成 CSS 规则（因为没有属性）
+    // 这是正确的行为 - 不生成无用的空规则
+}
+
+TEST_CASE("Boundary - Multiple same class names", "[boundary]") {
+    std::string input = R"(
+        html {
+            head {}
+            body {
+                div {
+                    style {
+                        .box {
+                            width: 100px;
+                        }
+                    }
+                }
+                div {
+                    style {
+                        .box {
+                            height: 200px;
+                        }
+                    }
+                }
+            }
+        }
+    )";
+    
+    Lexer lexer(input);
+    auto tokens = lexer.tokenize();
+    
+    Parser parser(tokens);
+    auto ast = parser.parse();
+    
+    Generator generator;
+    std::string output = generator.generate(ast);
+    
+    // 两个元素都应该有 class="box"
+    size_t count = 0;
+    size_t pos = 0;
+    std::string search = "class=\"box\"";
+    while ((pos = output.find(search, pos)) != std::string::npos) {
+        count++;
+        pos += search.length();
+    }
+    REQUIRE(count == 2);
+    
+    // 样式应该被合并
+    REQUIRE(output.find(".box") != std::string::npos);
+    REQUIRE(output.find("width: 100px") != std::string::npos);
+    REQUIRE(output.find("height: 200px") != std::string::npos);
+}

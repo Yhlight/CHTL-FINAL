@@ -287,14 +287,14 @@ NodePtr Parser::parseStyleBlock() {
                         // 判断是否需要添加空格
                         bool needSpace = false;
                         if (!propertyValue.empty()) {
-                            // 在颜色代码中（但不是#本身） → 不加空格
-                            if (inColorCode && !(valueToken.type == TokenType::UNKNOWN && valueToken.value == "#")) {
+                            // 在颜色代码中（但不是 # 本身） → 不加空格
+                            if (inColorCode && !(valueToken.type == TokenType::HASH)) {
                                 needSpace = false;
                                 // 颜色代码通常是 #fff 或 #aabbcc，读取完整个颜色后结束
                                 // 简单判断：如果当前token不是NUMBER也不是IDENTIFIER，颜色代码结束
                                 if (valueToken.type != TokenType::NUMBER && 
                                     valueToken.type != TokenType::IDENTIFIER &&
-                                    valueToken.type != TokenType::UNKNOWN) {
+                                    valueToken.type != TokenType::HASH) {
                                     inColorCode = false;
                                 }
                             }
@@ -325,15 +325,15 @@ NodePtr Parser::parseStyleBlock() {
                         lastTokenType = valueToken.type;
                         lastTokenValue = valueToken.value;
                         
-                        // 检测颜色代码开始（在添加token之后）
-                        if (valueToken.type == TokenType::UNKNOWN && valueToken.value == "#") {
+                        // 检测颜色代码开始（# 符号）
+                        if (valueToken.type == TokenType::HASH) {
                             inColorCode = true;
                         }
                         
                         // 颜色代码读取完毕后重置标志
                         // 如果刚才添加的是NUMBER或IDENTIFIER，且我们在颜色代码中，继续
                         // 否则，如果下一个token不是NUMBER/IDENTIFIER，结束颜色代码
-                        if (inColorCode && valueToken.type != TokenType::UNKNOWN) {
+                        if (inColorCode && valueToken.type != TokenType::HASH) {
                             // 先peek下一个token
                             if (current_ < tokens_.size() && 
                                 tokens_[current_].type != TokenType::NUMBER &&
@@ -452,8 +452,7 @@ bool Parser::isElementStart() const {
 
 // 检查当前 token 是否是选择器开始（. 或 #）
 bool Parser::isSelector() const {
-    return check(TokenType::DOT);  // 目前只支持类选择器
-    // TODO: 添加 # (ID 选择器) 支持
+    return check(TokenType::DOT) || check(TokenType::HASH);
 }
 
 // 解析 CSS 选择器
@@ -463,7 +462,12 @@ CSSSelector Parser::parseSelector() {
         Token nameToken = consume(TokenType::IDENTIFIER, "期望类名");
         return CSSSelector(SelectorType::CLASS, nameToken.value);
     }
-    // TODO: 支持 # (ID 选择器)
+    
+    if (match(TokenType::HASH)) {
+        // id 选择器：#header
+        Token nameToken = consume(TokenType::IDENTIFIER, "期望 id 名");
+        return CSSSelector(SelectorType::ID, nameToken.value);
+    }
     
     throw ParseError("无效的选择器", peek().line, peek().column);
 }
@@ -487,6 +491,20 @@ CSSRule Parser::parseCSSRule() {
                 // 追加到现有类名
                 std::string existingClass = currentElement_->getAttribute("class");
                 currentElement_->addAttribute("class", existingClass + " " + className);
+            }
+        }
+    } else if (selector.type == SelectorType::ID) {
+        selectorStr = "#" + selector.name;
+        
+        // 自动为当前元素添加 id
+        if (currentElement_) {
+            std::string idName = selector.name;
+            if (!currentElement_->hasAttribute("id")) {
+                currentElement_->addAttribute("id", idName);
+            } else {
+                // id 应该是唯一的，如果已存在则报告警告（但仍然覆盖）
+                // 这里简单处理：覆盖现有 id
+                currentElement_->addAttribute("id", idName);
             }
         }
     }
@@ -546,11 +564,11 @@ CSSRule Parser::parseCSSRule() {
                         bool needSpace = false;
                         if (!propertyValue.empty()) {
                             // 在颜色代码中 → 不加空格
-                            if (inColorCode && !(valueToken.type == TokenType::UNKNOWN && valueToken.value == "#")) {
+                            if (inColorCode && !(valueToken.type == TokenType::HASH)) {
                                 needSpace = false;
                                 if (valueToken.type != TokenType::NUMBER && 
                                     valueToken.type != TokenType::IDENTIFIER &&
-                                    valueToken.type != TokenType::UNKNOWN) {
+                                    valueToken.type != TokenType::HASH) {
                                     inColorCode = false;
                                 }
                             }
@@ -579,13 +597,13 @@ CSSRule Parser::parseCSSRule() {
                         propertyValue += valueToken.value;
                         lastTokenType = valueToken.type;
                         
-                        // 检测颜色代码开始
-                        if (valueToken.type == TokenType::UNKNOWN && valueToken.value == "#") {
+                        // 检测颜色代码开始（# 符号）
+                        if (valueToken.type == TokenType::HASH) {
                             inColorCode = true;
                         }
                         
                         // 颜色代码读取完毕后重置标志
-                        if (inColorCode && valueToken.type != TokenType::UNKNOWN) {
+                        if (inColorCode && valueToken.type != TokenType::HASH) {
                             if (current_ < tokens_.size() && 
                                 tokens_[current_].type != TokenType::NUMBER &&
                                 tokens_[current_].type != TokenType::IDENTIFIER) {
@@ -663,12 +681,12 @@ void Parser::parseInlineStyles(StyleNode* styleNode) {
                         // 判断是否需要添加空格
                         bool needSpace = false;
                         if (!propertyValue.empty()) {
-                            // 在颜色代码中（但不是#本身） → 不加空格
-                            if (inColorCode && !(valueToken.type == TokenType::UNKNOWN && valueToken.value == "#")) {
+                            // 在颜色代码中（但不是 # 本身） → 不加空格
+                            if (inColorCode && !(valueToken.type == TokenType::HASH)) {
                                 needSpace = false;
                                 if (valueToken.type != TokenType::NUMBER && 
                                     valueToken.type != TokenType::IDENTIFIER &&
-                                    valueToken.type != TokenType::UNKNOWN) {
+                                    valueToken.type != TokenType::HASH) {
                                     inColorCode = false;
                                 }
                             }

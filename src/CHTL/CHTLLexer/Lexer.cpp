@@ -69,6 +69,8 @@ Token Lexer::nextToken() {
             column_--;
             return scanComment();
         }
+        // 不是注释，是 id 选择器符号
+        return makeToken(TokenType::HASH, "#");
     }
     
     // 单字符 tokens

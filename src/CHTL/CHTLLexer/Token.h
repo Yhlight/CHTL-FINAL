@@ -67,6 +67,7 @@ enum class TokenType {
     COLON,               // :
     COMMA,               // ,
     DOT,                 // .
+    HASH,                // # (作为选择器，非注释)
     
     // 运算符
     EQUALS,              // =

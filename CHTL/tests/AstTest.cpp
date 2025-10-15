@@ -146,17 +146,23 @@ TEST_CASE("Parser correctly parses style blocks", "[parser]")
 
         auto* style_node = dynamic_cast<CHTL::StyleNode*>(el->children[0].get());
         REQUIRE(style_node != nullptr);
-        REQUIRE(style_node->properties.size() == 3);
+        REQUIRE(style_node->children.size() == 3);
 
         // Check style properties
-        REQUIRE(style_node->properties[0].name == "width");
-        REQUIRE(style_node->properties[0].value->ToString() == "100.000000");
+        auto* prop1 = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+        REQUIRE(prop1 != nullptr);
+        REQUIRE(prop1->name == "width");
+        REQUIRE(prop1->value->ToString() == "100.000000");
 
-        REQUIRE(style_node->properties[1].name == "color");
-        REQUIRE(style_node->properties[1].value->ToString() == "1.000000");
+        auto* prop2 = dynamic_cast<CHTL::StyleProperty*>(style_node->children[1].get());
+        REQUIRE(prop2 != nullptr);
+        REQUIRE(prop2->name == "color");
+        REQUIRE(prop2->value->ToString() == "1.000000");
 
-        REQUIRE(style_node->properties[2].name == "background-color");
-        REQUIRE(style_node->properties[2].value->ToString() == "2.000000");
+        auto* prop3 = dynamic_cast<CHTL::StyleProperty*>(style_node->children[2].get());
+        REQUIRE(prop3 != nullptr);
+        REQUIRE(prop3->name == "background-color");
+        REQUIRE(prop3->value->ToString() == "2.000000");
     }
 }
 
@@ -175,9 +181,11 @@ TEST_CASE("Parser correctly parses infix expressions", "[parser]")
 
         auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
         REQUIRE(style_node != nullptr);
-        REQUIRE(style_node->properties.size() == 1);
+        REQUIRE(style_node->children.size() == 1);
 
-        auto* infix_expr = dynamic_cast<CHTL::InfixExpression*>(style_node->properties[0].value.get());
+        auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+        REQUIRE(prop != nullptr);
+        auto* infix_expr = dynamic_cast<CHTL::InfixExpression*>(prop->value.get());
         REQUIRE(infix_expr != nullptr);
         REQUIRE(infix_expr->op == "+");
 

@@ -14,6 +14,8 @@ namespace CHTL
         Text,
         Style,
         Comment,
+        StyleProperty,
+        StyleRule,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -92,16 +94,29 @@ namespace CHTL
     };
 
     // 样式属性结构体, e.g., width: 100 + 50;
-    struct StyleProperty
+    struct StyleProperty : public AstNode
     {
         std::string name;
         std::unique_ptr<Expression> value;
+
+        NodeType GetType() const override { return NodeType::StyleProperty; } // Need to add StyleProperty to NodeType
+        std::string ToString() const override;
+    };
+
+    // CSS 规则节点, e.g., .box { width: 100px; }
+    struct StyleRuleNode : public AstNode
+    {
+        std::string selector;
+        std::vector<std::unique_ptr<StyleProperty>> properties;
+
+        NodeType GetType() const override { return NodeType::StyleRule; } // Need to add StyleRule to NodeType
+        std::string ToString() const override;
     };
 
     // 样式节点, e.g., style { ... }
     struct StyleNode : public AstNode
     {
-        std::vector<StyleProperty> properties;
+        std::vector<std::unique_ptr<AstNode>> children;
 
         NodeType GetType() const override { return NodeType::Style; }
         std::string ToString() const override;

@@ -20,5 +20,6 @@ namespace CHTL
         // StyleNode is handled inside ElementNode's visit method
 
         std::stringstream m_output;
+        std::vector<const StyleRuleNode*> m_styleRules;
     };
 }

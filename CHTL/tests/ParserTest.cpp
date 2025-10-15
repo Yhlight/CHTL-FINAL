@@ -53,10 +53,12 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
 
     auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
     REQUIRE(style_node != nullptr);
-    REQUIRE(style_node->properties.size() == 1);
+    REQUIRE(style_node->children.size() == 1);
 
-    REQUIRE(style_node->properties[0].name == "color");
-    auto* value_node = dynamic_cast<CHTL::Identifier*>(style_node->properties[0].value.get());
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "color");
+    auto* value_node = dynamic_cast<CHTL::Identifier*>(prop->value.get());
     REQUIRE(value_node != nullptr);
     REQUIRE(value_node->value == "red");
 }
@@ -75,12 +77,14 @@ TEST_CASE("Test parsing style block with arithmetic expressions", "[parser]")
 
     auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
     REQUIRE(style_node != nullptr);
-    REQUIRE(style_node->properties.size() == 1);
+    REQUIRE(style_node->children.size() == 1);
 
-    REQUIRE(style_node->properties[0].name == "width");
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "width");
 
     // Check for expression: (100 + (50 * 2))
-    auto* expr = dynamic_cast<CHTL::InfixExpression*>(style_node->properties[0].value.get());
+    auto* expr = dynamic_cast<CHTL::InfixExpression*>(prop->value.get());
     REQUIRE(expr != nullptr);
     REQUIRE(expr->op == "+");
 

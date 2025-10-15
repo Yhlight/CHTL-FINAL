@@ -181,56 +181,40 @@ namespace CHTL
         return attr;
     }
 
-    // 解析样式块: e.g., style { width: 100px; }
+    // 解析样式块: e.g., style { width: 100px; .box { ... } }
     std::unique_ptr<StyleNode> Parser::parseStyleNode()
     {
         auto node = std::make_unique<StyleNode>();
 
-        // 当前Token是'style'，期望下一个是'{'
         if (!expectPeek(TokenType::LBRACE))
         {
             return nullptr;
         }
         nextToken(); // 消费'{'
 
-        // 循环解析样式属性
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            if (m_currentToken.type == TokenType::IDENT)
+            if (m_currentToken.type == TokenType::DOT)
             {
-                StyleProperty prop;
-                prop.name = m_currentToken.literal;
-
-                // 期望':'或'='
-                if (m_peekToken.type != TokenType::COLON && m_peekToken.type != TokenType::ASSIGN) {
-                     m_errors.push_back("Expected ':' or '=' after style property name.");
-                     return nullptr;
-                }
-                nextToken(); // 消费属性名
-                nextToken(); // 消费':'或'='
-
-                prop.value = parseExpression(LOWEST);
-                node->properties.push_back(std::move(prop));
-
-                // 在解析完一个表达式后，当前Token是表达式的最后一个Token。
-                // 我们需要前进到下一个Token，以准备解析下一个属性或'}'。
-                // 如果下一个是分号，我们也消费它。
-                if (m_peekToken.type == TokenType::SEMICOLON)
-                {
-                    nextToken();
-                }
-                nextToken();
-
-            } else {
-                 m_errors.push_back("Invalid token in style block: " + m_currentToken.ToString());
-                 nextToken(); // 跳过无法识别的Token，避免无限循环
+                // 解析CSS规则
+                node->children.push_back(parseStyleRuleNode());
+            }
+            else if (m_currentToken.type == TokenType::IDENT)
+            {
+                // 解析内联样式属性
+                node->children.push_back(parseStyleProperty());
+            }
+            else
+            {
+                m_errors.push_back("Invalid token in style block: " + m_currentToken.ToString());
+                nextToken(); // 跳过无法识别的Token
             }
         }
 
         if (m_currentToken.type != TokenType::RBRACE)
         {
-             m_errors.push_back("Expected '}' to close style block.");
-             return nullptr;
+            m_errors.push_back("Expected '}' to close style block.");
+            return nullptr;
         }
 
         return node;
@@ -243,6 +227,77 @@ namespace CHTL
         node->value = m_currentToken.literal;
         return node;
     }
+
+    // 解析样式属性 e.g. width: 100px;
+    std::unique_ptr<StyleProperty> Parser::parseStyleProperty()
+    {
+        auto prop = std::make_unique<StyleProperty>();
+        prop->name = m_currentToken.literal;
+
+        if (m_peekToken.type != TokenType::COLON && m_peekToken.type != TokenType::ASSIGN) {
+            m_errors.push_back("Expected ':' or '=' after style property name.");
+            return nullptr;
+        }
+        nextToken(); // 消费属性名
+        nextToken(); // 消费':'或'='
+
+        prop->value = parseExpression(LOWEST);
+
+        if (m_peekToken.type == TokenType::SEMICOLON)
+        {
+            nextToken();
+        }
+        nextToken();
+
+        return prop;
+    }
+
+    // 解析CSS规则 e.g. .box { width: 100px; }
+    std::unique_ptr<StyleRuleNode> Parser::parseStyleRuleNode()
+    {
+        auto node = std::make_unique<StyleRuleNode>();
+        std::string selector = "";
+
+        // 当前Token是 '.'
+        selector += m_currentToken.literal;
+        nextToken();
+
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected identifier for selector name.");
+            return nullptr;
+        }
+        selector += m_currentToken.literal;
+        node->selector = selector;
+        nextToken();
+
+        if (m_currentToken.type != TokenType::LBRACE) {
+            m_errors.push_back("Expected '{' for style rule block.");
+            return nullptr;
+        }
+        nextToken(); // 消费 '{'
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            if (m_currentToken.type == TokenType::IDENT)
+            {
+                node->properties.push_back(parseStyleProperty());
+            }
+            else
+            {
+                m_errors.push_back("Invalid token in style rule block: " + m_currentToken.ToString());
+                nextToken();
+            }
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close style rule block.");
+            return nullptr;
+        }
+        nextToken(); // 消费 '}'
+
+        return node;
+    }
+
 
     // --- Expression Parsing Methods ---
 

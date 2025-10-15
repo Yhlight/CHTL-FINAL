@@ -74,3 +74,25 @@ TEST_CASE("Generator correctly generates HTML for complex structures", "[generat
     std::string expected_html = "<div id=\"box\"><!-- this is a comment --><p>hello</p></div>";
     REQUIRE(html_output == expected_html);
 }
+
+TEST_CASE("Generator correctly handles automatic class naming", "[generator]")
+{
+    std::string input = R"(
+        div {
+            style {
+                .box {
+                    width: 300px;
+                }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<head><style>.box{width:300px;}</style></head><div class=\"box\"></div>";
+    REQUIRE(html_output == expected_html);
+}

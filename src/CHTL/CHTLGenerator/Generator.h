@@ -6,6 +6,7 @@
 #include "CHTL/CHTLNode/StyleNode.h"
 #include "CHTL/CHTLNode/ScriptNode.h"
 #include "CHTL/CHTLNode/NodeVisitor.h"
+#include "CHTL/CHTLCommon/GlobalStyleCollector.h"
 #include <string>
 #include <sstream>
 #include <vector>
@@ -60,6 +61,15 @@ private:
     // 生成元素
     void generateElement(ElementNode& element);
     void generateAttributes(const std::map<std::string, std::string>& attributes);
+    
+    // 全局样式注入
+    void injectGlobalStyles();
+    bool globalStylesInjected_;  // 标记是否已注入全局样式
+    
+    // HTML 结构操作
+    ElementNode* findHtmlElement(const std::vector<NodePtr>& ast);
+    ElementNode* findOrCreateHeadElement(ElementNode* htmlElement);
+    void ensureGlobalStylesInjected(std::vector<NodePtr>& ast);
 };
 
 } // namespace CHTL

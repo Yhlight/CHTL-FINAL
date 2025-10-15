@@ -1,0 +1,101 @@
+<html>
+  <head>
+    <style>
+      #header {
+        background: #007bff;
+        border-radius: 5px;
+        color: white;
+        padding: 15px;
+      }
+
+      #header:hover {
+        background: #0056b3;
+      }
+
+      .button {
+        background-color: #17a2b8;
+        border: none;
+        border-radius: 25px;
+        color: white;
+        padding: 20px;
+      }
+
+      .button::after {
+        content: →;
+        margin-left: 8px;
+      }
+
+      .button:hover {
+        background-color: #138496;
+        cursor: pointer;
+      }
+
+      .card {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px #ddd;
+        padding: 20px;
+      }
+
+      .container {
+        margin: 0 auto;
+        padding: 20px;
+        width: 1200px;
+      }
+
+      .featured {
+        border-left: 4px solid #28a745;
+      }
+
+      .featured::before {
+        content: ⭐;
+        margin-right: 10px;
+      }
+
+      .featured:hover {
+        box-shadow: 0 4px 8px #ccc;
+      }
+
+      .footer {
+        background: #343a40;
+        color: white;
+      }
+
+      .footer:hover {
+        background: #23272b;
+      }
+
+      .menu-item {
+        border-bottom: 1px solid #dee2e6;
+        padding: 10px;
+      }
+
+      .menu-item:first-child {
+        border-top: 1px solid #dee2e6;
+      }
+
+      .menu-item:hover {
+        background: #e9ecef;
+      }
+
+      .sidebar {
+        background: #f8f9fa;
+        padding: 15px;
+        width: 300px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="header" text="网站头部" />
+      <div class="card featured">
+        <div text="特色卡片" />
+      </div>
+      <div class="button" text="点击按钮" />
+      <div class="sidebar">
+        <div class="menu-item" text="菜单项" />
+      </div>
+      <div class="footer" text="页脚 © 2025" style="padding: 30px; text-align: center" />
+    </div>
+  </body>
+</html>

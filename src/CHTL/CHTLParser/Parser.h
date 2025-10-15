@@ -9,12 +9,39 @@
 #include "CHTL/CHTLCommon/CompilerConfig.h"
 #include "CHTL/CHTLCommon/CompilerError.h"
 #include "CHTL/CHTLCommon/Validation.h"
+#include "CHTL/CHTLCommon/GlobalStyleCollector.h"
 #include "CHTL/CHTLParser/CSSExpression.h"
 #include <vector>
 #include <memory>
 #include <stdexcept>
+#include <map>
 
 namespace CHTL {
+
+// CSS 选择器类型
+enum class SelectorType {
+    CLASS,          // .box
+    ID,             // #box
+    PSEUDO_CLASS,   // :hover
+    PSEUDO_ELEMENT  // ::before
+};
+
+// CSS 选择器结构
+struct CSSSelector {
+    SelectorType type;
+    std::string name;
+    
+    CSSSelector(SelectorType t, std::string n)
+        : type(t), name(std::move(n)) {}
+};
+
+// CSS 规则结构
+struct CSSRule {
+    std::string selector;  // 完整的选择器字符串（如 ".box", "#header"）
+    std::map<std::string, std::string> properties;
+    
+    CSSRule(std::string sel) : selector(std::move(sel)) {}
+};
 
 // 语法分析器
 class Parser {
@@ -33,6 +60,14 @@ private:
     size_t current_;
     size_t currentDepth_;  // 当前嵌套深度
     std::vector<std::string> errors_;
+    ElementNode* currentElement_;  // 当前正在解析的元素（用于自动添加类名/id）
+    
+    // 上下文跟踪（用于 & 解析）
+    struct StyleContext {
+        std::string currentSelector;  // 当前选择器（如 ".box" 或 "#header"）
+        bool hasSelector = false;
+    };
+    StyleContext styleContext_;
     
     // Token 操作
     Token peek() const;
@@ -50,6 +85,12 @@ private:
     NodePtr parseTextBlock();
     NodePtr parseStyleBlock();
     NodePtr parseScriptBlock();
+    
+    // CSS 选择器解析
+    bool isSelector() const;
+    CSSSelector parseSelector();
+    CSSRule parseCSSRule();
+    void parseInlineStyles(StyleNode* styleNode);
     
     // 辅助函数
     void synchronize();

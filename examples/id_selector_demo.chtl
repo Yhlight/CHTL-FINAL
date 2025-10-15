@@ -1,0 +1,63 @@
+// CHTL id 选择器演示
+// 展示 Step 7.1 修复后的 id 选择器功能
+
+html {
+    head {}
+    body {
+        // 示例 1: 基础 id 选择器
+        div {
+            style {
+                #header {
+                    width: 100%;
+                    background-color: #007bff;
+                    color: white;
+                    padding: 20px;
+                }
+            }
+            
+            text: "网站头部";
+        }
+        
+        // 示例 2: 类和 id 混合
+        div {
+            style {
+                .container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                }
+                
+                #main-content {
+                    padding: 30px;
+                    background: #f8f9fa;
+                }
+            }
+            
+            text: "主要内容";
+        }
+        
+        // 示例 3: 多个元素，不同 id
+        div {
+            style {
+                #sidebar {
+                    width: 300px;
+                    float: left;
+                }
+            }
+            
+            text: "侧边栏";
+        }
+        
+        div {
+            style {
+                #footer {
+                    background-color: #6c757d;
+                    color: white;
+                    text-align: center;
+                    padding: 15px;
+                }
+            }
+            
+            text: "页脚";
+        }
+    }
+}

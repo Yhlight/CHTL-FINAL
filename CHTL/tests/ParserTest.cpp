@@ -100,3 +100,20 @@ TEST_CASE("Test parsing style block with arithmetic expressions", "[parser]")
     REQUIRE(right_right_num != nullptr);
     REQUIRE(right_right_num->value == 2.0);
 }
+
+TEST_CASE("Test parsing a generator comment", "[parser]")
+{
+    std::string input = R"(# this is a comment)";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* comment_node = dynamic_cast<CHTL::CommentNode*>(program->children[0].get());
+    REQUIRE(comment_node != nullptr);
+    REQUIRE(comment_node->value == "this is a comment");
+}

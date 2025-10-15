@@ -40,6 +40,7 @@ namespace CHTL
         std::unique_ptr<ElementNode> parseElementNode();
         std::unique_ptr<TextNode> parseTextNode();
         std::unique_ptr<StyleNode> parseStyleNode();
+        std::unique_ptr<CommentNode> parseCommentNode();
         Attribute parseAttribute();
 
         // Expression parsing

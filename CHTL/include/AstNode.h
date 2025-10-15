@@ -13,6 +13,7 @@ namespace CHTL
         Element,
         Text,
         Style,
+        Comment,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -104,6 +105,15 @@ namespace CHTL
 
         NodeType GetType() const override { return NodeType::Style; }
         std::string ToString() const override;
+    };
+
+    // 注释节点
+    struct CommentNode : public AstNode
+    {
+        std::string value;
+
+        NodeType GetType() const override { return NodeType::Comment; }
+        std::string ToString() const override { return "# " + value; }
     };
 
     // 程序根节点

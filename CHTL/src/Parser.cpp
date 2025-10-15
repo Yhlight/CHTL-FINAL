@@ -73,6 +73,10 @@ namespace CHTL
         {
             return parseStyleNode();
         }
+        else if (m_currentToken.type == TokenType::COMMENT)
+        {
+            return parseCommentNode();
+        }
         return nullptr;
     }
 
@@ -229,6 +233,14 @@ namespace CHTL
              return nullptr;
         }
 
+        return node;
+    }
+
+    // 解析注释节点: e.g., # this is a comment
+    std::unique_ptr<CommentNode> Parser::parseCommentNode()
+    {
+        auto node = std::make_unique<CommentNode>();
+        node->value = m_currentToken.literal;
         return node;
     }
 

@@ -38,12 +38,12 @@ TEST_CASE("Parser correctly parses simple element and text nodes", "[parser]")
 
         checkParserErrors(p);
         REQUIRE(program != nullptr);
-        REQUIRE(program->children.size() == 1);
+        REQUIRE(program->statements.size() == 1);
 
         // Check the element node
-        auto* element_node_ptr = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+        auto* element_node_ptr = dynamic_cast<CHTL::ElementNode*>(program->statements[0].get());
         REQUIRE(element_node_ptr != nullptr);
-        REQUIRE(element_node_ptr->tag_name == "div");
+        REQUIRE(element_node_ptr->tagName == "div");
         REQUIRE(element_node_ptr->children.size() == 1);
 
         // Check the text node inside the element
@@ -65,15 +65,15 @@ TEST_CASE("Parser correctly parses simple element and text nodes", "[parser]")
 
         checkParserErrors(p);
         REQUIRE(program != nullptr);
-        REQUIRE(program->children.size() == 2);
+        REQUIRE(program->statements.size() == 2);
 
-        auto* first_element = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+        auto* first_element = dynamic_cast<CHTL::ElementNode*>(program->statements[0].get());
         REQUIRE(first_element != nullptr);
-        REQUIRE(first_element->tag_name == "div");
+        REQUIRE(first_element->tagName == "div");
 
-        auto* second_element = dynamic_cast<CHTL::ElementNode*>(program->children[1].get());
+        auto* second_element = dynamic_cast<CHTL::ElementNode*>(program->statements[1].get());
         REQUIRE(second_element != nullptr);
-        REQUIRE(second_element->tag_name == "span");
+        REQUIRE(second_element->tagName == "span");
     }
 }
 
@@ -96,11 +96,11 @@ TEST_CASE("Parser correctly parses attributes", "[parser]")
 
         checkParserErrors(p);
         REQUIRE(program != nullptr);
-        REQUIRE(program->children.size() == 1);
+        REQUIRE(program->statements.size() == 1);
 
-        auto* el = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+        auto* el = dynamic_cast<CHTL::ElementNode*>(program->statements[0].get());
         REQUIRE(el != nullptr);
-        REQUIRE(el->tag_name == "div");
+        REQUIRE(el->tagName == "div");
         REQUIRE(el->attributes.size() == 4);
 
         // Check attributes
@@ -138,9 +138,9 @@ TEST_CASE("Parser correctly parses style blocks", "[parser]")
 
         checkParserErrors(p);
         REQUIRE(program != nullptr);
-        REQUIRE(program->children.size() == 1);
+        REQUIRE(program->statements.size() == 1);
 
-        auto* el = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+        auto* el = dynamic_cast<CHTL::ElementNode*>(program->statements[0].get());
         REQUIRE(el != nullptr);
         REQUIRE(el->children.size() == 1);
 
@@ -173,7 +173,7 @@ TEST_CASE("Parser correctly parses infix expressions", "[parser]")
         checkParserErrors(p);
         REQUIRE(program != nullptr);
 
-        auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
+        auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->statements[0].get());
         REQUIRE(style_node != nullptr);
         REQUIRE(style_node->properties.size() == 1);
 

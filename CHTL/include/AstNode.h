@@ -29,6 +29,9 @@ namespace CHTL
     // Expression 基类
     struct Expression : public AstNode {};
 
+    // Statement 基类
+    struct StatementNode : public AstNode {};
+
     // 数字字面量节点
     struct NumberLiteral : public Expression
     {
@@ -61,18 +64,18 @@ namespace CHTL
     };
 
     // 元素节点，例如 div { ... }
-    struct ElementNode : public AstNode
+    struct ElementNode : public StatementNode
     {
-        std::string tag_name;
+        std::string tagName;
         std::vector<Attribute> attributes;
-        std::vector<std::unique_ptr<AstNode>> children;
+        std::vector<std::unique_ptr<StatementNode>> children;
 
         NodeType GetType() const override { return NodeType::Element; }
         std::string ToString() const override;
     };
 
     // 文本节点，例如 text { "content" }
-    struct TextNode : public AstNode
+    struct TextNode : public StatementNode
     {
         std::string value;
 
@@ -88,7 +91,7 @@ namespace CHTL
     };
 
     // 样式节点, e.g., style { ... }
-    struct StyleNode : public AstNode
+    struct StyleNode : public StatementNode
     {
         std::vector<StyleProperty> properties;
 
@@ -99,7 +102,7 @@ namespace CHTL
     // 程序根节点
     struct ProgramNode : public AstNode
     {
-        std::vector<std::unique_ptr<AstNode>> children;
+        std::vector<std::unique_ptr<StatementNode>> statements;
 
         NodeType GetType() const override { return NodeType::Program; }
         std::string ToString() const override;

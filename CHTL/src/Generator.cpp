@@ -38,7 +38,7 @@ namespace CHTL
 
     void Generator::visit(ProgramNode* node)
     {
-        for (const auto& child : node->children)
+        for (const auto& child : node->statements)
         {
             visit(child.get());
         }
@@ -46,7 +46,7 @@ namespace CHTL
 
     void Generator::visit(ElementNode* node)
     {
-        m_output << "<" << node->tag_name;
+        m_output << "<" << node->tagName;
 
         // Append attributes
         for (const auto& attr : node->attributes)
@@ -92,7 +92,7 @@ namespace CHTL
             }
         }
 
-        m_output << "</" << node->tag_name << ">";
+        m_output << "</" << node->tagName << ">";
     }
 
     void Generator::visit(TextNode* node)

@@ -34,7 +34,7 @@ namespace CHTL
             auto stmt = parseStatement();
             if (stmt)
             {
-                program->children.push_back(std::move(stmt));
+                program->statements.push_back(std::move(stmt));
             }
             nextToken();
         }
@@ -59,7 +59,7 @@ namespace CHTL
     }
 
     // 解析一个语句（目前仅支持元素节点）
-    std::unique_ptr<AstNode> Parser::parseStatement()
+    std::unique_ptr<StatementNode> Parser::parseStatement()
     {
         if (m_currentToken.type == TokenType::IDENT)
         {
@@ -80,7 +80,7 @@ namespace CHTL
     std::unique_ptr<ElementNode> Parser::parseElementNode()
     {
         auto node = std::make_unique<ElementNode>();
-        node->tag_name = m_currentToken.literal;
+        node->tagName = m_currentToken.literal;
 
         if (!expectPeek(TokenType::LBRACE))
         {

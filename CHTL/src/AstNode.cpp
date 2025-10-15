@@ -6,7 +6,7 @@ namespace CHTL
     std::string ElementNode::ToString() const
     {
         std::stringstream ss;
-        ss << "ElementNode(tag: " << tag_name << ", attributes: [";
+        ss << "ElementNode(tag: " << tagName << ", attributes: [";
         for (size_t i = 0; i < attributes.size(); ++i)
         {
             ss << attributes[i].name << ": \"" << attributes[i].value << "\"";
@@ -48,10 +48,10 @@ namespace CHTL
     {
         std::stringstream ss;
         ss << "ProgramNode([";
-        for (size_t i = 0; i < children.size(); ++i)
+        for (size_t i = 0; i < statements.size(); ++i)
         {
-            ss << children[i]->ToString();
-            if (i < children.size() - 1)
+            ss << statements[i]->ToString();
+            if (i < statements.size() - 1)
             {
                 ss << ", ";
             }

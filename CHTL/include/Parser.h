@@ -36,7 +36,7 @@ namespace CHTL
         bool expectPeek(TokenType t);
 
         // Statement parsing
-        std::unique_ptr<AstNode> parseStatement();
+        std::unique_ptr<StatementNode> parseStatement();
         std::unique_ptr<ElementNode> parseElementNode();
         std::unique_ptr<TextNode> parseTextNode();
         std::unique_ptr<StyleNode> parseStyleNode();

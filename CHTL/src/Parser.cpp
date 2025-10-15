@@ -1,5 +1,6 @@
 #include "Parser.h"
 #include <memory>
+#include <sstream>
 
 namespace CHTL
 {
@@ -117,7 +118,7 @@ namespace CHTL
         return node;
     }
 
-    // 解析文本节点: e.g., text { "content" }
+    // 解析文本节点: e.g., text { "content" } or text { hello world }
     std::unique_ptr<TextNode> Parser::parseTextNode()
     {
         auto node = std::make_unique<TextNode>();
@@ -127,18 +128,34 @@ namespace CHTL
             return nullptr;
         }
 
-        nextToken();
+        nextToken(); // 消费 '{'
 
-        if (m_currentToken.type != TokenType::STRING)
+        // 如果是带引号的字符串，按原方式处理
+        if (m_currentToken.type == TokenType::STRING)
         {
-            m_errors.push_back("Expected a string literal inside text block.");
-            return nullptr;
+            node->value = m_currentToken.literal;
+            nextToken(); // 消费字符串
+        }
+        else // 否则，处理无修饰字面量
+        {
+            std::stringstream text_content;
+            bool first_token = true;
+            while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+            {
+                if (!first_token)
+                {
+                    text_content << " ";
+                }
+                text_content << m_currentToken.literal;
+                first_token = false;
+                nextToken();
+            }
+            node->value = text_content.str();
         }
 
-        node->value = m_currentToken.literal;
-
-        if (!expectPeek(TokenType::RBRACE))
+        if (m_currentToken.type != TokenType::RBRACE)
         {
+            m_errors.push_back("Expected '}' to close text block.");
             return nullptr;
         }
 

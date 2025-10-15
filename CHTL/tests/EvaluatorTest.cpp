@@ -8,13 +8,14 @@
 TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
 {
     CHTL::Evaluator evaluator;
+    CHTL::EvalContext context; // Create a single empty context for all tests
 
     SECTION("Evaluates a NumberLiteral")
     {
         auto num = std::make_unique<CHTL::NumberLiteral>();
         num->value = 123.45;
-        REQUIRE(evaluator.Eval(num.get()).num == 123.45);
-        REQUIRE(evaluator.Eval(num.get()).unit == "");
+        REQUIRE(evaluator.Eval(num.get(), context).num == 123.45);
+        REQUIRE(evaluator.Eval(num.get(), context).unit == "");
     }
 
     SECTION("Evaluates a simple addition")
@@ -29,7 +30,7 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
         infix->op = "+";
         infix->right = std::move(right);
 
-        REQUIRE(evaluator.Eval(infix.get()).num == 30.0);
+        REQUIRE(evaluator.Eval(infix.get(), context).num == 30.0);
     }
 
     SECTION("Evaluates with correct operator precedence")
@@ -55,7 +56,7 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
 
         root->right = std::move(right_mult);
 
-        REQUIRE(evaluator.Eval(root.get()).num == 70.0);
+        REQUIRE(evaluator.Eval(root.get(), context).num == 70.0);
     }
 
     // --- Unit Tests ---
@@ -72,7 +73,7 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
         infix->op = "+";
         infix->right = std::move(right);
 
-        auto result = evaluator.Eval(infix.get());
+        auto result = evaluator.Eval(infix.get(), context);
         REQUIRE(result.num == 15.0);
         REQUIRE(result.unit == "px");
     }
@@ -89,7 +90,7 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
         infix->op = "+";
         infix->right = std::move(right);
 
-        auto result = evaluator.Eval(infix.get());
+        auto result = evaluator.Eval(infix.get(), context);
         REQUIRE(result.num == 15.0);
         REQUIRE(result.unit == "px");
     }
@@ -106,7 +107,7 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
         infix->op = "*";
         infix->right = std::move(right);
 
-        auto result = evaluator.Eval(infix.get());
+        auto result = evaluator.Eval(infix.get(), context);
         REQUIRE(result.num == 20.0);
         REQUIRE(result.unit == "px");
     }
@@ -124,6 +125,6 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
         infix->op = "+";
         infix->right = std::move(right);
 
-        REQUIRE_THROWS(evaluator.Eval(infix.get()));
+        REQUIRE_THROWS(evaluator.Eval(infix.get(), context));
     }
 }

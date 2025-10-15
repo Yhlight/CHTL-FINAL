@@ -69,4 +69,28 @@ namespace CHTL
         val.unit = unit;
         return val;
     }
+
+    Value Value::operator>(const Value& other) const
+    {
+        if (type != ValueType::NUMBER || other.type != ValueType::NUMBER)
+        {
+            throw std::runtime_error("Comparison operators only apply to numbers.");
+        }
+        Value val;
+        val.type = ValueType::BOOL;
+        val.boolean = num > other.num;
+        return val;
+    }
+
+    Value Value::operator<(const Value& other) const
+    {
+        if (type != ValueType::NUMBER || other.type != ValueType::NUMBER)
+        {
+            throw std::runtime_error("Comparison operators only apply to numbers.");
+        }
+        Value val;
+        val.type = ValueType::BOOL;
+        val.boolean = num < other.num;
+        return val;
+    }
 }

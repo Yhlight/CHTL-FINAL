@@ -117,3 +117,24 @@ TEST_CASE("Generator correctly handles contextual '&' selector", "[generator]")
     std::string expected_html = "<head><style>.box{color:blue;}.box:hover{color:red;}</style></head><div class=\"box\"></div>";
     REQUIRE(html_output == expected_html);
 }
+
+TEST_CASE("Generator correctly handles conditional expressions", "[generator]")
+{
+    std::string input = R"(
+        div {
+            style {
+                width: 100px;
+                background-color: width > 50px ? "red" : "blue";
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = R"(<div style="width:100px;background-color:red;"></div>)";
+    REQUIRE(html_output == expected_html);
+}

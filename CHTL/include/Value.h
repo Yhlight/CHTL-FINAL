@@ -5,7 +5,7 @@
 
 namespace CHTL
 {
-    enum class ValueType { NUMBER, STRING };
+    enum class ValueType { NUMBER, STRING, BOOL };
 
     struct Value
     {
@@ -13,11 +13,14 @@ namespace CHTL
         double num = 0.0;
         std::string unit = "";
         std::string str = "";
+        bool boolean = false;
 
         // Overload operators for convenience
         Value operator+(const Value& other) const;
         Value operator-(const Value& other) const;
         Value operator*(const Value& other) const;
         Value operator/(const Value& other) const;
+        Value operator>(const Value& other) const;
+        Value operator<(const Value& other) const;
     };
 }

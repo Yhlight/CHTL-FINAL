@@ -20,6 +20,8 @@ namespace CHTL
         NumberLiteral,
         InfixExpression,
         Identifier,
+        ConditionalExpression,
+        StringLiteral,
     };
 
     // AST节点基类
@@ -63,6 +65,26 @@ namespace CHTL
 
         NodeType GetType() const override { return NodeType::Identifier; }
         std::string ToString() const override { return value; }
+    };
+
+    // 字符串字面量节点
+    struct StringLiteral : public Expression
+    {
+        std::string value;
+
+        NodeType GetType() const override { return NodeType::StringLiteral; }
+        std::string ToString() const override { return "\"" + value + "\""; }
+    };
+
+    // 条件表达式节点, e.g., condition ? consequence : alternative
+    struct ConditionalExpression : public Expression
+    {
+        std::unique_ptr<Expression> condition;
+        std::unique_ptr<Expression> consequence;
+        std::unique_ptr<Expression> alternative;
+
+        NodeType GetType() const override { return NodeType::ConditionalExpression; }
+        std::string ToString() const override;
     };
 
 

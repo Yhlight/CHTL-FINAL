@@ -65,6 +65,13 @@ namespace CHTL
         return ss.str();
     }
 
+    std::string ConditionalExpression::ToString() const
+    {
+        std::stringstream ss;
+        ss << "(" << condition->ToString() << " ? " << consequence->ToString() << " : " << alternative->ToString() << ")";
+        return ss.str();
+    }
+
     std::string ProgramNode::ToString() const
     {
         std::stringstream ss;

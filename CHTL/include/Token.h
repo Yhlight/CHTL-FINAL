@@ -30,6 +30,8 @@ namespace CHTL
         MINUS,      // -
         ASTERISK,   // *
         SLASH,      // /
+        GT,         // >
+        LT,         // <
 
         // 分隔符
         LPAREN,     // (
@@ -38,6 +40,7 @@ namespace CHTL
         RBRACE,     // }
         DOT,        // .
         AMPERSAND,  // &
+        QUESTION,   // ?
     };
 
     // Token结构体

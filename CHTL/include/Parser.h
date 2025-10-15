@@ -25,6 +25,8 @@ namespace CHTL
         enum Precedence
         {
             LOWEST = 0,
+            CONDITIONAL, // ? :
+            COMPARE, // > or <
             SUM,     // + -
             PRODUCT, // * /
             PREFIX,  // -X or !X
@@ -49,7 +51,9 @@ namespace CHTL
         std::unique_ptr<Expression> parseExpression(Precedence precedence);
         std::unique_ptr<Expression> parseIdentifier();
         std::unique_ptr<Expression> parseNumberLiteral();
+        std::unique_ptr<Expression> parseStringLiteral();
         std::unique_ptr<Expression> parseInfixExpression(std::unique_ptr<Expression> left);
+        std::unique_ptr<Expression> parseConditionalExpression(std::unique_ptr<Expression> condition);
 
         Lexer& m_lexer;
         Token m_currentToken;

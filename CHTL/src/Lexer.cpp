@@ -166,6 +166,15 @@ Token Lexer::NextToken()
         case '*':
             tok = {TokenType::ASTERISK, std::string(1, m_char), tok.line, tok.column};
             break;
+        case '>':
+            tok = {TokenType::GT, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case '<':
+            tok = {TokenType::LT, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case '?':
+            tok = {TokenType::QUESTION, std::string(1, m_char), tok.line, tok.column};
+            break;
         case '/':
             if (peekChar() == '/')
             {

@@ -8,6 +8,9 @@ namespace CHTL
         {TokenType::MINUS,    Parser::Precedence::SUM},
         {TokenType::ASTERISK, Parser::Precedence::PRODUCT},
         {TokenType::SLASH,    Parser::Precedence::PRODUCT},
+        {TokenType::GT,       Parser::Precedence::COMPARE},
+        {TokenType::LT,       Parser::Precedence::COMPARE},
+        {TokenType::QUESTION, Parser::Precedence::CONDITIONAL},
     };
 
     Parser::Parser(Lexer& lexer)
@@ -312,6 +315,10 @@ namespace CHTL
         {
             leftExp = parseIdentifier();
         }
+        else if (m_currentToken.type == TokenType::STRING)
+        {
+            leftExp = parseStringLiteral();
+        }
         else
         {
             // No prefix parse function for the token, record an error
@@ -322,8 +329,23 @@ namespace CHTL
         // Infix position
         while (m_peekToken.type != TokenType::SEMICOLON && precedence < (precedences.count(m_peekToken.type) ? precedences[m_peekToken.type] : LOWEST))
         {
-            nextToken();
-            leftExp = parseInfixExpression(std::move(leftExp));
+            TokenType peekType = m_peekToken.type;
+            if (peekType == TokenType::PLUS || peekType == TokenType::MINUS ||
+                peekType == TokenType::ASTERISK || peekType == TokenType::SLASH ||
+                peekType == TokenType::GT || peekType == TokenType::LT)
+            {
+                nextToken();
+                leftExp = parseInfixExpression(std::move(leftExp));
+            }
+            else if (peekType == TokenType::QUESTION)
+            {
+                nextToken();
+                leftExp = parseConditionalExpression(std::move(leftExp));
+            }
+            else
+            {
+                return leftExp;
+            }
         }
 
         return leftExp;
@@ -365,11 +387,39 @@ namespace CHTL
         return expr;
     }
 
+    // 解析条件表达式: e.g., <condition> ? <consequence> : <alternative>
+    std::unique_ptr<Expression> Parser::parseConditionalExpression(std::unique_ptr<Expression> condition)
+    {
+        auto expr = std::make_unique<ConditionalExpression>();
+        expr->condition = std::move(condition);
+
+        nextToken(); // 消费 '?'
+        expr->consequence = parseExpression(CONDITIONAL);
+
+        if (!expectPeek(TokenType::COLON))
+        {
+            m_errors.push_back("Expected ':' in conditional expression.");
+            return nullptr;
+        }
+
+        nextToken(); // 消费 ':'
+        expr->alternative = parseExpression(CONDITIONAL);
+
+        return expr;
+    }
+
     std::unique_ptr<Expression> Parser::parseIdentifier()
     {
         auto ident = std::make_unique<Identifier>();
         ident->value = m_currentToken.literal;
         return ident;
+    }
+
+    std::unique_ptr<Expression> Parser::parseStringLiteral()
+    {
+        auto literal = std::make_unique<StringLiteral>();
+        literal->value = m_currentToken.literal;
+        return literal;
     }
 
 } // namespace CHTL

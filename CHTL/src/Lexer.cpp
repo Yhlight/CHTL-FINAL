@@ -207,6 +207,15 @@ Token Lexer::NextToken()
         case '}':
             tok = {TokenType::RBRACE, std::string(1, m_char), tok.line, tok.column};
             break;
+        case '[':
+            tok = {TokenType::LBRACKET, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case ']':
+            tok = {TokenType::RBRACKET, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case '@':
+            tok = {TokenType::AT, std::string(1, m_char), tok.line, tok.column};
+            break;
         case '.':
             tok = {TokenType::DOT, std::string(1, m_char), tok.line, tok.column};
             break;

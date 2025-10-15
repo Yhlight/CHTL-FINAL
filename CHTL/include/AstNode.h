@@ -3,6 +3,7 @@
 #include <vector>
 #include <memory>
 #include <string>
+#include <unordered_map>
 
 namespace CHTL
 {
@@ -16,6 +17,8 @@ namespace CHTL
         Comment,
         StyleProperty,
         StyleRule,
+        TemplateDefinition,
+        TemplateUsage,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -154,9 +157,33 @@ namespace CHTL
     };
 
     // 程序根节点
+    struct TemplateDefinitionNode; // Forward declaration
+
+    // 模板使用节点, e.g., @Style DefaultText;
+    struct TemplateUsageNode : public AstNode
+    {
+        std::string type; // e.g., "@Style"
+        std::string name;
+
+        NodeType GetType() const override { return NodeType::TemplateUsage; }
+        std::string ToString() const override;
+    };
+
+    // 模板定义节点, e.g., [Template] @Style DefaultText { ... }
+    struct TemplateDefinitionNode : public AstNode
+    {
+        std::string type; // e.g., "@Style"
+        std::string name;
+        std::vector<std::unique_ptr<StyleProperty>> properties;
+
+        NodeType GetType() const override { return NodeType::TemplateDefinition; }
+        std::string ToString() const override;
+    };
+
     struct ProgramNode : public AstNode
     {
         std::vector<std::unique_ptr<AstNode>> children;
+        std::unordered_map<std::string, const TemplateDefinitionNode*> templates;
 
         NodeType GetType() const override { return NodeType::Program; }
         std::string ToString() const override;

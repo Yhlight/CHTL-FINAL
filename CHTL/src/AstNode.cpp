@@ -87,4 +87,25 @@ namespace CHTL
         ss << "])";
         return ss.str();
     }
+
+    std::string TemplateUsageNode::ToString() const
+    {
+        return "TemplateUsage(" + type + " " + name + ")";
+    }
+
+    std::string TemplateDefinitionNode::ToString() const
+    {
+        std::stringstream ss;
+        ss << "TemplateDefinition(" << type << " " << name << " { ";
+        for (size_t i = 0; i < properties.size(); ++i)
+        {
+            ss << properties[i]->ToString();
+            if (i < properties.size() - 1)
+            {
+                ss << ", ";
+            }
+        }
+        ss << " })";
+        return ss.str();
+    }
 }

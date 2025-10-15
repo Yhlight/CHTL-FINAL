@@ -38,6 +38,9 @@ namespace CHTL
         RPAREN,     // )
         LBRACE,     // {
         RBRACE,     // }
+        LBRACKET,   // [
+        RBRACKET,   // ]
+        AT,         // @
         DOT,        // .
         AMPERSAND,  // &
         QUESTION,   // ?

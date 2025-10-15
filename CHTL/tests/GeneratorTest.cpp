@@ -138,3 +138,31 @@ TEST_CASE("Generator correctly handles conditional expressions", "[generator]")
     std::string expected_html = R"(<div style="width:100px;background-color:red;"></div>)";
     REQUIRE(html_output == expected_html);
 }
+
+TEST_CASE("Generator correctly handles style group templates", "[generator]")
+{
+    std::string input = R"(
+        [Template] @Style DefaultText
+        {
+            color: "black";
+            line-height: 1.6;
+        }
+
+        div
+        {
+            style
+            {
+                @Style DefaultText;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = R"(<div style="color:black;line-height:1.6;"></div>)";
+    REQUIRE(html_output == expected_html);
+}

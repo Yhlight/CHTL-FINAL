@@ -34,9 +34,23 @@ namespace CHTL
 
         while (m_currentToken.type != TokenType::END_OF_FILE)
         {
-            auto stmt = parseStatement();
+            std::unique_ptr<AstNode> stmt = nullptr;
+            if (m_currentToken.type == TokenType::LBRACKET)
+            {
+                stmt = parseTemplateDefinition();
+            }
+            else
+            {
+                stmt = parseStatement();
+            }
+
             if (stmt)
             {
+                if (stmt->GetType() == NodeType::TemplateDefinition)
+                {
+                    auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
+                    program->templates[tmpl_def->name] = tmpl_def;
+                }
                 program->children.push_back(std::move(stmt));
             }
             nextToken();
@@ -124,6 +138,99 @@ namespace CHTL
         return node;
     }
 
+    // 解析模板使用 e.g., @Style DefaultText;
+    std::unique_ptr<TemplateUsageNode> Parser::parseTemplateUsage()
+    {
+        auto node = std::make_unique<TemplateUsageNode>();
+
+        // Current token is '@'
+        node->type = m_currentToken.literal;
+        nextToken();
+
+        if (m_currentToken.type != TokenType::IDENT || m_currentToken.literal != "Style") {
+            m_errors.push_back("Expected 'Style' keyword for template usage.");
+            return nullptr;
+        }
+        node->type += m_currentToken.literal;
+        nextToken();
+
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected template name after @Style.");
+            return nullptr;
+        }
+        node->name = m_currentToken.literal;
+        nextToken();
+
+        if (m_currentToken.type != TokenType::SEMICOLON) {
+            m_errors.push_back("Expected ';' after template usage.");
+            return nullptr;
+        }
+        nextToken(); // Consume ';'
+
+        return node;
+    }
+
+    // 解析模板定义 e.g., [Template] @Style DefaultText { ... }
+    std::unique_ptr<TemplateDefinitionNode> Parser::parseTemplateDefinition()
+    {
+        auto node = std::make_unique<TemplateDefinitionNode>();
+
+        // Expect [Template]
+        if (!expectPeek(TokenType::IDENT) || m_currentToken.literal != "Template") {
+            m_errors.push_back("Expected 'Template' keyword after '['.");
+            return nullptr;
+        }
+        if (!expectPeek(TokenType::RBRACKET)) {
+            m_errors.push_back("Expected ']' after 'Template' keyword.");
+            return nullptr;
+        }
+
+        // Expect @Style
+        if (!expectPeek(TokenType::AT)) {
+            m_errors.push_back("Expected '@' for template type.");
+            return nullptr;
+        }
+        if (!expectPeek(TokenType::IDENT) || m_currentToken.literal != "Style") {
+            m_errors.push_back("Expected 'Style' keyword for template type.");
+            return nullptr;
+        }
+        node->type = "@" + m_currentToken.literal;
+
+        // Expect template name
+        if (!expectPeek(TokenType::IDENT)) {
+            m_errors.push_back("Expected template name.");
+            return nullptr;
+        }
+        node->name = m_currentToken.literal;
+
+        // Expect { ... } block
+        if (!expectPeek(TokenType::LBRACE)) {
+            m_errors.push_back("Expected '{' for template block.");
+            return nullptr;
+        }
+        nextToken(); // Consume '{'
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            if (m_currentToken.type == TokenType::IDENT)
+            {
+                node->properties.push_back(std::move(parseStyleProperty()));
+            }
+            else
+            {
+                m_errors.push_back("Invalid token in template definition block: " + m_currentToken.ToString());
+                nextToken();
+            }
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close template block.");
+            return nullptr;
+        }
+
+        return node;
+    }
+
     // 解析文本节点: e.g., text { "content" }
     std::unique_ptr<TextNode> Parser::parseTextNode()
     {
@@ -203,6 +310,10 @@ namespace CHTL
                 node->children.push_back(parseStyleRuleNode());
                 // After a rule is parsed, current token is '}'
                 nextToken(); // Consume '}'
+            }
+            else if (m_currentToken.type == TokenType::AT)
+            {
+                node->children.push_back(parseTemplateUsage());
             }
             else if (m_currentToken.type == TokenType::IDENT)
             {

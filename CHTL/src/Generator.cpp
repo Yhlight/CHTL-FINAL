@@ -7,6 +7,7 @@ namespace CHTL
 {
     std::string Generator::Generate(ProgramNode* program)
     {
+        m_programNode = program;
         m_output.clear();
         m_output.str("");
         m_styleRules.clear();
@@ -65,6 +66,13 @@ namespace CHTL
             case NodeType::Comment:
                 visit(static_cast<CommentNode*>(node));
                 break;
+            case NodeType::TemplateDefinition:
+                // Template definitions are collected by the parser and are not directly generated.
+                break;
+            case NodeType::TemplateUsage:
+                // This should be handled within the context of its parent (e.g., a StyleNode).
+                // A direct visit here might indicate an error or an unhandled case.
+                break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
         }
@@ -101,6 +109,7 @@ namespace CHTL
         if (style_node)
         {
             EvalContext context;
+            Evaluator evaluator;
             // First pass: find main selector and inline styles
             for (const auto& style_child : style_node->children)
             {
@@ -134,13 +143,35 @@ namespace CHTL
 
                     m_styleRules.push_back(rule);
                 }
+                else if (style_child->GetType() == NodeType::TemplateUsage)
+                {
+                    auto* usage = static_cast<TemplateUsageNode*>(style_child.get());
+                    if (m_programNode->templates.count(usage->name))
+                    {
+                        const auto* tmpl = m_programNode->templates.at(usage->name);
+                        for (const auto& prop_ptr : tmpl->properties)
+                        {
+                            if (has_inline_style) {
+                                inline_styles << ";";
+                            }
+                            Value result = evaluator.Eval(prop_ptr->value.get(), context);
+                            context[prop_ptr->name] = result;
+                            inline_styles << prop_ptr->name << ":";
+                             if (result.type == ValueType::STRING) {
+                                inline_styles << result.str;
+                            } else {
+                                inline_styles << result.num << result.unit;
+                            }
+                            has_inline_style = true;
+                        }
+                    }
+                }
                 else if (style_child->GetType() == NodeType::StyleProperty)
                 {
                     if (has_inline_style) {
                         inline_styles << ";";
                     }
                     auto* prop = static_cast<StyleProperty*>(style_child.get());
-                    Evaluator evaluator;
                     Value result = evaluator.Eval(prop->value.get(), context);
                     context[prop->name] = result;
                     inline_styles << prop->name << ":";

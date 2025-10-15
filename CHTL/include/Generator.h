@@ -21,5 +21,6 @@ namespace CHTL
 
         std::stringstream m_output;
         std::vector<const StyleRuleNode*> m_styleRules;
+        const ProgramNode* m_programNode = nullptr;
     };
 }

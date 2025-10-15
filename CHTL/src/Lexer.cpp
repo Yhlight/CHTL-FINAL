@@ -98,6 +98,17 @@ std::string Lexer::readIdentifier()
     return m_input.substr(startPosition, m_position - startPosition);
 }
 
+// 读取一个完整的生成器注释
+std::string Lexer::readGeneratorComment()
+{
+    size_t startPosition = m_position;
+    while (m_char != '\n' && m_char != 0)
+    {
+        readChar();
+    }
+    return m_input.substr(startPosition, m_position - startPosition);
+}
+
 // 读取一个完整的字符串字面量
 std::string Lexer::readString()
 {
@@ -187,6 +198,10 @@ Token Lexer::NextToken()
         case '}':
             tok = {TokenType::RBRACE, std::string(1, m_char), tok.line, tok.column};
             break;
+        case '#':
+            tok.type = TokenType::COMMENT;
+            tok.literal = readGeneratorComment();
+            return tok;
         case '"':
             tok.type = TokenType::STRING;
             tok.literal = readString();

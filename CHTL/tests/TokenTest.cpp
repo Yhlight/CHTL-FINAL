@@ -74,3 +74,18 @@ TEST_CASE("Lexer correctly skips comments and whitespace", "[lexer]")
         REQUIRE(tokens[0].type == CHTL::TokenType::END_OF_FILE);
     }
 }
+
+TEST_CASE("Lexer correctly tokenizes generator comments", "[lexer]")
+{
+    SECTION("Tokenizes a single generator comment")
+    {
+        std::string input = "# this is a generator comment";
+        CHTL::Lexer l(input);
+        auto tokens = collectTokens(l);
+
+        REQUIRE(tokens.size() == 2);
+        REQUIRE(tokens[0].type == CHTL::TokenType::COMMENT);
+        REQUIRE(tokens[0].literal == "# this is a generator comment");
+        REQUIRE(tokens[1].type == CHTL::TokenType::END_OF_FILE);
+    }
+}

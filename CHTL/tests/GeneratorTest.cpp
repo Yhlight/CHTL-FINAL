@@ -192,3 +192,28 @@ TEST_CASE("Generator correctly handles variable group templates", "[generator]")
     std::string expected_html = "<div style=\"background-color:rgb(255, 192, 203);\"></div>";
     REQUIRE(html_output == expected_html);
 }
+
+TEST_CASE("Generator correctly handles element templates", "[generator]")
+{
+    std::string input = R"(
+        [Template] @Element Box
+        {
+            div { style { background-color: red; } }
+            span { text { "A box" } }
+        }
+
+        body
+        {
+            @Element Box;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = R"(<body><div style="background-color:red;"></div><span>A box</span></body>)";
+    REQUIRE(html_output == expected_html);
+}

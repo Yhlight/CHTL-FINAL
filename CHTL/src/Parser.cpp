@@ -118,6 +118,10 @@ namespace CHTL
             {
                 node->attributes.push_back(parseAttribute());
             }
+            else if (m_currentToken.type == TokenType::AT)
+            {
+                node->children.push_back(parseTemplateUsage());
+            }
             else // 否则就是子元素
             {
                 auto stmt = parseStatement();
@@ -126,7 +130,12 @@ namespace CHTL
                     node->children.push_back(std::move(stmt));
                 }
             }
-            nextToken();
+
+            if (m_currentToken.type == TokenType::SEMICOLON) {
+                nextToken();
+            } else {
+                nextToken();
+            }
         }
 
         if (m_currentToken.type != TokenType::RBRACE)
@@ -147,11 +156,16 @@ namespace CHTL
         node->type = m_currentToken.literal;
         nextToken();
 
-        if (m_currentToken.type != TokenType::IDENT || m_currentToken.literal != "Style") {
-            m_errors.push_back("Expected 'Style' keyword for template usage.");
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected template type keyword after '@'.");
             return nullptr;
         }
-        node->type += m_currentToken.literal;
+        std::string templateType = m_currentToken.literal;
+        if (templateType != "Style" && templateType != "Var" && templateType != "Element") {
+            m_errors.push_back("Unsupported template usage: @" + templateType);
+            return nullptr;
+        }
+        node->type += templateType;
         nextToken();
 
         if (m_currentToken.type != TokenType::IDENT) {
@@ -165,7 +179,7 @@ namespace CHTL
             m_errors.push_back("Expected ';' after template usage.");
             return nullptr;
         }
-        nextToken(); // Consume ';'
+        // Do not consume the semicolon. Let the parent loop handle it.
 
         return node;
     }
@@ -196,7 +210,7 @@ namespace CHTL
         }
 
         std::string templateType = m_currentToken.literal;
-        if (templateType != "Style" && templateType != "Var") {
+        if (templateType != "Style" && templateType != "Var" && templateType != "Element") {
             m_errors.push_back("Unsupported template type: @" + templateType);
             return nullptr;
         }
@@ -218,13 +232,25 @@ namespace CHTL
 
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            if (m_currentToken.type == TokenType::IDENT)
+            if (templateType == "Style" || templateType == "Var")
             {
-                node->properties.push_back(std::move(parseStyleProperty()));
+                if (m_currentToken.type == TokenType::IDENT)
+                {
+                    node->properties.push_back(std::move(parseStyleProperty()));
+                }
+                else
+                {
+                    m_errors.push_back("Invalid token in " + node->type + " template definition block: " + m_currentToken.ToString());
+                    nextToken();
+                }
             }
-            else
+            else // Element template
             {
-                m_errors.push_back("Invalid token in template definition block: " + m_currentToken.ToString());
+                auto stmt = parseStatement();
+                if (stmt)
+                {
+                    node->body.push_back(std::move(stmt));
+                }
                 nextToken();
             }
         }
@@ -330,6 +356,9 @@ namespace CHTL
             {
                 m_errors.push_back("Invalid token in style block: " + m_currentToken.ToString());
                 nextToken(); // 跳过无法识别的Token
+            }
+            if (m_currentToken.type == TokenType::SEMICOLON) {
+                nextToken();
             }
         }
 

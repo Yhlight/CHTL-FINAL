@@ -71,8 +71,7 @@ namespace CHTL
                 // Template definitions are collected by the parser and are not directly generated.
                 break;
             case NodeType::TemplateUsage:
-                // This should be handled within the context of its parent (e.g., a StyleNode).
-                // A direct visit here might indicate an error or an unhandled case.
+                visit(static_cast<TemplateUsageNode*>(node));
                 break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
@@ -221,5 +220,23 @@ namespace CHTL
     void Generator::visit(CommentNode* node)
     {
         m_output << "<!-- " << node->value << " -->";
+    }
+
+    void Generator::visit(TemplateUsageNode* node)
+    {
+        if (node->type == "@Element")
+        {
+            if (m_programNode->templates.count(node->name))
+            {
+                const auto* tmpl = m_programNode->templates.at(node->name);
+                for (const auto& child : tmpl->body)
+                {
+                    visit(child.get());
+                }
+            }
+        }
+        // Note: @Style and @Var usages are handled inside visit(ElementNode) and the Evaluator,
+        // so we don't need to handle them here. A direct call to visit a @Style usage
+        // would be out of context.
     }
 }

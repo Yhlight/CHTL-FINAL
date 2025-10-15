@@ -97,12 +97,26 @@ namespace CHTL
     {
         std::stringstream ss;
         ss << "TemplateDefinition(" << type << " " << name << " { ";
-        for (size_t i = 0; i < properties.size(); ++i)
+        if (!properties.empty())
         {
-            ss << properties[i]->ToString();
-            if (i < properties.size() - 1)
+            for (size_t i = 0; i < properties.size(); ++i)
             {
-                ss << ", ";
+                ss << properties[i]->ToString();
+                if (i < properties.size() - 1)
+                {
+                    ss << ", ";
+                }
+            }
+        }
+        if (!body.empty())
+        {
+            for (size_t i = 0; i < body.size(); ++i)
+            {
+                ss << body[i]->ToString();
+                if (i < body.size() - 1)
+                {
+                    ss << ", ";
+                }
             }
         }
         ss << " })";

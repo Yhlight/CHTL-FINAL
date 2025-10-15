@@ -11,6 +11,7 @@ namespace CHTL
         // 特殊Token
         ILLEGAL, // 非法字符
         END_OF_FILE, // 文件结束符
+        COMMENT,     // # comment
 
         // 标识符 + 字面量
         IDENT, // 标识符: div, my_var, px

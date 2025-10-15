@@ -124,6 +124,17 @@ std::string Lexer::readNumber()
     return m_input.substr(startPosition, m_position - startPosition);
 }
 
+// 读取生成器注释 (假设 '#' 和 ' ' 已经被消耗)
+std::string Lexer::readComment()
+{
+    size_t startPosition = m_position;
+    while (m_char != '\n' && m_char != 0)
+    {
+        readChar();
+    }
+    return m_input.substr(startPosition, m_position - startPosition);
+}
+
 
 Token Lexer::NextToken()
 {
@@ -192,7 +203,22 @@ Token Lexer::NextToken()
             tok.literal = readString();
             // readString 更新了行列号，所以不需要额外处理
             return tok;
-
+        case '#':
+            if (peekChar() == ' ')
+            {
+                readChar(); // 消耗 '#'
+                readChar(); // 消耗 ' '
+                tok.type = TokenType::COMMENT;
+                tok.literal = readComment();
+                return tok;
+            }
+            else
+            {
+                // '#` 后面没有空格，这是一个非法的Token
+                tok = {TokenType::ILLEGAL, std::string(1, m_char), tok.line, tok.column};
+                readChar(); // 消耗 '#'
+                return tok;
+            }
         case 0:
             tok.type = TokenType::END_OF_FILE;
             tok.literal = "";

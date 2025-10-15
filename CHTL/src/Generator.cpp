@@ -23,11 +23,12 @@ namespace CHTL
             {
                 style_ss << rule->selector << "{";
                 EvalContext context;
+                context.program = m_programNode;
                 for (const auto& prop : rule->properties)
                 {
                     Evaluator evaluator;
                     Value result = evaluator.Eval(prop->value.get(), context);
-                    context[prop->name] = result;
+                    context.values[prop->name] = result;
                     style_ss << prop->name << ":";
                     if (result.type == ValueType::STRING) {
                         style_ss << result.str;
@@ -109,6 +110,7 @@ namespace CHTL
         if (style_node)
         {
             EvalContext context;
+            context.program = m_programNode;
             Evaluator evaluator;
             // First pass: find main selector and inline styles
             for (const auto& style_child : style_node->children)
@@ -155,7 +157,7 @@ namespace CHTL
                                 inline_styles << ";";
                             }
                             Value result = evaluator.Eval(prop_ptr->value.get(), context);
-                            context[prop_ptr->name] = result;
+                    context.values[prop_ptr->name] = result;
                             inline_styles << prop_ptr->name << ":";
                              if (result.type == ValueType::STRING) {
                                 inline_styles << result.str;
@@ -173,7 +175,7 @@ namespace CHTL
                     }
                     auto* prop = static_cast<StyleProperty*>(style_child.get());
                     Value result = evaluator.Eval(prop->value.get(), context);
-                    context[prop->name] = result;
+                    context.values[prop->name] = result;
                     inline_styles << prop->name << ":";
                     if (result.type == ValueType::STRING) {
                         inline_styles << result.str;

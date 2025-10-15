@@ -108,4 +108,9 @@ namespace CHTL
         ss << " })";
         return ss.str();
     }
+
+    std::string VariableAccessNode::ToString() const
+    {
+        return template_name + "(" + variable_name + ")";
+    }
 }

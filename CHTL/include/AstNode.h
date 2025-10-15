@@ -25,6 +25,7 @@ namespace CHTL
         Identifier,
         ConditionalExpression,
         StringLiteral,
+        VariableAccess,
     };
 
     // AST节点基类
@@ -87,6 +88,16 @@ namespace CHTL
         std::unique_ptr<Expression> alternative;
 
         NodeType GetType() const override { return NodeType::ConditionalExpression; }
+        std::string ToString() const override;
+    };
+
+    // 变量访问节点, e.g., TemplateName(VariableName)
+    struct VariableAccessNode : public Expression
+    {
+        std::string template_name;
+        std::string variable_name;
+
+        NodeType GetType() const override { return NodeType::VariableAccess; }
         std::string ToString() const override;
     };
 

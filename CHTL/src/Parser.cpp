@@ -185,16 +185,22 @@ namespace CHTL
             return nullptr;
         }
 
-        // Expect @Style
+        // Expect @Style or @Var
         if (!expectPeek(TokenType::AT)) {
             m_errors.push_back("Expected '@' for template type.");
             return nullptr;
         }
-        if (!expectPeek(TokenType::IDENT) || m_currentToken.literal != "Style") {
-            m_errors.push_back("Expected 'Style' keyword for template type.");
+        if (!expectPeek(TokenType::IDENT)) {
+             m_errors.push_back("Expected template type keyword after '@'.");
             return nullptr;
         }
-        node->type = "@" + m_currentToken.literal;
+
+        std::string templateType = m_currentToken.literal;
+        if (templateType != "Style" && templateType != "Var") {
+            m_errors.push_back("Unsupported template type: @" + templateType);
+            return nullptr;
+        }
+        node->type = "@" + templateType;
 
         // Expect template name
         if (!expectPeek(TokenType::IDENT)) {
@@ -424,7 +430,14 @@ namespace CHTL
         }
         else if (m_currentToken.type == TokenType::IDENT)
         {
-            leftExp = parseIdentifier();
+            if (m_peekToken.type == TokenType::LPAREN)
+            {
+                leftExp = parseVariableAccessExpression();
+            }
+            else
+            {
+                leftExp = parseIdentifier();
+            }
         }
         else if (m_currentToken.type == TokenType::STRING)
         {
@@ -531,6 +544,32 @@ namespace CHTL
         auto literal = std::make_unique<StringLiteral>();
         literal->value = m_currentToken.literal;
         return literal;
+    }
+
+    // 解析变量访问表达式 e.g., ThemeColor(tableColor)
+    std::unique_ptr<Expression> Parser::parseVariableAccessExpression()
+    {
+        auto node = std::make_unique<VariableAccessNode>();
+
+        // Current token is the template name (IDENT)
+        node->template_name = m_currentToken.literal;
+
+        if (!expectPeek(TokenType::LPAREN)) {
+            return nullptr;
+        }
+        nextToken(); // Consume '('
+
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected variable name inside variable access.");
+            return nullptr;
+        }
+        node->variable_name = m_currentToken.literal;
+
+        if (!expectPeek(TokenType::RPAREN)) {
+            return nullptr;
+        }
+
+        return node;
     }
 
 } // namespace CHTL

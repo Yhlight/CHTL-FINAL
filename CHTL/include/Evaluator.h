@@ -8,7 +8,13 @@
 
 namespace CHTL
 {
-    using EvalContext = std::unordered_map<std::string, Value>;
+    struct ProgramNode; // Forward declaration
+
+    struct EvalContext
+    {
+        std::unordered_map<std::string, Value> values;
+        const ProgramNode* program = nullptr;
+    };
 
     class Evaluator
     {

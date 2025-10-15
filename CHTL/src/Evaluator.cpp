@@ -61,9 +61,9 @@ namespace CHTL
             case NodeType::Identifier:
             {
                 auto ident_node = static_cast<Identifier*>(node);
-                if (context.count(ident_node->value))
+                if (context.values.count(ident_node->value))
                 {
-                    return context.at(ident_node->value);
+                    return context.values.at(ident_node->value);
                 }
 
                 // If not in context, treat it as a string literal (e.g., color: red)
@@ -97,6 +97,22 @@ namespace CHTL
                 {
                     return eval(cond_node->alternative.get(), context);
                 }
+            }
+            case NodeType::VariableAccess:
+            {
+                auto var_access_node = static_cast<VariableAccessNode*>(node);
+                if (context.program && context.program->templates.count(var_access_node->template_name))
+                {
+                    const auto* tmpl = context.program->templates.at(var_access_node->template_name);
+                    for (const auto& prop : tmpl->properties)
+                    {
+                        if (prop->name == var_access_node->variable_name)
+                        {
+                            return eval(prop->value.get(), context);
+                        }
+                    }
+                }
+                throw std::runtime_error("Variable '" + var_access_node->variable_name + "' not found in template '" + var_access_node->template_name + "'.");
             }
             default:
                 throw std::runtime_error("Unknown expression node type in Evaluator.");

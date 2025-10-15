@@ -201,6 +201,9 @@ Token Lexer::NextToken()
         case '.':
             tok = {TokenType::DOT, std::string(1, m_char), tok.line, tok.column};
             break;
+        case '&':
+            tok = {TokenType::AMPERSAND, std::string(1, m_char), tok.line, tok.column};
+            break;
         case '"':
             tok.type = TokenType::STRING;
             tok.literal = readString();

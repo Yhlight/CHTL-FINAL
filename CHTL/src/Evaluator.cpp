@@ -20,7 +20,11 @@ namespace CHTL
             case NodeType::NumberLiteral:
             {
                 auto num_node = static_cast<NumberLiteral*>(node);
-                return {num_node->value, num_node->unit};
+                Value val;
+                val.type = ValueType::NUMBER;
+                val.num = num_node->value;
+                val.unit = num_node->unit;
+                return val;
             }
             case NodeType::InfixExpression:
             {
@@ -45,6 +49,14 @@ namespace CHTL
                     return left_val / right_val;
                 }
                 throw std::runtime_error("Unknown infix operator: " + infix_node->op);
+            }
+            case NodeType::Identifier:
+            {
+                auto ident_node = static_cast<Identifier*>(node);
+                Value val;
+                val.type = ValueType::STRING;
+                val.str = ident_node->value;
+                return val;
             }
             default:
                 throw std::runtime_error("Unknown expression node type in Evaluator.");

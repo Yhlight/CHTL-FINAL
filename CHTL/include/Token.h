@@ -37,6 +37,7 @@ namespace CHTL
         LBRACE,     // {
         RBRACE,     // }
         DOT,        // .
+        AMPERSAND,  // &
     };
 
     // Token结构体

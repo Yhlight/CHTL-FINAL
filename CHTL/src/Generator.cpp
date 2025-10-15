@@ -25,7 +25,13 @@ namespace CHTL
                 {
                     Evaluator evaluator;
                     Value result = evaluator.Eval(prop->value.get());
-                    style_ss << prop->name << ":" << result.num << result.unit << ";";
+                    style_ss << prop->name << ":";
+                    if (result.type == ValueType::STRING) {
+                        style_ss << result.str;
+                    } else {
+                        style_ss << result.num << result.unit;
+                    }
+                    style_ss << ";";
                 }
                 style_ss << "}";
             }
@@ -88,21 +94,42 @@ namespace CHTL
 
         std::stringstream inline_styles;
         bool has_inline_style = false;
+        std::string main_selector = "";
 
         if (style_node)
         {
+            // First pass: find main selector and inline styles
             for (const auto& style_child : style_node->children)
             {
                 if (style_child->GetType() == NodeType::StyleRule)
                 {
                     auto* rule = static_cast<const StyleRuleNode*>(style_child.get());
-                    m_styleRules.push_back(rule);
+                    if (main_selector.empty() && (rule->selector[0] == '.' || rule->selector[0] == '#'))
+                    {
+                        main_selector = rule->selector;
+                    }
+                }
+            }
 
-                    // Add class to attributes
-                    if (rule->selector[0] == '.')
+            // Second pass: process all rules
+            for (const auto& style_child : style_node->children)
+            {
+                if (style_child->GetType() == NodeType::StyleRule)
+                {
+                    auto* rule = static_cast<StyleRuleNode*>(style_child.get());
+
+                    bool is_contextual = (rule->selector[0] == '&');
+
+                    if (is_contextual)
+                    {
+                        rule->selector.replace(0, 1, main_selector);
+                    }
+                    else if (rule->selector[0] == '.')
                     {
                         final_attributes.push_back({"class", rule->selector.substr(1)});
                     }
+
+                    m_styleRules.push_back(rule);
                 }
                 else if (style_child->GetType() == NodeType::StyleProperty)
                 {
@@ -112,7 +139,12 @@ namespace CHTL
                     auto* prop = static_cast<StyleProperty*>(style_child.get());
                     Evaluator evaluator;
                     Value result = evaluator.Eval(prop->value.get());
-                    inline_styles << prop->name << ":" << result.num << result.unit;
+                    inline_styles << prop->name << ":";
+                    if (result.type == ValueType::STRING) {
+                        inline_styles << result.str;
+                    } else {
+                        inline_styles << result.num << result.unit;
+                    }
                     has_inline_style = true;
                 }
             }

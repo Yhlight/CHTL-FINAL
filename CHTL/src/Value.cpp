@@ -4,36 +4,51 @@ namespace CHTL
 {
     Value Value::operator+(const Value& other) const
     {
+        Value val;
+        val.type = ValueType::NUMBER;
         if (unit == other.unit || other.unit.empty())
         {
-            return {num + other.num, unit};
+            val.num = num + other.num;
+            val.unit = unit;
+            return val;
         }
         if (unit.empty())
         {
-            return {num + other.num, other.unit};
+            val.num = num + other.num;
+            val.unit = other.unit;
+            return val;
         }
         throw std::runtime_error("Unit mismatch: cannot add '" + unit + "' and '" + other.unit + "'.");
     }
 
     Value Value::operator-(const Value& other) const
     {
+        Value val;
+        val.type = ValueType::NUMBER;
         if (unit == other.unit || other.unit.empty())
         {
-            return {num - other.num, unit};
+            val.num = num - other.num;
+            val.unit = unit;
+            return val;
         }
         if (unit.empty())
         {
-            // This case is tricky. 5 - 10px = -5px ? Let's support it.
-            return {num - other.num, other.unit};
+            val.num = num - other.num;
+            val.unit = other.unit;
+            return val;
         }
         throw std::runtime_error("Unit mismatch: cannot subtract '" + other.unit + "' from '" + unit + "'.");
     }
 
     Value Value::operator*(const Value& other) const
     {
+        Value val;
+        val.type = ValueType::NUMBER;
         if (unit.empty() || other.unit.empty())
         {
-            return {num * other.num, unit.empty() ? other.unit : unit};
+            val.num = num * other.num;
+            val.unit = unit.empty() ? other.unit : unit;
+            return val;
         }
         throw std::runtime_error("Invalid operation: cannot multiply unit '" + unit + "' by unit '" + other.unit + "'.");
     }
@@ -48,6 +63,10 @@ namespace CHTL
         {
             throw std::runtime_error("Division by zero.");
         }
-        return {num / other.num, unit};
+        Value val;
+        val.type = ValueType::NUMBER;
+        val.num = num / other.num;
+        val.unit = unit;
+        return val;
     }
 }

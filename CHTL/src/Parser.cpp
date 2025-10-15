@@ -194,10 +194,12 @@ namespace CHTL
 
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            if (m_currentToken.type == TokenType::DOT)
+            if (m_currentToken.type == TokenType::DOT || m_currentToken.type == TokenType::AMPERSAND)
             {
                 // 解析CSS规则
                 node->children.push_back(parseStyleRuleNode());
+                // After a rule is parsed, current token is '}'
+                nextToken(); // Consume '}'
             }
             else if (m_currentToken.type == TokenType::IDENT)
             {
@@ -252,39 +254,35 @@ namespace CHTL
         return prop;
     }
 
-    // 解析CSS规则 e.g. .box { width: 100px; }
+    // 解析CSS规则 e.g. .box { width: 100px; } or &:hover { ... }
     std::unique_ptr<StyleRuleNode> Parser::parseStyleRuleNode()
     {
         auto node = std::make_unique<StyleRuleNode>();
         std::string selector = "";
 
-        // 当前Token是 '.'
-        selector += m_currentToken.literal;
-        nextToken();
-
-        if (m_currentToken.type != TokenType::IDENT) {
-            m_errors.push_back("Expected identifier for selector name.");
-            return nullptr;
+        // The tokens that make up the selector are IDENT, DOT, AMPERSAND, COLON, etc.
+        // We consume them until we hit the opening brace of the rule block.
+        while (m_currentToken.type != TokenType::LBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            selector += m_currentToken.literal;
+            nextToken();
         }
-        selector += m_currentToken.literal;
         node->selector = selector;
-        nextToken();
 
         if (m_currentToken.type != TokenType::LBRACE) {
-            m_errors.push_back("Expected '{' for style rule block.");
+            m_errors.push_back("Expected '{' to begin style rule block.");
             return nullptr;
         }
-        nextToken(); // 消费 '{'
+        nextToken(); // Consume '{'
 
+        // Now parse the properties inside the rule block
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            if (m_currentToken.type == TokenType::IDENT)
-            {
-                node->properties.push_back(parseStyleProperty());
-            }
-            else
-            {
-                m_errors.push_back("Invalid token in style rule block: " + m_currentToken.ToString());
+            auto prop = parseStyleProperty();
+            if (prop) {
+                node->properties.push_back(std::move(prop));
+            } else {
+                // If parseStyleProperty failed, we need to advance to avoid an infinite loop.
                 nextToken();
             }
         }
@@ -293,7 +291,8 @@ namespace CHTL
             m_errors.push_back("Expected '}' to close style rule block.");
             return nullptr;
         }
-        nextToken(); // 消费 '}'
+        // The calling function (parseStyleNode) is responsible for consuming the closing brace.
+        // We leave m_currentToken on '}' so it knows where we are.
 
         return node;
     }

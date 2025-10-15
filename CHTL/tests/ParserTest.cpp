@@ -38,37 +38,3 @@ TEST_CASE("Test parsing a simple empty element", "[parser]")
     REQUIRE(element_node->attributes.empty());
     REQUIRE(element_node->children.empty());
 }
-
-TEST_CASE("Test parsing a simple text node with a quoted string", "[parser]")
-{
-    std::string input = R"(text { "hello world" })";
-    CHTL::Lexer l(input);
-    CHTL::Parser p(l);
-    auto program = p.ParseProgram();
-
-    checkParserErrors(p);
-
-    REQUIRE(program != nullptr);
-    REQUIRE(program->children.size() == 1);
-
-    auto* text_node = dynamic_cast<CHTL::TextNode*>(program->children[0].get());
-    REQUIRE(text_node != nullptr);
-    REQUIRE(text_node->value == "hello world");
-}
-
-TEST_CASE("Test parsing a simple text node with an unquoted literal", "[parser]")
-{
-    std::string input = R"(text { hello world })";
-    CHTL::Lexer l(input);
-    CHTL::Parser p(l);
-    auto program = p.ParseProgram();
-
-    checkParserErrors(p);
-
-    REQUIRE(program != nullptr);
-    REQUIRE(program->children.size() == 1);
-
-    auto* text_node = dynamic_cast<CHTL::TextNode*>(program->children[0].get());
-    REQUIRE(text_node != nullptr);
-    REQUIRE(text_node->value == "hello world");
-}

@@ -131,6 +131,10 @@ Token Lexer::readBlockKeyword()
     {
         return {TokenType::KEYWORD_IMPORT, "[Import]", startLine, startColumn};
     }
+    else if (identifier == "Namespace")
+    {
+        return {TokenType::KEYWORD_NAMESPACE, "[Namespace]", startLine, startColumn};
+    }
 
     return {TokenType::ILLEGAL, "[" + identifier + "]", startLine, startColumn};
 }

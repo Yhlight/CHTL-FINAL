@@ -49,6 +49,7 @@ namespace CHTL
         std::unique_ptr<TemplateDefinitionNode> parseTemplateDefinition();
         std::unique_ptr<CustomDefinitionNode> parseCustomDefinitionNode();
         std::unique_ptr<ImportNode> parseImportNode();
+        std::unique_ptr<NamespaceNode> parseNamespaceNode(ProgramNode& program);
         std::unique_ptr<AstNode> parseAtUsage();
         std::unique_ptr<DeleteSpecializationNode> parseDeleteSpecialization();
         Attribute parseAttribute();
@@ -67,6 +68,9 @@ namespace CHTL
         Token m_peekToken;
         std::vector<std::string> m_errors; // 用于收集解析错误
         std::unordered_set<std::string> m_imported_files; // 用于防止循环导入
+        std::string m_current_namespace; // 当前正在解析的命名空间
     };
+
+    extern const std::string GLOBAL_NAMESPACE;
 
 } // namespace CHTL

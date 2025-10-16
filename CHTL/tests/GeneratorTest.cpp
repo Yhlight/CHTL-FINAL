@@ -297,3 +297,56 @@ TEST_CASE("Generator correctly handles imported templates", "[generator]")
     REQUIRE(style_content.find("font-size:16px") != std::string::npos);
     REQUIRE(style_content.find("color:imported-green") != std::string::npos);
 }
+
+TEST_CASE("Generator correctly handles namespaced template usage", "[generator]")
+{
+    SECTION("Template defined and used in the same namespace")
+    {
+        std::string input = R"(
+            [Namespace] MySpace {
+                [Template] @Style MyTemplate {
+                    color: "purple";
+                }
+
+                div {
+                    style {
+                        @Style MyTemplate;
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        REQUIRE(html_output.find("color:purple") != std::string::npos);
+    }
+
+    SECTION("Template in global namespace is accessible from within another namespace")
+    {
+        std::string input = R"(
+            [Template] @Style GlobalTemplate {
+                font-weight: bold;
+            }
+
+            [Namespace] MySpace {
+                div {
+                    style {
+                        @Style GlobalTemplate;
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        REQUIRE(html_output.find("font-weight:bold") != std::string::npos);
+    }
+}

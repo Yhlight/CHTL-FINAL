@@ -26,6 +26,7 @@ namespace CHTL
         KEYWORD_DELETE,     // delete
         KEYWORD_IMPORT,     // [Import]
         KEYWORD_FROM,       // from
+        KEYWORD_NAMESPACE,  // [Namespace]
 
         // 运算符
         ASSIGN,     // =

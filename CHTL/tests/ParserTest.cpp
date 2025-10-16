@@ -145,13 +145,47 @@ TEST_CASE("Test parsing an import statement", "[parser]")
 
     REQUIRE(program != nullptr);
     // The import node itself is not added to the children, the definitions are merged directly.
-    // Let's verify the template map.
-    REQUIRE(program->templates.size() == 1);
-    REQUIRE(program->templates.count("ImportedStyle") == 1);
+    // Let's verify the template map, which should now be in the global namespace.
+    REQUIRE(program->templates.count(CHTL::GLOBAL_NAMESPACE) == 1);
+    const auto& global_ns = program->templates.at(CHTL::GLOBAL_NAMESPACE);
+    REQUIRE(global_ns.size() == 1);
+    REQUIRE(global_ns.count("ImportedStyle") == 1);
 
-    const auto* tmpl = program->templates.at("ImportedStyle");
+    const auto* tmpl = global_ns.at("ImportedStyle");
     REQUIRE(tmpl->name == "ImportedStyle");
     REQUIRE(tmpl->properties.size() == 2);
+}
+
+TEST_CASE("Test parsing a namespace block", "[parser]")
+{
+    std::string input = R"(
+        [Namespace] MySpace {
+            [Template] @Style MyTemplate {
+                color: red;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1); // The namespace node
+
+    auto* ns_node = dynamic_cast<CHTL::NamespaceNode*>(program->children[0].get());
+    REQUIRE(ns_node != nullptr);
+    REQUIRE(ns_node->name == "MySpace");
+
+    // Check that the template was stored in the correct namespace in the program's map
+    REQUIRE(program->templates.size() == 1);
+    REQUIRE(program->templates.count("MySpace") == 1);
+    REQUIRE(program->templates.at("MySpace").size() == 1);
+    REQUIRE(program->templates.at("MySpace").count("MyTemplate") == 1);
+
+    const auto* tmpl = program->templates.at("MySpace").at("MyTemplate");
+    REQUIRE(tmpl->name == "MyTemplate");
 }
 
 TEST_CASE("Test parsing style block with arithmetic expressions", "[parser]")

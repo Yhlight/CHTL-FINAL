@@ -23,6 +23,7 @@ namespace CHTL
         CustomUsage,
         DeleteSpecialization,
         Import,
+        Namespace,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -216,6 +217,16 @@ namespace CHTL
         std::string ToString() const override { return "[Import] " + type + " from \"" + path + "\";"; }
     };
 
+    // 命名空间节点, e.g., [Namespace] MySpace { ... }
+    struct NamespaceNode : public AstNode
+    {
+        std::string name;
+        std::vector<std::unique_ptr<AstNode>> children;
+
+        NodeType GetType() const override { return NodeType::Namespace; }
+        std::string ToString() const override;
+    };
+
     // 模板定义节点, e.g., [Template] @Style DefaultText { ... }
     struct TemplateDefinitionNode : public AstNode
     {
@@ -242,11 +253,15 @@ namespace CHTL
         std::string ToString() const override;
     };
 
+    // Using a nested map for namespaced definitions: namespace -> definition_name -> node
+    using TemplateMap = std::unordered_map<std::string, std::unordered_map<std::string, const TemplateDefinitionNode*>>;
+    using CustomMap = std::unordered_map<std::string, std::unordered_map<std::string, const CustomDefinitionNode*>>;
+
     struct ProgramNode : public AstNode
     {
         std::vector<std::unique_ptr<AstNode>> children;
-        std::unordered_map<std::string, const TemplateDefinitionNode*> templates;
-        std::unordered_map<std::string, const CustomDefinitionNode*> customs;
+        TemplateMap templates;
+        CustomMap customs;
         std::vector<std::unique_ptr<ProgramNode>> imported_programs; // To hold ownership
 
         NodeType GetType() const override { return NodeType::Program; }

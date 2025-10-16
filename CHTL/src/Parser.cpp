@@ -7,6 +7,8 @@
 namespace CHTL
 {
 
+const std::string GLOBAL_NAMESPACE = "_global";
+
 // Helper function to read a file into a string
 std::string readFile(const std::string& path) {
     std::ifstream file(path);
@@ -29,7 +31,7 @@ std::string readFile(const std::string& path) {
     };
 
     Parser::Parser(Lexer& lexer)
-        : m_lexer(lexer)
+        : m_lexer(lexer), m_current_namespace(GLOBAL_NAMESPACE)
     {
         // 读取两个Token，以设置好currentToken和peekToken
         nextToken();
@@ -61,6 +63,10 @@ std::string readFile(const std::string& path) {
             else if (m_currentToken.type == TokenType::KEYWORD_IMPORT)
             {
                 stmt = parseImportNode();
+            }
+            else if (m_currentToken.type == TokenType::KEYWORD_NAMESPACE)
+            {
+                stmt = parseNamespaceNode(*program);
             }
             else
             {
@@ -112,12 +118,12 @@ std::string readFile(const std::string& path) {
                     if (stmt->GetType() == NodeType::TemplateDefinition)
                     {
                         auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
-                        program->templates[tmpl_def->name] = tmpl_def;
+                    program->templates[m_current_namespace][tmpl_def->name] = tmpl_def;
                     }
                     else if (stmt->GetType() == NodeType::CustomDefinition)
                     {
                         auto* custom_def = static_cast<CustomDefinitionNode*>(stmt.get());
-                        program->customs[custom_def->name] = custom_def;
+                    program->customs[m_current_namespace][custom_def->name] = custom_def;
                     }
                     program->children.push_back(std::move(stmt));
                 }
@@ -212,6 +218,72 @@ std::string readFile(const std::string& path) {
             m_errors.push_back("Expected '}' to close element block.");
             return nullptr;
         }
+
+        return node;
+    }
+
+    // 解析命名空间 e.g., [Namespace] MySpace { ... }
+    std::unique_ptr<NamespaceNode> Parser::parseNamespaceNode(ProgramNode& program)
+    {
+        auto node = std::make_unique<NamespaceNode>();
+
+        // Current token is [Namespace]
+        if (!expectPeek(TokenType::IDENT)) {
+            m_errors.push_back("Expected namespace name.");
+            return nullptr;
+        }
+        node->name = m_currentToken.literal;
+
+        // Set current namespace
+        std::string prev_namespace = m_current_namespace;
+        m_current_namespace = node->name;
+
+        if (!expectPeek(TokenType::LBRACE)) {
+            m_errors.push_back("Expected '{' for namespace block.");
+            return nullptr;
+        }
+        nextToken(); // Consume '{'
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            std::unique_ptr<AstNode> stmt = nullptr;
+            if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE)
+            {
+                stmt = parseTemplateDefinition();
+            }
+            else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM)
+            {
+                stmt = parseCustomDefinitionNode();
+            }
+            // Note: Imports and nested namespaces could be supported here in the future.
+            else
+            {
+                stmt = parseStatement();
+            }
+
+            if (stmt) {
+                if (stmt->GetType() == NodeType::TemplateDefinition)
+                {
+                    auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
+                    program.templates[m_current_namespace][tmpl_def->name] = tmpl_def;
+                }
+                else if (stmt->GetType() == NodeType::CustomDefinition)
+                {
+                    auto* custom_def = static_cast<CustomDefinitionNode*>(stmt.get());
+                    program.customs[m_current_namespace][custom_def->name] = custom_def;
+                }
+                node->children.push_back(std::move(stmt));
+            }
+            nextToken();
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close namespace block.");
+            return nullptr;
+        }
+
+        // Restore previous namespace
+        m_current_namespace = prev_namespace;
 
         return node;
     }

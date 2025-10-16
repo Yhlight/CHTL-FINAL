@@ -3,6 +3,8 @@
 
 namespace CHTL
 {
+    extern const std::string GLOBAL_NAMESPACE;
+
     Value Evaluator::Eval(Expression* node, EvalContext& context)
     {
         return eval(node, context);
@@ -101,14 +103,27 @@ namespace CHTL
             case NodeType::VariableAccess:
             {
                 auto var_access_node = static_cast<VariableAccessNode*>(node);
-                if (context.program && context.program->templates.count(var_access_node->template_name))
+                if (context.program)
                 {
-                    const auto* tmpl = context.program->templates.at(var_access_node->template_name);
-                    for (const auto& prop : tmpl->properties)
+                    const TemplateDefinitionNode* tmpl = nullptr;
+                    // 1. Look in current namespace
+                    if (context.program->templates.count(context.current_namespace) && context.program->templates.at(context.current_namespace).count(var_access_node->template_name))
                     {
-                        if (prop->name == var_access_node->variable_name)
+                        tmpl = context.program->templates.at(context.current_namespace).at(var_access_node->template_name);
+                    }
+                    // 2. Look in global namespace
+                    else if (context.current_namespace != GLOBAL_NAMESPACE && context.program->templates.count(GLOBAL_NAMESPACE) && context.program->templates.at(GLOBAL_NAMESPACE).count(var_access_node->template_name))
+                    {
+                        tmpl = context.program->templates.at(GLOBAL_NAMESPACE).at(var_access_node->template_name);
+                    }
+
+                    if (tmpl) {
+                        for (const auto& prop : tmpl->properties)
                         {
-                            return eval(prop->value.get(), context);
+                            if (prop->name == var_access_node->variable_name)
+                            {
+                                return eval(prop->value.get(), context);
+                            }
                         }
                     }
                 }

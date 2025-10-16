@@ -138,6 +138,11 @@ namespace CHTL
         return "CustomDefinition(" + type + " " + name + ")";
     }
 
+    std::string NamespaceNode::ToString() const
+    {
+        return "[Namespace] " + name + " { ... }";
+    }
+
     // Note: DeleteSpecializationNode::ToString() is already defined inline in AstNode.h
     // No implementation needed here unless it's moved.
 }

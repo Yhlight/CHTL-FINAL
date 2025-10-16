@@ -1,5 +1,5 @@
 #include "Generator.h"
-#include "Evaluator.h"
+#include "Evaluator.h" // EvalContext is defined here
 #include <stdexcept>
 #include <vector>
 #include <unordered_set>
@@ -7,6 +7,9 @@
 
 namespace CHTL
 {
+    // Forward declare the global namespace constant
+    extern const std::string GLOBAL_NAMESPACE;
+
     std::string Generator::Generate(ProgramNode* program)
     {
         m_programNode = program;
@@ -14,7 +17,11 @@ namespace CHTL
         m_output.str("");
         m_styleRules.clear();
 
-        visit(program);
+        EvalContext context;
+        context.program = program;
+        context.current_namespace = GLOBAL_NAMESPACE;
+
+        visit(program, context);
 
         std::string content = m_output.str();
         if (!m_styleRules.empty())
@@ -24,13 +31,15 @@ namespace CHTL
             for (const auto* rule : m_styleRules)
             {
                 style_ss << rule->selector << "{";
-                EvalContext context;
-                context.program = m_programNode;
+                // Note: This context for style rules is basic and doesn't know about namespaces.
+                // This could be a future improvement.
+                EvalContext rule_context;
+                rule_context.program = m_programNode;
                 for (const auto& prop : rule->properties)
                 {
                     Evaluator evaluator;
-                    Value result = evaluator.Eval(prop->value.get(), context);
-                    context.values[prop->name] = result;
+                    Value result = evaluator.Eval(prop->value.get(), rule_context);
+                    rule_context.values[prop->name] = result;
                     style_ss << prop->name << ":";
                     if (result.type == ValueType::STRING) {
                         style_ss << result.str;
@@ -48,59 +57,64 @@ namespace CHTL
         return content;
     }
 
-    void Generator::visit(AstNode* node)
+    void Generator::visit(AstNode* node, EvalContext& context)
     {
         if (!node) return;
 
         switch (node->GetType())
         {
             case NodeType::Program:
-                visit(static_cast<ProgramNode*>(node));
+                visit(static_cast<ProgramNode*>(node), context);
                 break;
             case NodeType::Element:
-                visit(static_cast<ElementNode*>(node));
+                visit(static_cast<ElementNode*>(node), context);
                 break;
             case NodeType::Text:
-                visit(static_cast<TextNode*>(node));
+                visit(static_cast<TextNode*>(node), context);
                 break;
-            case NodeType::Style:
-                // Style nodes are handled by their parent ElementNode, so we do nothing here.
+            case NodeType::Namespace:
+                visit(static_cast<NamespaceNode*>(node), context);
                 break;
             case NodeType::Comment:
-                visit(static_cast<CommentNode*>(node));
-                break;
-            case NodeType::TemplateDefinition:
-                // Template definitions are collected by the parser and are not directly generated.
+                visit(static_cast<CommentNode*>(node), context);
                 break;
             case NodeType::TemplateUsage:
-                visit(static_cast<TemplateUsageNode*>(node));
+                visit(static_cast<TemplateUsageNode*>(node), context);
                 break;
+            case NodeType::TemplateDefinition:
             case NodeType::CustomDefinition:
-                // Custom definitions are not directly generated.
-                break;
+            case NodeType::Style:
             case NodeType::CustomUsage:
-                // CustomUsage nodes are handled by their parent ElementNode,
-                // specifically for @Style usages. Direct generation is not applicable.
+                // These nodes are handled contextually by their parents.
                 break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
         }
     }
 
-    void Generator::visit(ProgramNode* node)
+    void Generator::visit(ProgramNode* node, EvalContext& context)
     {
         for (const auto& child : node->children)
         {
-            visit(child.get());
+            visit(child.get(), context);
         }
     }
 
-    void Generator::visit(ElementNode* node)
+    void Generator::visit(NamespaceNode* node, EvalContext& context)
     {
-        // A temporary vector to hold attributes, allowing us to add automatic ones.
-        std::vector<Attribute> final_attributes = node->attributes;
+        std::string previous_namespace = context.current_namespace;
+        context.current_namespace = node->name;
+        for (const auto& child : node->children)
+        {
+            visit(child.get(), context);
+        }
+        context.current_namespace = previous_namespace;
+    }
 
-        // Find and process StyleNode to extract rules and inline styles
+
+    void Generator::visit(ElementNode* node, EvalContext& context)
+    {
+        std::vector<Attribute> final_attributes = node->attributes;
         StyleNode* style_node = nullptr;
         for (const auto& child : node->children)
         {
@@ -116,11 +130,10 @@ namespace CHTL
 
         if (style_node)
         {
-            EvalContext context;
-            context.program = m_programNode;
+            // The context passed in from the parent already has the correct namespace
             Evaluator evaluator;
 
-            // Find main selector first
+            // First pass for main selector, same as before
             for (const auto& style_child : style_node->children)
             {
                 if (style_child->GetType() == NodeType::StyleRule)
@@ -133,11 +146,9 @@ namespace CHTL
                 }
             }
 
-            // Process all style children in order, letting later ones override earlier ones in the map
             for (const auto& style_child : style_node->children)
             {
-                if (style_child->GetType() == NodeType::StyleRule)
-                {
+                if (style_child->GetType() == NodeType::StyleRule) {
                     auto* rule = static_cast<StyleRuleNode*>(style_child.get());
                     if (rule->selector[0] == '&')
                     {
@@ -152,9 +163,17 @@ namespace CHTL
                 else if (style_child->GetType() == NodeType::TemplateUsage)
                 {
                     auto* usage = static_cast<TemplateUsageNode*>(style_child.get());
-                    if (m_programNode->templates.count(usage->name))
-                    {
-                        const auto* tmpl = m_programNode->templates.at(usage->name);
+                    const TemplateDefinitionNode* tmpl = nullptr;
+                    // 1. Look in current namespace
+                    if (m_programNode->templates.count(context.current_namespace) && m_programNode->templates.at(context.current_namespace).count(usage->name)) {
+                        tmpl = m_programNode->templates.at(context.current_namespace).at(usage->name);
+                    }
+                    // 2. Look in global namespace (if not already there)
+                    else if (context.current_namespace != GLOBAL_NAMESPACE && m_programNode->templates.count(GLOBAL_NAMESPACE) && m_programNode->templates.at(GLOBAL_NAMESPACE).count(usage->name)) {
+                        tmpl = m_programNode->templates.at(GLOBAL_NAMESPACE).at(usage->name);
+                    }
+
+                    if (tmpl) {
                         for (const auto& prop_ptr : tmpl->properties)
                         {
                             Value result = evaluator.Eval(prop_ptr->value.get(), context);
@@ -168,10 +187,18 @@ namespace CHTL
                 }
                 else if (style_child->GetType() == NodeType::CustomUsage)
                 {
-                    auto* usage = static_cast<CustomUsageNode*>(style_child.get());
-                    if (m_programNode->customs.count(usage->name))
-                    {
-                        const auto* custom_def = m_programNode->customs.at(usage->name);
+                     auto* usage = static_cast<CustomUsageNode*>(style_child.get());
+                     const CustomDefinitionNode* custom_def = nullptr;
+                     // 1. Look in current namespace
+                     if (m_programNode->customs.count(context.current_namespace) && m_programNode->customs.at(context.current_namespace).count(usage->name)) {
+                         custom_def = m_programNode->customs.at(context.current_namespace).at(usage->name);
+                     }
+                     // 2. Look in global namespace
+                     else if (context.current_namespace != GLOBAL_NAMESPACE && m_programNode->customs.count(GLOBAL_NAMESPACE) && m_programNode->customs.at(GLOBAL_NAMESPACE).count(usage->name)) {
+                         custom_def = m_programNode->customs.at(GLOBAL_NAMESPACE).at(usage->name);
+                     }
+
+                    if (custom_def) {
                         std::unordered_set<std::string> deleted_properties;
                         for (const auto& spec : usage->specializations)
                         {
@@ -212,13 +239,11 @@ namespace CHTL
             }
         }
 
-        // Generate opening tag with all attributes
         m_output << "<" << node->tag_name;
         for (const auto& attr : final_attributes)
         {
             m_output << " " << attr.name << "=\"" << attr.value << "\"";
         }
-
         if (!inline_styles_map.empty())
         {
             m_output << " style=\"";
@@ -228,52 +253,55 @@ namespace CHTL
             }
             m_output << "\"";
         }
-
         m_output << ">";
 
-        // Visit all non-style children
         for (const auto& child : node->children)
         {
             if (child->GetType() != NodeType::Style)
             {
-                visit(child.get());
+                visit(child.get(), context);
             }
         }
 
         m_output << "</" << node->tag_name << ">";
     }
 
-    void Generator::visit(TextNode* node)
+    void Generator::visit(TextNode* node, EvalContext& context)
     {
         m_output << node->value;
     }
 
-    void Generator::visit(CommentNode* node)
+    void Generator::visit(CommentNode* node, EvalContext& context)
     {
         m_output << "<!-- " << node->value << " -->";
     }
 
-    void Generator::visit(TemplateUsageNode* node)
+    void Generator::visit(TemplateUsageNode* node, EvalContext& context)
     {
         if (node->type == "@Element")
         {
-            if (m_programNode->templates.count(node->name))
+            const TemplateDefinitionNode* tmpl = nullptr;
+             // 1. Look in current namespace
+            if (m_programNode->templates.count(context.current_namespace) && m_programNode->templates.at(context.current_namespace).count(node->name)) {
+                tmpl = m_programNode->templates.at(context.current_namespace).at(node->name);
+            }
+            // 2. Look in global namespace
+            else if (context.current_namespace != GLOBAL_NAMESPACE && m_programNode->templates.count(GLOBAL_NAMESPACE) && m_programNode->templates.at(GLOBAL_NAMESPACE).count(node->name)) {
+                tmpl = m_programNode->templates.at(GLOBAL_NAMESPACE).at(node->name);
+            }
+
+            if (tmpl)
             {
-                const auto* tmpl = m_programNode->templates.at(node->name);
                 for (const auto& child : tmpl->body)
                 {
-                    visit(child.get());
+                    visit(child.get(), context);
                 }
             }
         }
-        // Note: @Style and @Var usages are handled inside visit(ElementNode) and the Evaluator,
-        // so we don't need to handle them here. A direct call to visit a @Style usage
-        // would be out of context.
     }
 
-    void Generator::visit(CustomDefinitionNode* node)
+    void Generator::visit(CustomDefinitionNode* node, EvalContext& context)
     {
-        // Custom definitions are not directly rendered, they are used by CustomUsageNodes.
-        // So this function is intentionally empty.
+        // Intentionally empty.
     }
 }

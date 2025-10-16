@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AstNode.h"
+#include "Evaluator.h" // For EvalContext
 #include <string>
 #include <sstream>
 
@@ -12,15 +13,14 @@ namespace CHTL
         std::string Generate(ProgramNode* program);
 
     private:
-        void visit(AstNode* node);
-        void visit(ProgramNode* node);
-        void visit(ElementNode* node);
-        void visit(TextNode* node);
-        void visit(CommentNode* node);
-        void visit(TemplateUsageNode* node);
-        void visit(CustomDefinitionNode* node);
-        // CustomUsageNode is handled inside ElementNode's visit method
-        // StyleNode is handled inside ElementNode's visit method
+        void visit(AstNode* node, EvalContext& context);
+        void visit(ProgramNode* node, EvalContext& context);
+        void visit(ElementNode* node, EvalContext& context);
+        void visit(TextNode* node, EvalContext& context);
+        void visit(CommentNode* node, EvalContext& context);
+        void visit(NamespaceNode* node, EvalContext& context);
+        void visit(TemplateUsageNode* node, EvalContext& context);
+        void visit(CustomDefinitionNode* node, EvalContext& context);
 
         std::stringstream m_output;
         std::vector<const StyleRuleNode*> m_styleRules;

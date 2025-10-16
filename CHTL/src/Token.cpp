@@ -26,6 +26,7 @@ namespace CHTL
             case TokenType::KEYWORD_DELETE:    return "DELETE";
             case TokenType::KEYWORD_IMPORT:    return "IMPORT";
             case TokenType::KEYWORD_FROM:      return "FROM";
+            case TokenType::KEYWORD_NAMESPACE: return "NAMESPACE";
             case TokenType::ASSIGN:          return "=";
             case TokenType::COLON:           return ":";
             case TokenType::SEMICOLON:    return ";";

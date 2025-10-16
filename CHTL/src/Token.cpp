@@ -6,6 +6,7 @@ namespace CHTL
         {"text", TokenType::KEYWORD_TEXT},
         {"style", TokenType::KEYWORD_STYLE},
         {"delete", TokenType::KEYWORD_DELETE},
+        {"from", TokenType::KEYWORD_FROM},
     };
 
     // 将TokenType转换为字符串以便打印
@@ -23,6 +24,8 @@ namespace CHTL
             case TokenType::KEYWORD_TEMPLATE:  return "TEMPLATE";
             case TokenType::KEYWORD_CUSTOM:    return "CUSTOM";
             case TokenType::KEYWORD_DELETE:    return "DELETE";
+            case TokenType::KEYWORD_IMPORT:    return "IMPORT";
+            case TokenType::KEYWORD_FROM:      return "FROM";
             case TokenType::ASSIGN:          return "=";
             case TokenType::COLON:           return ":";
             case TokenType::SEMICOLON:    return ";";

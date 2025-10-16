@@ -24,6 +24,8 @@ namespace CHTL
         KEYWORD_TEMPLATE,   // [Template]
         KEYWORD_CUSTOM,     // [Custom]
         KEYWORD_DELETE,     // delete
+        KEYWORD_IMPORT,     // [Import]
+        KEYWORD_FROM,       // from
 
         // 运算符
         ASSIGN,     // =

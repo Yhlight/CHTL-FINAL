@@ -4,6 +4,7 @@
 #include "AstNode.h"
 #include "Token.h"
 #include <memory>
+#include <unordered_set>
 #include <vector>
 #include <string>
 
@@ -47,6 +48,7 @@ namespace CHTL
         std::unique_ptr<StyleProperty> parseStyleProperty();
         std::unique_ptr<TemplateDefinitionNode> parseTemplateDefinition();
         std::unique_ptr<CustomDefinitionNode> parseCustomDefinitionNode();
+        std::unique_ptr<ImportNode> parseImportNode();
         std::unique_ptr<AstNode> parseAtUsage();
         std::unique_ptr<DeleteSpecializationNode> parseDeleteSpecialization();
         Attribute parseAttribute();
@@ -64,6 +66,7 @@ namespace CHTL
         Token m_currentToken;
         Token m_peekToken;
         std::vector<std::string> m_errors; // 用于收集解析错误
+        std::unordered_set<std::string> m_imported_files; // 用于防止循环导入
     };
 
 } // namespace CHTL

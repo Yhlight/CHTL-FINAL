@@ -134,6 +134,26 @@ TEST_CASE("Test parsing a CustomUsage with delete specialization", "[parser]")
     REQUIRE(del_spec->property_name == "color");
 }
 
+TEST_CASE("Test parsing an import statement", "[parser]")
+{
+    std::string input = R"([Import] @Chtl from "../tests/resources/imported_template.chtl";)";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    // The import node itself is not added to the children, the definitions are merged directly.
+    // Let's verify the template map.
+    REQUIRE(program->templates.size() == 1);
+    REQUIRE(program->templates.count("ImportedStyle") == 1);
+
+    const auto* tmpl = program->templates.at("ImportedStyle");
+    REQUIRE(tmpl->name == "ImportedStyle");
+    REQUIRE(tmpl->properties.size() == 2);
+}
+
 TEST_CASE("Test parsing style block with arithmetic expressions", "[parser]")
 {
     std::string input = R"(style { width: 100 + 50 * 2; })";

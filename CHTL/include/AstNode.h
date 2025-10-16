@@ -22,6 +22,7 @@ namespace CHTL
         CustomDefinition,
         CustomUsage,
         DeleteSpecialization,
+        Import,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -205,6 +206,16 @@ namespace CHTL
         std::string ToString() const override { return "delete " + property_name + ";"; }
     };
 
+    // 导入语句节点, e.g., [Import] @Chtl from "./file.chtl";
+    struct ImportNode : public AstNode
+    {
+        std::string type; // e.g., "@Chtl"
+        std::string path;
+
+        NodeType GetType() const override { return NodeType::Import; }
+        std::string ToString() const override { return "[Import] " + type + " from \"" + path + "\";"; }
+    };
+
     // 模板定义节点, e.g., [Template] @Style DefaultText { ... }
     struct TemplateDefinitionNode : public AstNode
     {
@@ -236,6 +247,7 @@ namespace CHTL
         std::vector<std::unique_ptr<AstNode>> children;
         std::unordered_map<std::string, const TemplateDefinitionNode*> templates;
         std::unordered_map<std::string, const CustomDefinitionNode*> customs;
+        std::vector<std::unique_ptr<ProgramNode>> imported_programs; // To hold ownership
 
         NodeType GetType() const override { return NodeType::Program; }
         std::string ToString() const override;

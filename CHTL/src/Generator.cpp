@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <vector>
 #include <unordered_set>
+#include <map>
 
 namespace CHTL
 {
@@ -110,8 +111,7 @@ namespace CHTL
             }
         }
 
-        std::stringstream inline_styles;
-        bool has_inline_style = false;
+        std::map<std::string, std::string> inline_styles_map;
         std::string main_selector = "";
 
         if (style_node)
@@ -119,7 +119,8 @@ namespace CHTL
             EvalContext context;
             context.program = m_programNode;
             Evaluator evaluator;
-            // First pass: find main selector and inline styles
+
+            // Find main selector first
             for (const auto& style_child : style_node->children)
             {
                 if (style_child->GetType() == NodeType::StyleRule)
@@ -132,16 +133,13 @@ namespace CHTL
                 }
             }
 
-            // Second pass: process all rules
+            // Process all style children in order, letting later ones override earlier ones in the map
             for (const auto& style_child : style_node->children)
             {
                 if (style_child->GetType() == NodeType::StyleRule)
                 {
                     auto* rule = static_cast<StyleRuleNode*>(style_child.get());
-
-                    bool is_contextual = (rule->selector[0] == '&');
-
-                    if (is_contextual)
+                    if (rule->selector[0] == '&')
                     {
                         rule->selector.replace(0, 1, main_selector);
                     }
@@ -149,7 +147,6 @@ namespace CHTL
                     {
                         final_attributes.push_back({"class", rule->selector.substr(1)});
                     }
-
                     m_styleRules.push_back(rule);
                 }
                 else if (style_child->GetType() == NodeType::TemplateUsage)
@@ -160,18 +157,12 @@ namespace CHTL
                         const auto* tmpl = m_programNode->templates.at(usage->name);
                         for (const auto& prop_ptr : tmpl->properties)
                         {
-                            if (has_inline_style) {
-                                inline_styles << ";";
-                            }
                             Value result = evaluator.Eval(prop_ptr->value.get(), context);
-                    context.values[prop_ptr->name] = result;
-                            inline_styles << prop_ptr->name << ":";
-                             if (result.type == ValueType::STRING) {
-                                inline_styles << result.str;
-                            } else {
-                                inline_styles << result.num << result.unit;
-                            }
-                            has_inline_style = true;
+                            context.values[prop_ptr->name] = result;
+                            std::stringstream ss;
+                            if (result.type == ValueType::STRING) ss << result.str;
+                            else ss << result.num << result.unit;
+                            inline_styles_map[prop_ptr->name] = ss.str();
                         }
                     }
                 }
@@ -181,19 +172,15 @@ namespace CHTL
                     if (m_programNode->customs.count(usage->name))
                     {
                         const auto* custom_def = m_programNode->customs.at(usage->name);
-
-                        // Collect deleted properties
                         std::unordered_set<std::string> deleted_properties;
                         for (const auto& spec : usage->specializations)
                         {
                             if (spec->GetType() == NodeType::DeleteSpecialization)
                             {
-                                auto* del_spec = static_cast<DeleteSpecializationNode*>(spec.get());
-                                deleted_properties.insert(del_spec->property_name);
+                                deleted_properties.insert(static_cast<DeleteSpecializationNode*>(spec.get())->property_name);
                             }
                         }
 
-                        // Apply properties from the definition, skipping deleted ones
                         for (const auto& child_node : custom_def->children)
                         {
                             if (child_node->GetType() == NodeType::StyleProperty)
@@ -201,18 +188,12 @@ namespace CHTL
                                 auto* prop_ptr = static_cast<StyleProperty*>(child_node.get());
                                 if (deleted_properties.find(prop_ptr->name) == deleted_properties.end())
                                 {
-                                    if (has_inline_style) {
-                                        inline_styles << ";";
-                                    }
                                     Value result = evaluator.Eval(prop_ptr->value.get(), context);
                                     context.values[prop_ptr->name] = result;
-                                    inline_styles << prop_ptr->name << ":";
-                                    if (result.type == ValueType::STRING) {
-                                        inline_styles << result.str;
-                                    } else {
-                                        inline_styles << result.num << result.unit;
-                                    }
-                                    has_inline_style = true;
+                                    std::stringstream ss;
+                                    if (result.type == ValueType::STRING) ss << result.str;
+                                    else ss << result.num << result.unit;
+                                    inline_styles_map[prop_ptr->name] = ss.str();
                                 }
                             }
                         }
@@ -220,19 +201,13 @@ namespace CHTL
                 }
                 else if (style_child->GetType() == NodeType::StyleProperty)
                 {
-                    if (has_inline_style) {
-                        inline_styles << ";";
-                    }
                     auto* prop = static_cast<StyleProperty*>(style_child.get());
                     Value result = evaluator.Eval(prop->value.get(), context);
                     context.values[prop->name] = result;
-                    inline_styles << prop->name << ":";
-                    if (result.type == ValueType::STRING) {
-                        inline_styles << result.str;
-                    } else {
-                        inline_styles << result.num << result.unit;
-                    }
-                    has_inline_style = true;
+                    std::stringstream ss;
+                    if (result.type == ValueType::STRING) ss << result.str;
+                    else ss << result.num << result.unit;
+                    inline_styles_map[prop->name] = ss.str();
                 }
             }
         }
@@ -244,9 +219,14 @@ namespace CHTL
             m_output << " " << attr.name << "=\"" << attr.value << "\"";
         }
 
-        if (has_inline_style)
+        if (!inline_styles_map.empty())
         {
-            m_output << " style=\"" << inline_styles.str() << ";\"";
+            m_output << " style=\"";
+            for (auto it = inline_styles_map.begin(); it != inline_styles_map.end(); ++it)
+            {
+                m_output << it->first << ":" << it->second << ";";
+            }
+            m_output << "\"";
         }
 
         m_output << ">";

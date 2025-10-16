@@ -127,6 +127,10 @@ Token Lexer::readBlockKeyword()
     {
         return {TokenType::KEYWORD_CUSTOM, "[Custom]", startLine, startColumn};
     }
+    else if (identifier == "Import")
+    {
+        return {TokenType::KEYWORD_IMPORT, "[Import]", startLine, startColumn};
+    }
 
     return {TokenType::ILLEGAL, "[" + identifier + "]", startLine, startColumn};
 }

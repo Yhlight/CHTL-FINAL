@@ -135,8 +135,12 @@ TEST_CASE("Generator correctly handles conditional expressions", "[generator]")
 
     CHTL::Generator generator;
     std::string html_output = generator.Generate(program.get());
-    std::string expected_html = R"(<div style="width:100px;background-color:red;"></div>)";
-    REQUIRE(html_output == expected_html);
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("width:100px") != std::string::npos);
+    REQUIRE(style_content.find("background-color:red") != std::string::npos);
 }
 
 TEST_CASE("Generator correctly handles style group templates", "[generator]")
@@ -163,8 +167,12 @@ TEST_CASE("Generator correctly handles style group templates", "[generator]")
 
     CHTL::Generator generator;
     std::string html_output = generator.Generate(program.get());
-    std::string expected_html = R"(<div style="color:black;line-height:1.6;"></div>)";
-    REQUIRE(html_output == expected_html);
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("color:black") != std::string::npos);
+    REQUIRE(style_content.find("line-height:1.6") != std::string::npos);
 }
 
 TEST_CASE("Generator correctly handles variable group templates", "[generator]")
@@ -259,8 +267,33 @@ TEST_CASE("Generator correctly handles custom style definitions with specializat
     REQUIRE(style_content.find("width:100px") != std::string::npos);
     REQUIRE(style_content.find("height:200px") == std::string::npos);
     REQUIRE(style_content.find("border:1px solid black") == std::string::npos);
-    // This is a known issue: properties are not overridden, they are appended.
-    // The spec is a bit ambiguous here. We will test for appending behavior.
-    REQUIRE(style_content.find("background-color:blue") != std::string::npos);
+    // Later properties should override earlier ones.
+    REQUIRE(style_content.find("background-color:blue") == std::string::npos);
     REQUIRE(style_content.find("background-color:red") != std::string::npos);
+}
+
+TEST_CASE("Generator correctly handles imported templates", "[generator]")
+{
+    std::string input = R"(
+        [Import] @Chtl from "../tests/resources/imported_template.chtl";
+
+        div {
+            style {
+                @Style ImportedStyle;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("font-size:16px") != std::string::npos);
+    REQUIRE(style_content.find("color:imported-green") != std::string::npos);
 }

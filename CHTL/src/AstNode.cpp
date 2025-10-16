@@ -68,7 +68,12 @@ namespace CHTL
     std::string ConditionalExpression::ToString() const
     {
         std::stringstream ss;
-        ss << "(" << condition->ToString() << " ? " << consequence->ToString() << " : " << alternative->ToString() << ")";
+    ss << "(" << condition->ToString() << " ? " << consequence->ToString();
+    if (alternative)
+    {
+        ss << " : " << alternative->ToString();
+    }
+    ss << ")";
         return ss.str();
     }
 
@@ -141,6 +146,22 @@ namespace CHTL
     std::string NamespaceNode::ToString() const
     {
         return "[Namespace] " + name + " { ... }";
+    }
+
+    std::string ExpressionListNode::ToString() const
+    {
+        std::stringstream ss;
+        ss << "ExpressionList([";
+        for (size_t i = 0; i < expressions.size(); ++i)
+        {
+            ss << expressions[i]->ToString();
+            if (i < expressions.size() - 1)
+            {
+                ss << ", ";
+            }
+        }
+        ss << "])";
+        return ss.str();
     }
 
     // Note: DeleteSpecializationNode::ToString() is already defined inline in AstNode.h

@@ -29,13 +29,14 @@ namespace CHTL
         KEYWORD_NAMESPACE,  // [Namespace]
 
         // 运算符
-        ASSIGN,     // =
         COLON,      // :
         SEMICOLON,  // ;
         PLUS,       // +
         MINUS,      // -
         ASTERISK,   // *
         SLASH,      // /
+        MODULO,     // %
+        POWER,      // **
         GT,         // >
         LT,         // <
 
@@ -50,6 +51,7 @@ namespace CHTL
         DOT,        // .
         AMPERSAND,  // &
         QUESTION,   // ?
+        COMMA,      // ,
     };
 
     // Token结构体

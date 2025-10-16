@@ -30,6 +30,7 @@ namespace CHTL
             COMPARE, // > or <
             SUM,     // + -
             PRODUCT, // * /
+            POWER,   // **
             PREFIX,  // -X or !X
         };
 

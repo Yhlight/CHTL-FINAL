@@ -397,3 +397,60 @@ TEST_CASE("Test generating text inside an element", "[generator]")
     REQUIRE(output.find("</p>") != std::string::npos);
     REQUIRE(output.find("Hello from inside a paragraph.") != std::string::npos);
 }
+
+TEST_CASE("Generator correctly handles chained and optional-else conditional expressions", "[generator]")
+{
+    // Common expression list for all sections
+    const std::string expr_list = "background-color: width > 200px ? \"black\", width > 150px ? \"grey\", width > 100px ? \"white\" : \"blue\";";
+
+    SECTION("Selects first matching optional-else expression")
+    {
+        std::string input = "div { style { width: 175px; " + expr_list + " } }";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+
+        REQUIRE(html_output.find("background-color:grey") != std::string::npos);
+        REQUIRE(html_output.find("background-color:black") == std::string::npos);
+        REQUIRE(html_output.find("background-color:white") == std::string::npos);
+        REQUIRE(html_output.find("background-color:blue") == std::string::npos);
+    }
+
+    SECTION("Selects first matching expression with final else")
+    {
+        std::string input = "div { style { width: 125px; " + expr_list + " } }";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+
+        REQUIRE(html_output.find("background-color:white") != std::string::npos);
+        REQUIRE(html_output.find("background-color:black") == std::string::npos);
+        REQUIRE(html_output.find("background-color:grey") == std::string::npos);
+        REQUIRE(html_output.find("background-color:blue") == std::string::npos);
+    }
+
+    SECTION("Falls through to final else")
+    {
+        std::string input = "div { style { width: 50px; " + expr_list + " } }";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+
+        REQUIRE(html_output.find("background-color:blue") != std::string::npos);
+        REQUIRE(html_output.find("background-color:black") == std::string::npos);
+        REQUIRE(html_output.find("background-color:grey") == std::string::npos);
+        REQUIRE(html_output.find("background-color:white") == std::string::npos);
+    }
+}

@@ -1,5 +1,6 @@
 #include "Evaluator.h"
 #include <stdexcept>
+#include <cmath>
 
 namespace CHTL
 {
@@ -50,6 +51,30 @@ namespace CHTL
                 {
                     return left_val / right_val;
                 }
+                if (infix_node->op == "%")
+                {
+                    if (left_val.type != ValueType::NUMBER || right_val.type != ValueType::NUMBER)
+                    {
+                        throw std::runtime_error("Modulo operator requires numeric operands.");
+                    }
+                    Value result;
+                    result.type = ValueType::NUMBER;
+                    result.num = std::fmod(left_val.num, right_val.num);
+                    result.unit = left_val.unit; // Keep unit of the left operand
+                    return result;
+                }
+                if (infix_node->op == "**")
+                {
+                    if (left_val.type != ValueType::NUMBER || right_val.type != ValueType::NUMBER)
+                    {
+                         throw std::runtime_error("Power operator requires numeric operands.");
+                    }
+                    Value result;
+                    result.type = ValueType::NUMBER;
+                    result.num = std::pow(left_val.num, right_val.num);
+                    result.unit = left_val.unit; // Keep unit of the left operand
+                    return result;
+                }
                 if (infix_node->op == ">")
                 {
                     return left_val > right_val;
@@ -82,6 +107,18 @@ namespace CHTL
                 val.str = str_node->value;
                 return val;
             }
+            case NodeType::ExpressionList:
+            {
+                auto list_node = static_cast<ExpressionListNode*>(node);
+                for (const auto& expr : list_node->expressions) {
+                    Value result = eval(expr.get(), context);
+                    if (result.type != ValueType::EMPTY) {
+                        return result;
+                    }
+                }
+                // If all expressions in the list were empty, return the last one (which is empty)
+                return Value{ValueType::EMPTY};
+            }
             case NodeType::ConditionalExpression:
             {
                 auto cond_node = static_cast<ConditionalExpression*>(node);
@@ -97,7 +134,12 @@ namespace CHTL
                 }
                 else
                 {
-                    return eval(cond_node->alternative.get(), context);
+                    if (cond_node->alternative) {
+                        return eval(cond_node->alternative.get(), context);
+                    } else {
+                        // No 'else' branch, return an empty value to signal this.
+                        return Value{ValueType::EMPTY};
+                    }
                 }
             }
             case NodeType::VariableAccess:

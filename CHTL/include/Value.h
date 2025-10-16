@@ -5,7 +5,7 @@
 
 namespace CHTL
 {
-    enum class ValueType { NUMBER, STRING, BOOL };
+enum class ValueType { EMPTY, NUMBER, STRING, BOOL };
 
     struct Value
     {

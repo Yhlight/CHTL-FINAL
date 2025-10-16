@@ -25,6 +25,8 @@ std::string readFile(const std::string& path) {
         {TokenType::MINUS,    Parser::Precedence::SUM},
         {TokenType::ASTERISK, Parser::Precedence::PRODUCT},
         {TokenType::SLASH,    Parser::Precedence::PRODUCT},
+        {TokenType::MODULO,   Parser::Precedence::PRODUCT},
+        {TokenType::POWER,    Parser::Precedence::POWER},
         {TokenType::GT,       Parser::Precedence::COMPARE},
         {TokenType::LT,       Parser::Precedence::COMPARE},
         {TokenType::QUESTION, Parser::Precedence::CONDITIONAL},
@@ -189,7 +191,7 @@ std::string readFile(const std::string& path) {
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
             // 判断是属性还是子元素
-            if (m_currentToken.type == TokenType::KEYWORD_TEXT && (m_peekToken.type == TokenType::COLON || m_peekToken.type == TokenType::ASSIGN))
+            if (m_currentToken.type == TokenType::KEYWORD_TEXT && m_peekToken.type == TokenType::COLON)
             {
                 // 这是 text: "value"; 语法
                 nextToken(); // consume 'text'
@@ -208,7 +210,7 @@ std::string readFile(const std::string& path) {
                     nextToken();
                 }
             }
-            else if (m_currentToken.type == TokenType::IDENT && (m_peekToken.type == TokenType::COLON || m_peekToken.type == TokenType::ASSIGN))
+            else if (m_currentToken.type == TokenType::IDENT && m_peekToken.type == TokenType::COLON)
             {
                 node->attributes.push_back(parseAttribute());
             }
@@ -703,20 +705,37 @@ std::string readFile(const std::string& path) {
         return node;
     }
 
-    // 解析样式属性 e.g. width: 100px;
+    // 解析样式属性 e.g. width: 100px, 200px;
     std::unique_ptr<StyleProperty> Parser::parseStyleProperty()
     {
         auto prop = std::make_unique<StyleProperty>();
         prop->name = m_currentToken.literal;
 
-        if (m_peekToken.type != TokenType::COLON && m_peekToken.type != TokenType::ASSIGN) {
-            m_errors.push_back("Expected ':' or '=' after style property name.");
+        if (m_peekToken.type != TokenType::COLON) {
+            m_errors.push_back("Expected ':' after style property name.");
             return nullptr;
         }
         nextToken(); // 消费属性名
-        nextToken(); // 消费':'或'='
+        nextToken(); // 消费':'
 
-        prop->value = parseExpression(LOWEST);
+        auto first_expr = parseExpression(LOWEST);
+
+        if (m_peekToken.type != TokenType::COMMA) {
+            // Single expression
+            prop->value = std::move(first_expr);
+        } else {
+            // Expression list
+            auto list_node = std::make_unique<ExpressionListNode>();
+            list_node->expressions.push_back(std::move(first_expr));
+
+            while (m_peekToken.type == TokenType::COMMA) {
+                nextToken(); // consume ','
+                nextToken(); // move to start of next expression
+                list_node->expressions.push_back(parseExpression(LOWEST));
+            }
+            prop->value = std::move(list_node);
+        }
+
 
         if (m_peekToken.type == TokenType::SEMICOLON)
         {
@@ -809,7 +828,8 @@ std::string readFile(const std::string& path) {
             TokenType peekType = m_peekToken.type;
             if (peekType == TokenType::PLUS || peekType == TokenType::MINUS ||
                 peekType == TokenType::ASTERISK || peekType == TokenType::SLASH ||
-                peekType == TokenType::GT || peekType == TokenType::LT)
+                peekType == TokenType::GT || peekType == TokenType::LT ||
+                peekType == TokenType::MODULO || peekType == TokenType::POWER)
             {
                 nextToken();
                 leftExp = parseInfixExpression(std::move(leftExp));
@@ -864,23 +884,24 @@ std::string readFile(const std::string& path) {
         return expr;
     }
 
-    // 解析条件表达式: e.g., <condition> ? <consequence> : <alternative>
+    // 解析条件表达式: e.g., <condition> ? <consequence> [: <alternative>]
     std::unique_ptr<Expression> Parser::parseConditionalExpression(std::unique_ptr<Expression> condition)
     {
         auto expr = std::make_unique<ConditionalExpression>();
         expr->condition = std::move(condition);
 
         nextToken(); // 消费 '?'
-        expr->consequence = parseExpression(CONDITIONAL);
+        expr->consequence = parseExpression(LOWEST); // Parse consequence with lowest precedence until ':' or ',' or ';'
 
-        if (!expectPeek(TokenType::COLON))
+        // Optional alternative
+        if (m_peekToken.type == TokenType::COLON)
         {
-            m_errors.push_back("Expected ':' in conditional expression.");
-            return nullptr;
+            nextToken(); // 消费 ':'
+            nextToken(); // Move to the start of the alternative expression
+            expr->alternative = parseExpression(LOWEST);
+        } else {
+            expr->alternative = nullptr;
         }
-
-        nextToken(); // 消费 ':'
-        expr->alternative = parseExpression(CONDITIONAL);
 
         return expr;
     }

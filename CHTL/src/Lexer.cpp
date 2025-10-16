@@ -190,8 +190,6 @@ Token Lexer::NextToken()
     switch (m_char)
     {
         case '=':
-            tok = {TokenType::ASSIGN, std::string(1, m_char), tok.line, tok.column};
-            break;
         case ':':
             tok = {TokenType::COLON, std::string(1, m_char), tok.line, tok.column};
             break;
@@ -205,7 +203,15 @@ Token Lexer::NextToken()
             tok = {TokenType::MINUS, std::string(1, m_char), tok.line, tok.column};
             break;
         case '*':
-            tok = {TokenType::ASTERISK, std::string(1, m_char), tok.line, tok.column};
+            if (peekChar() == '*') {
+                readChar(); // consume first '*'
+                tok = {TokenType::POWER, "**", tok.line, tok.column};
+            } else {
+                tok = {TokenType::ASTERISK, std::string(1, m_char), tok.line, tok.column};
+            }
+            break;
+        case '%':
+            tok = {TokenType::MODULO, std::string(1, m_char), tok.line, tok.column};
             break;
         case '>':
             tok = {TokenType::GT, std::string(1, m_char), tok.line, tok.column};
@@ -215,6 +221,9 @@ Token Lexer::NextToken()
             break;
         case '?':
             tok = {TokenType::QUESTION, std::string(1, m_char), tok.line, tok.column};
+            break;
+        case ',':
+            tok = {TokenType::COMMA, std::string(1, m_char), tok.line, tok.column};
             break;
         case '/':
             if (peekChar() == '/')

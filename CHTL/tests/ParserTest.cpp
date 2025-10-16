@@ -63,6 +63,26 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing attribute with equals sign (CE Equality)", "[parser]")
+{
+    std::string input = R"(div { id = "my-id"; })";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* element_node = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(element_node != nullptr);
+    REQUIRE(element_node->tag_name == "div");
+    REQUIRE(element_node->attributes.size() == 1);
+    REQUIRE(element_node->attributes[0].name == "id");
+    REQUIRE(element_node->attributes[0].value == "my-id");
+}
+
 TEST_CASE("Test parsing a top-level text block with quotes", "[parser]")
 {
     std::string input = R"(

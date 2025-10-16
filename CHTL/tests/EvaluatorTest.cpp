@@ -128,3 +128,80 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
         REQUIRE_THROWS(evaluator.Eval(infix.get(), context));
     }
 }
+
+TEST_CASE("Evaluator correctly handles modulo and power operators", "[evaluator]")
+{
+    CHTL::Evaluator evaluator;
+    CHTL::EvalContext context;
+
+    SECTION("Evaluates power operator")
+    {
+        // 2 ** 3
+        auto root = std::make_unique<CHTL::InfixExpression>();
+        root->op = "**";
+        auto left = std::make_unique<CHTL::NumberLiteral>();
+        left->value = 2;
+        auto right = std::make_unique<CHTL::NumberLiteral>();
+        right->value = 3;
+        root->left = std::move(left);
+        root->right = std::move(right);
+
+        REQUIRE(evaluator.Eval(root.get(), context).num == 8.0);
+    }
+
+    SECTION("Evaluates modulo operator")
+    {
+        // 10 % 3
+        auto root = std::make_unique<CHTL::InfixExpression>();
+        root->op = "%";
+        auto left = std::make_unique<CHTL::NumberLiteral>();
+        left->value = 10;
+        auto right = std::make_unique<CHTL::NumberLiteral>();
+        right->value = 3;
+        root->left = std::move(left);
+        root->right = std::move(right);
+
+        REQUIRE(evaluator.Eval(root.get(), context).num == 1.0);
+    }
+
+    SECTION("Evaluates with correct power precedence")
+    {
+        // AST for "2 + 3 * 2 ** 2" should be (2 + (3 * (2 ** 2)))
+        // -> (2 + (3 * 4)) -> (2 + 12) -> 14
+
+        // Outermost: +
+        auto root = std::make_unique<CHTL::InfixExpression>();
+        root->op = "+";
+
+        // Left of +: 2
+        auto left_2 = std::make_unique<CHTL::NumberLiteral>();
+        left_2->value = 2;
+        root->left = std::move(left_2);
+
+        // Right of +: (3 * (2 ** 2))
+        auto right_mult = std::make_unique<CHTL::InfixExpression>();
+        right_mult->op = "*";
+
+        // Left of *: 3
+        auto left_3 = std::make_unique<CHTL::NumberLiteral>();
+        left_3->value = 3;
+        right_mult->left = std::move(left_3);
+
+        // Right of *: (2 ** 2)
+        auto right_pow = std::make_unique<CHTL::InfixExpression>();
+        right_pow->op = "**";
+
+        auto pow_left_2 = std::make_unique<CHTL::NumberLiteral>();
+        pow_left_2->value = 2;
+        right_pow->left = std::move(pow_left_2);
+
+        auto pow_right_2 = std::make_unique<CHTL::NumberLiteral>();
+        pow_right_2->value = 2;
+        right_pow->right = std::move(pow_right_2);
+
+        right_mult->right = std::move(right_pow);
+        root->right = std::move(right_mult);
+
+        REQUIRE(evaluator.Eval(root.get(), context).num == 14.0);
+    }
+}

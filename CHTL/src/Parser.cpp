@@ -189,7 +189,26 @@ std::string readFile(const std::string& path) {
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
             // 判断是属性还是子元素
-            if (m_currentToken.type == TokenType::IDENT && (m_peekToken.type == TokenType::COLON || m_peekToken.type == TokenType::ASSIGN))
+            if (m_currentToken.type == TokenType::KEYWORD_TEXT && (m_peekToken.type == TokenType::COLON || m_peekToken.type == TokenType::ASSIGN))
+            {
+                // 这是 text: "value"; 语法
+                nextToken(); // consume 'text'
+                nextToken(); // consume ':' or '='
+
+                if (m_currentToken.type != TokenType::STRING) {
+                    m_errors.push_back("Expected string literal for text property.");
+                    return nullptr;
+                }
+
+                auto text_node = std::make_unique<TextNode>();
+                text_node->value = m_currentToken.literal;
+                node->children.push_back(std::move(text_node));
+
+                if (m_peekToken.type == TokenType::SEMICOLON) {
+                    nextToken();
+                }
+            }
+            else if (m_currentToken.type == TokenType::IDENT && (m_peekToken.type == TokenType::COLON || m_peekToken.type == TokenType::ASSIGN))
             {
                 node->attributes.push_back(parseAttribute());
             }
@@ -559,7 +578,7 @@ std::string readFile(const std::string& path) {
         return node;
     }
 
-    // 解析文本节点: e.g., text { "content" }
+    // 解析文本节点: e.g., text { "content" } or text { unquoted content }
     std::unique_ptr<TextNode> Parser::parseTextNode()
     {
         auto node = std::make_unique<TextNode>();
@@ -568,19 +587,28 @@ std::string readFile(const std::string& path) {
         {
             return nullptr;
         }
+        nextToken(); // Consume '{'
 
-        nextToken();
-
-        if (m_currentToken.type != TokenType::STRING)
+        std::string text_content;
+        bool first_token = true;
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            m_errors.push_back("Expected a string literal inside text block.");
-            return nullptr;
+            if (!first_token) {
+                // Add a space, unless the current token is punctuation like a dot.
+                if (m_currentToken.type != TokenType::DOT) {
+                    text_content += " ";
+                }
+            }
+            text_content += m_currentToken.literal;
+            first_token = false;
+            nextToken();
         }
 
-        node->value = m_currentToken.literal;
+        node->value = text_content;
 
-        if (!expectPeek(TokenType::RBRACE))
+        if (m_currentToken.type != TokenType::RBRACE)
         {
+            m_errors.push_back("Expected '}' to close text block.");
             return nullptr;
         }
 

@@ -63,6 +63,78 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a top-level text block with quotes", "[parser]")
+{
+    std::string input = R"(
+        text {
+            "Hello Block"
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* text_node = dynamic_cast<CHTL::TextNode*>(program->children[0].get());
+    REQUIRE(text_node != nullptr);
+    REQUIRE(text_node->value == "Hello Block");
+}
+
+TEST_CASE("Test parsing a top-level text block with unquoted literal", "[parser]")
+{
+    std::string input = R"(
+        text {
+            This is an unquoted literal.
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* text_node_unquoted = dynamic_cast<CHTL::TextNode*>(program->children[0].get());
+    REQUIRE(text_node_unquoted != nullptr);
+    REQUIRE(text_node_unquoted->value == "This is an unquoted literal.");
+}
+
+TEST_CASE("Test parsing text as an attribute-like property", "[parser]")
+{
+    std::string input = R"(
+        div {
+            text: "Hello World";
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* element_node = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(element_node != nullptr);
+    REQUIRE(element_node->tag_name == "div");
+
+    // The text property should not be in the attributes list
+    REQUIRE(element_node->attributes.empty());
+
+    // It should be a TextNode child
+    REQUIRE(element_node->children.size() == 1);
+    auto* text_node = dynamic_cast<CHTL::TextNode*>(element_node->children[0].get());
+    REQUIRE(text_node != nullptr);
+    REQUIRE(text_node->value == "Hello World");
+}
+
 TEST_CASE("Test parsing a simple TemplateUsage in a style block", "[parser]")
 {
     std::string input = R"(

@@ -350,3 +350,50 @@ TEST_CASE("Generator correctly handles namespaced template usage", "[generator]"
         REQUIRE(html_output.find("font-weight:bold") != std::string::npos);
     }
 }
+
+TEST_CASE("Generator correctly renders comments", "[generator]")
+{
+    std::string input = R"(# My Comment)";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string output = generator.Generate(program.get());
+    REQUIRE(output.find("<!-- My Comment -->") != std::string::npos);
+}
+
+TEST_CASE("Test generating a simple text node", "[generator]")
+{
+    auto text_node = std::make_unique<CHTL::TextNode>();
+    text_node->value = "Just some simple text.";
+
+    auto program = std::make_unique<CHTL::ProgramNode>();
+    program->children.push_back(std::move(text_node));
+
+    CHTL::Generator generator;
+    std::string output = generator.Generate(program.get());
+
+    REQUIRE(output == "Just some simple text.");
+}
+
+TEST_CASE("Test generating text inside an element", "[generator]")
+{
+    auto element_node = std::make_unique<CHTL::ElementNode>();
+    element_node->tag_name = "p";
+
+    auto text_node = std::make_unique<CHTL::TextNode>();
+    text_node->value = "Hello from inside a paragraph.";
+    element_node->children.push_back(std::move(text_node));
+
+    auto program = std::make_unique<CHTL::ProgramNode>();
+    program->children.push_back(std::move(element_node));
+
+    CHTL::Generator generator;
+    std::string output = generator.Generate(program.get());
+
+    REQUIRE(output.find("<p>") != std::string::npos);
+    REQUIRE(output.find("</p>") != std::string::npos);
+    REQUIRE(output.find("Hello from inside a paragraph.") != std::string::npos);
+}

@@ -63,6 +63,55 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a conditional expression in a style property", "[parser]")
+{
+    std::string input = R"(
+        style {
+            background-color: width > 50 ? "red" : "blue";
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
+    REQUIRE(style_node != nullptr);
+    REQUIRE(style_node->children.size() == 1);
+
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "background-color");
+
+    auto* cond_expr = dynamic_cast<CHTL::ConditionalExpression*>(prop->value.get());
+    REQUIRE(cond_expr != nullptr);
+
+    // Check the condition: width > 50
+    auto* condition = dynamic_cast<CHTL::InfixExpression*>(cond_expr->condition.get());
+    REQUIRE(condition != nullptr);
+    REQUIRE(condition->op == ">");
+    auto* cond_left = dynamic_cast<CHTL::Identifier*>(condition->left.get());
+    REQUIRE(cond_left != nullptr);
+    REQUIRE(cond_left->value == "width");
+    auto* cond_right = dynamic_cast<CHTL::NumberLiteral*>(condition->right.get());
+    REQUIRE(cond_right != nullptr);
+    REQUIRE(cond_right->value == 50.0);
+
+    // Check the consequence: "red"
+    auto* consequence = dynamic_cast<CHTL::StringLiteral*>(cond_expr->consequence.get());
+    REQUIRE(consequence != nullptr);
+    REQUIRE(consequence->value == "red");
+
+    // Check the alternative: "blue"
+    auto* alternative = dynamic_cast<CHTL::StringLiteral*>(cond_expr->alternative.get());
+    REQUIRE(alternative != nullptr);
+    REQUIRE(alternative->value == "blue");
+}
+
 TEST_CASE("Test parsing attribute with equals sign (CE Equality)", "[parser]")
 {
     std::string input = R"(div { id = "my-id"; })";

@@ -1,8 +1,30 @@
 #include "Lexer.h"
 #include <cctype>
+#include <unordered_map>
 
 namespace CHTL
 {
+
+// 关键字映射表
+static const std::unordered_map<std::string, TokenType> keywords = {
+    {"text", TokenType::KEYWORD_TEXT},
+    {"style", TokenType::KEYWORD_STYLE},
+    {"script", TokenType::KEYWORD_SCRIPT},
+    {"inherit", TokenType::KEYWORD_INHERIT},
+    {"delete", TokenType::KEYWORD_DELETE},
+    {"insert", TokenType::KEYWORD_INSERT},
+    {"after", TokenType::KEYWORD_AFTER},
+    {"before", TokenType::KEYWORD_BEFORE},
+    {"replace", TokenType::KEYWORD_REPLACE},
+    {"at", TokenType::KEYWORD_AT}, // for "at top", "at bottom"
+    {"top", TokenType::KEYWORD_TOP},
+    {"bottom", TokenType::KEYWORD_BOTTOM},
+    {"from", TokenType::KEYWORD_FROM},
+    {"as", TokenType::KEYWORD_AS},
+    {"except", TokenType::KEYWORD_EXCEPT},
+    {"use", TokenType::KEYWORD_USE},
+    {"html5", TokenType::KEYWORD_HTML5},
+};
 
 Lexer::Lexer(const std::string& input)
     : m_input(input)
@@ -101,8 +123,8 @@ std::string Lexer::readIdentifier()
 // 读取一个块级关键字，如 [Template] 或 [Custom]
 Token Lexer::readBlockKeyword()
 {
-    size_t startLine = m_line;
-    size_t startColumn = m_column;
+    int startLine = m_line;
+    int startColumn = m_column;
 
     readChar(); // 消耗 '['
 
@@ -135,22 +157,30 @@ Token Lexer::readBlockKeyword()
     {
         return {TokenType::KEYWORD_NAMESPACE, "[Namespace]", startLine, startColumn};
     }
+    else if (identifier == "Origin")
+    {
+        return {TokenType::KEYWORD_ORIGIN, "[Origin]", startLine, startColumn};
+    }
+    else if (identifier == "Configuration")
+    {
+        return {TokenType::KEYWORD_CONFIGURATION, "[Configuration]", startLine, startColumn};
+    }
 
     return {TokenType::ILLEGAL, "[" + identifier + "]", startLine, startColumn};
 }
 
 // 读取一个完整的字符串字面量
-std::string Lexer::readString()
+std::string Lexer::readString(char quote_type)
 {
-    size_t startPosition = m_position + 1; // 跳过起始的"
+    size_t startPosition = m_position + 1; // 跳过起始的引号
     do
     {
         readChar();
         // 可以在这里添加对转义字符的支持
-    } while (m_char != '"' && m_char != 0);
+    } while (m_char != quote_type && m_char != 0);
 
     std::string result = m_input.substr(startPosition, m_position - startPosition);
-    readChar(); // 消耗结束的"
+    readChar(); // 消耗结束的引号
     return result;
 }
 
@@ -281,8 +311,9 @@ Token Lexer::NextToken()
             tok = {TokenType::AMPERSAND, std::string(1, m_char), tok.line, tok.column};
             break;
         case '"':
+        case '\'':
             tok.type = TokenType::STRING;
-            tok.literal = readString();
+            tok.literal = readString(m_char);
             // readString 更新了行列号，所以不需要额外处理
             return tok;
         case '#':

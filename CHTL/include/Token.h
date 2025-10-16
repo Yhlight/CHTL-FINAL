@@ -21,15 +21,31 @@ namespace CHTL
         // 关键字
         KEYWORD_TEXT,       // text
         KEYWORD_STYLE,      // style
+        KEYWORD_SCRIPT,     // script
         KEYWORD_TEMPLATE,   // [Template]
         KEYWORD_CUSTOM,     // [Custom]
-        KEYWORD_DELETE,     // delete
+        KEYWORD_ORIGIN,     // [Origin]
         KEYWORD_IMPORT,     // [Import]
-        KEYWORD_FROM,       // from
         KEYWORD_NAMESPACE,  // [Namespace]
+        KEYWORD_CONFIGURATION, // [Configuration]
+
+        KEYWORD_INHERIT,    // inherit
+        KEYWORD_DELETE,     // delete
+        KEYWORD_INSERT,     // insert
+        KEYWORD_AFTER,      // after
+        KEYWORD_BEFORE,     // before
+        KEYWORD_REPLACE,    // replace
+        KEYWORD_AT,         // at
+        KEYWORD_TOP,        // top
+        KEYWORD_BOTTOM,     // bottom
+        KEYWORD_FROM,       // from
+        KEYWORD_AS,         // as
+        KEYWORD_EXCEPT,     // except
+        KEYWORD_USE,        // use
+        KEYWORD_HTML5,      // html5
 
         // 运算符
-        COLON,      // :
+        COLON,      // : or =
         SEMICOLON,  // ;
         PLUS,       // +
         MINUS,      // -
@@ -67,8 +83,5 @@ namespace CHTL
 
     // 将TokenType转换为字符串以便打印
     std::string TokenTypeToString(TokenType type);
-
-    // 关键字映射表
-    extern std::unordered_map<std::string, TokenType> keywords;
 
 } // namespace CHTL

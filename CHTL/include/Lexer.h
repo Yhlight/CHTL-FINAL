@@ -19,7 +19,7 @@ namespace CHTL
         void skipSingleLineComment();
         void skipMultiLineComment();
         std::string readIdentifier();
-        std::string readString();
+        std::string readString(char quote_type);
         std::string readNumber();
         std::string readComment();
         Token readBlockKeyword();

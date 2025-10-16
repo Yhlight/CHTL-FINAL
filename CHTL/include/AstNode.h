@@ -19,6 +19,9 @@ namespace CHTL
         StyleRule,
         TemplateDefinition,
         TemplateUsage,
+        CustomDefinition,
+        CustomUsage,
+        DeleteSpecialization,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -169,6 +172,7 @@ namespace CHTL
 
     // 程序根节点
     struct TemplateDefinitionNode; // Forward declaration
+    struct CustomDefinitionNode; // Forward declaration
 
     // 模板使用节点, e.g., @Style DefaultText;
     struct TemplateUsageNode : public AstNode
@@ -178,6 +182,27 @@ namespace CHTL
 
         NodeType GetType() const override { return NodeType::TemplateUsage; }
         std::string ToString() const override;
+    };
+
+    // 自定义使用节点, e.g., @Style MyCustomStyle { ... };
+    struct CustomUsageNode : public AstNode
+    {
+        std::string type; // e.g., "@Style"
+        std::string name;
+        // Specializations
+        std::vector<std::unique_ptr<AstNode>> specializations;
+
+        NodeType GetType() const override { return NodeType::CustomUsage; }
+        std::string ToString() const override;
+    };
+
+    // 'delete' 特例化节点
+    struct DeleteSpecializationNode : public AstNode
+    {
+        std::string property_name;
+
+        NodeType GetType() const override { return NodeType::DeleteSpecialization; }
+        std::string ToString() const override { return "delete " + property_name + ";"; }
     };
 
     // 模板定义节点, e.g., [Template] @Style DefaultText { ... }
@@ -194,10 +219,23 @@ namespace CHTL
         std::string ToString() const override;
     };
 
+    // 自定义定义节点, e.g., [Custom] @Style MyStyle { ... }
+    struct CustomDefinitionNode : public AstNode
+    {
+        std::string type; // e.g., "@Style", "@Element"
+        std::string name;
+        // Can contain properties for @Style, a body for @Element, and also specializations
+        std::vector<std::unique_ptr<AstNode>> children;
+
+        NodeType GetType() const override { return NodeType::CustomDefinition; }
+        std::string ToString() const override;
+    };
+
     struct ProgramNode : public AstNode
     {
         std::vector<std::unique_ptr<AstNode>> children;
         std::unordered_map<std::string, const TemplateDefinitionNode*> templates;
+        std::unordered_map<std::string, const CustomDefinitionNode*> customs;
 
         NodeType GetType() const override { return NodeType::Program; }
         std::string ToString() const override;

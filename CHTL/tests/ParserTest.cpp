@@ -63,6 +63,77 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a simple TemplateUsage in a style block", "[parser]")
+{
+    std::string input = R"(
+        div {
+            style {
+                @Style MyTemplate;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* div = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+
+    auto* style_node = dynamic_cast<CHTL::StyleNode*>(div->children[0].get());
+    REQUIRE(style_node != nullptr);
+    REQUIRE(style_node->children.size() == 1);
+
+    auto* usage = dynamic_cast<CHTL::TemplateUsageNode*>(style_node->children[0].get());
+    REQUIRE(usage != nullptr);
+    REQUIRE(usage->type == "@Style");
+    REQUIRE(usage->name == "MyTemplate");
+}
+
+TEST_CASE("Test parsing a CustomUsage with delete specialization", "[parser]")
+{
+    std::string input = R"(
+        div {
+            style {
+                @Style MyCustom {
+                    delete color;
+                }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* div = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+
+    auto* style_node = dynamic_cast<CHTL::StyleNode*>(div->children[0].get());
+    REQUIRE(style_node != nullptr);
+    REQUIRE(style_node->children.size() == 1);
+
+    auto* usage = dynamic_cast<CHTL::CustomUsageNode*>(style_node->children[0].get());
+    REQUIRE(usage != nullptr);
+    REQUIRE(usage->type == "@Style");
+    REQUIRE(usage->name == "MyCustom");
+    REQUIRE(usage->specializations.size() == 1);
+
+    auto* del_spec = dynamic_cast<CHTL::DeleteSpecializationNode*>(usage->specializations[0].get());
+    REQUIRE(del_spec != nullptr);
+    REQUIRE(del_spec->property_name == "color");
+}
+
 TEST_CASE("Test parsing style block with arithmetic expressions", "[parser]")
 {
     std::string input = R"(style { width: 100 + 50 * 2; })";
@@ -120,4 +191,35 @@ TEST_CASE("Test parsing a generator comment", "[parser]")
     auto* comment_node = dynamic_cast<CHTL::CommentNode*>(program->children[0].get());
     REQUIRE(comment_node != nullptr);
     REQUIRE(comment_node->value == "this is a comment");
+}
+
+TEST_CASE("Test parsing a simple Custom Style definition", "[parser]")
+{
+    std::string input = R"(
+        [Custom] @Style MyCustomStyle {
+            color: red;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* custom_def_node = dynamic_cast<CHTL::CustomDefinitionNode*>(program->children[0].get());
+    REQUIRE(custom_def_node != nullptr);
+    REQUIRE(custom_def_node->type == "@Style");
+    REQUIRE(custom_def_node->name == "MyCustomStyle");
+    REQUIRE(custom_def_node->children.size() == 1);
+
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(custom_def_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "color");
+
+    auto* value_node = dynamic_cast<CHTL::Identifier*>(prop->value.get());
+    REQUIRE(value_node != nullptr);
+    REQUIRE(value_node->value == "red");
 }

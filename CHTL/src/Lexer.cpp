@@ -98,6 +98,39 @@ std::string Lexer::readIdentifier()
     return m_input.substr(startPosition, m_position - startPosition);
 }
 
+// 读取一个块级关键字，如 [Template] 或 [Custom]
+Token Lexer::readBlockKeyword()
+{
+    size_t startLine = m_line;
+    size_t startColumn = m_column;
+
+    readChar(); // 消耗 '['
+
+    std::string identifier = readIdentifier();
+
+    if (m_char != ']')
+    {
+        // 格式错误，这不是一个合法的块关键字
+        // 我们需要回溯状态，但这会使lexer变复杂。
+        // 一个简单的处理方法是，返回ILLEGAL，让解析器处理错误。
+        // 这里我们先简单处理，假设输入总是合法的。
+        return {TokenType::ILLEGAL, "[" + identifier, startLine, startColumn};
+    }
+
+    readChar(); // 消耗 ']'
+
+    if (identifier == "Template")
+    {
+        return {TokenType::KEYWORD_TEMPLATE, "[Template]", startLine, startColumn};
+    }
+    else if (identifier == "Custom")
+    {
+        return {TokenType::KEYWORD_CUSTOM, "[Custom]", startLine, startColumn};
+    }
+
+    return {TokenType::ILLEGAL, "[" + identifier + "]", startLine, startColumn};
+}
+
 // 读取一个完整的字符串字面量
 std::string Lexer::readString()
 {
@@ -208,7 +241,15 @@ Token Lexer::NextToken()
             tok = {TokenType::RBRACE, std::string(1, m_char), tok.line, tok.column};
             break;
         case '[':
-            tok = {TokenType::LBRACKET, std::string(1, m_char), tok.line, tok.column};
+            // 检查这是否是一个块级关键字的开始
+            if (isLetter(peekChar()))
+            {
+                return readBlockKeyword();
+            }
+            else
+            {
+                tok = {TokenType::LBRACKET, std::string(1, m_char), tok.line, tok.column};
+            }
             break;
         case ']':
             tok = {TokenType::RBRACKET, std::string(1, m_char), tok.line, tok.column};

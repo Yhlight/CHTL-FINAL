@@ -127,4 +127,17 @@ namespace CHTL
     {
         return template_name + "(" + variable_name + ")";
     }
+
+    std::string CustomUsageNode::ToString() const
+    {
+        return "CustomUsage(" + type + " " + name + ")";
+    }
+
+    std::string CustomDefinitionNode::ToString() const
+    {
+        return "CustomDefinition(" + type + " " + name + ")";
+    }
+
+    // Note: DeleteSpecializationNode::ToString() is already defined inline in AstNode.h
+    // No implementation needed here unless it's moved.
 }

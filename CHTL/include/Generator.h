@@ -18,6 +18,8 @@ namespace CHTL
         void visit(TextNode* node);
         void visit(CommentNode* node);
         void visit(TemplateUsageNode* node);
+        void visit(CustomDefinitionNode* node);
+        // CustomUsageNode is handled inside ElementNode's visit method
         // StyleNode is handled inside ElementNode's visit method
 
         std::stringstream m_output;

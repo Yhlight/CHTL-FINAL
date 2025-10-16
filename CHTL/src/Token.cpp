@@ -5,6 +5,7 @@ namespace CHTL
     std::unordered_map<std::string, TokenType> keywords = {
         {"text", TokenType::KEYWORD_TEXT},
         {"style", TokenType::KEYWORD_STYLE},
+        {"delete", TokenType::KEYWORD_DELETE},
     };
 
     // 将TokenType转换为字符串以便打印
@@ -16,11 +17,14 @@ namespace CHTL
             case TokenType::END_OF_FILE:  return "EOF";
             case TokenType::IDENT:        return "IDENT";
             case TokenType::STRING:       return "STRING";
-            case TokenType::NUMBER:       return "NUMBER";
-            case TokenType::KEYWORD_TEXT: return "TEXT";
-            case TokenType::KEYWORD_STYLE:return "STYLE";
-            case TokenType::ASSIGN:       return "=";
-            case TokenType::COLON:        return ":";
+            case TokenType::NUMBER:          return "NUMBER";
+            case TokenType::KEYWORD_TEXT:      return "TEXT";
+            case TokenType::KEYWORD_STYLE:     return "STYLE";
+            case TokenType::KEYWORD_TEMPLATE:  return "TEMPLATE";
+            case TokenType::KEYWORD_CUSTOM:    return "CUSTOM";
+            case TokenType::KEYWORD_DELETE:    return "DELETE";
+            case TokenType::ASSIGN:          return "=";
+            case TokenType::COLON:           return ":";
             case TokenType::SEMICOLON:    return ";";
             case TokenType::PLUS:         return "+";
             case TokenType::MINUS:        return "-";

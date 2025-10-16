@@ -35,9 +35,13 @@ namespace CHTL
         while (m_currentToken.type != TokenType::END_OF_FILE)
         {
             std::unique_ptr<AstNode> stmt = nullptr;
-            if (m_currentToken.type == TokenType::LBRACKET)
+            if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE)
             {
                 stmt = parseTemplateDefinition();
+            }
+            else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM)
+            {
+                stmt = parseCustomDefinitionNode();
             }
             else
             {
@@ -50,6 +54,11 @@ namespace CHTL
                 {
                     auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
                     program->templates[tmpl_def->name] = tmpl_def;
+                }
+                else if (stmt->GetType() == NodeType::CustomDefinition)
+                {
+                    auto* custom_def = static_cast<CustomDefinitionNode*>(stmt.get());
+                    program->customs[custom_def->name] = custom_def;
                 }
                 program->children.push_back(std::move(stmt));
             }
@@ -120,7 +129,7 @@ namespace CHTL
             }
             else if (m_currentToken.type == TokenType::AT)
             {
-                node->children.push_back(parseTemplateUsage());
+                node->children.push_back(parseAtUsage());
             }
             else // 否则就是子元素
             {
@@ -147,39 +156,166 @@ namespace CHTL
         return node;
     }
 
-    // 解析模板使用 e.g., @Style DefaultText;
-    std::unique_ptr<TemplateUsageNode> Parser::parseTemplateUsage()
+    // 解析自定义定义 e.g., [Custom] @Style MyStyle { ... }
+    std::unique_ptr<CustomDefinitionNode> Parser::parseCustomDefinitionNode()
     {
-        auto node = std::make_unique<TemplateUsageNode>();
+        auto node = std::make_unique<CustomDefinitionNode>();
 
-        // Current token is '@'
-        node->type = m_currentToken.literal;
-        nextToken();
+        // Current token is KEYWORD_CUSTOM
 
-        if (m_currentToken.type != TokenType::IDENT) {
-            m_errors.push_back("Expected template type keyword after '@'.");
+        // Expect @Style or @Element
+        if (!expectPeek(TokenType::AT)) {
+            m_errors.push_back("Expected '@' for custom type.");
             return nullptr;
         }
-        std::string templateType = m_currentToken.literal;
-        if (templateType != "Style" && templateType != "Var" && templateType != "Element") {
-            m_errors.push_back("Unsupported template usage: @" + templateType);
+        if (!expectPeek(TokenType::IDENT)) {
+             m_errors.push_back("Expected custom type keyword after '@'.");
             return nullptr;
         }
-        node->type += templateType;
-        nextToken();
 
-        if (m_currentToken.type != TokenType::IDENT) {
-            m_errors.push_back("Expected template name after @Style.");
+        std::string customType = m_currentToken.literal;
+        if (customType != "Style" && customType != "Element" && customType != "Var") {
+            m_errors.push_back("Unsupported custom type: @" + customType);
+            return nullptr;
+        }
+        node->type = "@" + customType;
+
+        // Expect custom name
+        if (!expectPeek(TokenType::IDENT)) {
+            m_errors.push_back("Expected custom definition name.");
             return nullptr;
         }
         node->name = m_currentToken.literal;
-        nextToken();
 
-        if (m_currentToken.type != TokenType::SEMICOLON) {
-            m_errors.push_back("Expected ';' after template usage.");
+        // Expect { ... } block
+        if (!expectPeek(TokenType::LBRACE)) {
+            m_errors.push_back("Expected '{' for custom definition block.");
             return nullptr;
         }
-        // Do not consume the semicolon. Let the parent loop handle it.
+        nextToken(); // Consume '{'
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            // TODO: Implement parsing for specializations like 'delete'
+            if (customType == "Style" || customType == "Var")
+            {
+                if (m_currentToken.type == TokenType::IDENT)
+                {
+                    node->children.push_back(std::move(parseStyleProperty()));
+                }
+                else
+                {
+                    m_errors.push_back("Invalid token in " + node->type + " custom definition block: " + m_currentToken.ToString());
+                    nextToken();
+                }
+            }
+            else // Element
+            {
+                auto stmt = parseStatement();
+                if (stmt)
+                {
+                    node->children.push_back(std::move(stmt));
+                }
+                nextToken();
+            }
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close custom definition block.");
+            return nullptr;
+        }
+
+        return node;
+    }
+
+    // 解析 @ 关键字用法, e.g., @Style DefaultText; or @Element MyCustom { delete ...; }
+    std::unique_ptr<AstNode> Parser::parseAtUsage()
+    {
+        // Current token is '@'
+        nextToken(); // Consume '@'
+
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected type keyword after '@'.");
+            return nullptr;
+        }
+        std::string atType = m_currentToken.literal;
+        if (atType != "Style" && atType != "Var" && atType != "Element") {
+            m_errors.push_back("Unsupported usage: @" + atType);
+            return nullptr;
+        }
+
+        if (!expectPeek(TokenType::IDENT)) {
+            m_errors.push_back("Expected name after @" + atType);
+            return nullptr;
+        }
+        std::string name = m_currentToken.literal;
+
+        // Now, decide if it's a TemplateUsage or CustomUsage based on the *peek* token.
+        if (m_peekToken.type == TokenType::SEMICOLON)
+        {
+            nextToken(); // consume name
+            // It's a simple TemplateUsage
+            auto node = std::make_unique<TemplateUsageNode>();
+            node->type = "@" + atType;
+            node->name = name;
+            return node;
+        }
+        else if (m_peekToken.type == TokenType::LBRACE)
+        {
+            nextToken(); // consume name
+            nextToken(); // consume '{'
+            // It's a CustomUsage with a specialization block
+            auto node = std::make_unique<CustomUsageNode>();
+            node->type = "@" + atType;
+            node->name = name;
+
+            while(m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+            {
+                if (m_currentToken.type == TokenType::KEYWORD_DELETE)
+                {
+                    node->specializations.push_back(parseDeleteSpecialization());
+                }
+                else
+                {
+                    m_errors.push_back("Unsupported specialization: " + m_currentToken.literal);
+                    nextToken(); // Skip unknown token
+                }
+            }
+
+            if (m_currentToken.type != TokenType::RBRACE) {
+                 m_errors.push_back("Expected '}' to close specialization block.");
+                 return nullptr;
+            }
+            nextToken(); // Consume '}'
+
+            return node;
+        }
+        else
+        {
+            m_errors.push_back("Expected '{' or ';' after @" + atType + " usage.");
+            return nullptr;
+        }
+    }
+
+    std::unique_ptr<DeleteSpecializationNode> Parser::parseDeleteSpecialization()
+    {
+        // Current token is 'delete'
+        auto node = std::make_unique<DeleteSpecializationNode>();
+        nextToken(); // consume 'delete'
+
+        if (m_currentToken.type != TokenType::IDENT)
+        {
+            m_errors.push_back("Expected property name after 'delete'.");
+            return nullptr;
+        }
+        node->property_name = m_currentToken.literal;
+
+        if (!expectPeek(TokenType::SEMICOLON)) {
+             m_errors.push_back("Expected ';' after delete statement.");
+            return nullptr;
+        }
+        // After expectPeek, current token is the semicolon. The calling loop needs us to advance past it.
+        nextToken();
 
         return node;
     }
@@ -189,15 +325,7 @@ namespace CHTL
     {
         auto node = std::make_unique<TemplateDefinitionNode>();
 
-        // Expect [Template]
-        if (!expectPeek(TokenType::IDENT) || m_currentToken.literal != "Template") {
-            m_errors.push_back("Expected 'Template' keyword after '['.");
-            return nullptr;
-        }
-        if (!expectPeek(TokenType::RBRACKET)) {
-            m_errors.push_back("Expected ']' after 'Template' keyword.");
-            return nullptr;
-        }
+        // The current token is KEYWORD_TEMPLATE.
 
         // Expect @Style or @Var
         if (!expectPeek(TokenType::AT)) {
@@ -345,7 +473,7 @@ namespace CHTL
             }
             else if (m_currentToken.type == TokenType::AT)
             {
-                node->children.push_back(parseTemplateUsage());
+                node->children.push_back(parseAtUsage());
             }
             else if (m_currentToken.type == TokenType::IDENT)
             {

@@ -22,6 +22,7 @@ namespace CHTL
         std::string readString();
         std::string readNumber();
         std::string readComment();
+        Token readBlockKeyword();
         static bool isLetter(char ch);
 
         std::string m_input;         // 输入的源代码

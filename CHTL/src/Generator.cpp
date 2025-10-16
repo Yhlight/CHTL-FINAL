@@ -2,6 +2,7 @@
 #include "Evaluator.h"
 #include <stdexcept>
 #include <vector>
+#include <unordered_set>
 
 namespace CHTL
 {
@@ -72,6 +73,13 @@ namespace CHTL
                 break;
             case NodeType::TemplateUsage:
                 visit(static_cast<TemplateUsageNode*>(node));
+                break;
+            case NodeType::CustomDefinition:
+                // Custom definitions are not directly generated.
+                break;
+            case NodeType::CustomUsage:
+                // CustomUsage nodes are handled by their parent ElementNode,
+                // specifically for @Style usages. Direct generation is not applicable.
                 break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
@@ -167,6 +175,49 @@ namespace CHTL
                         }
                     }
                 }
+                else if (style_child->GetType() == NodeType::CustomUsage)
+                {
+                    auto* usage = static_cast<CustomUsageNode*>(style_child.get());
+                    if (m_programNode->customs.count(usage->name))
+                    {
+                        const auto* custom_def = m_programNode->customs.at(usage->name);
+
+                        // Collect deleted properties
+                        std::unordered_set<std::string> deleted_properties;
+                        for (const auto& spec : usage->specializations)
+                        {
+                            if (spec->GetType() == NodeType::DeleteSpecialization)
+                            {
+                                auto* del_spec = static_cast<DeleteSpecializationNode*>(spec.get());
+                                deleted_properties.insert(del_spec->property_name);
+                            }
+                        }
+
+                        // Apply properties from the definition, skipping deleted ones
+                        for (const auto& child_node : custom_def->children)
+                        {
+                            if (child_node->GetType() == NodeType::StyleProperty)
+                            {
+                                auto* prop_ptr = static_cast<StyleProperty*>(child_node.get());
+                                if (deleted_properties.find(prop_ptr->name) == deleted_properties.end())
+                                {
+                                    if (has_inline_style) {
+                                        inline_styles << ";";
+                                    }
+                                    Value result = evaluator.Eval(prop_ptr->value.get(), context);
+                                    context.values[prop_ptr->name] = result;
+                                    inline_styles << prop_ptr->name << ":";
+                                    if (result.type == ValueType::STRING) {
+                                        inline_styles << result.str;
+                                    } else {
+                                        inline_styles << result.num << result.unit;
+                                    }
+                                    has_inline_style = true;
+                                }
+                            }
+                        }
+                    }
+                }
                 else if (style_child->GetType() == NodeType::StyleProperty)
                 {
                     if (has_inline_style) {
@@ -238,5 +289,11 @@ namespace CHTL
         // Note: @Style and @Var usages are handled inside visit(ElementNode) and the Evaluator,
         // so we don't need to handle them here. A direct call to visit a @Style usage
         // would be out of context.
+    }
+
+    void Generator::visit(CustomDefinitionNode* node)
+    {
+        // Custom definitions are not directly rendered, they are used by CustomUsageNodes.
+        // So this function is intentionally empty.
     }
 }

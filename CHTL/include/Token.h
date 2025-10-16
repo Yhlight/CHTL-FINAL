@@ -19,8 +19,11 @@ namespace CHTL
         NUMBER, // 123, 1.5
 
         // 关键字
-        KEYWORD_TEXT,  // text
-        KEYWORD_STYLE, // style
+        KEYWORD_TEXT,       // text
+        KEYWORD_STYLE,      // style
+        KEYWORD_TEMPLATE,   // [Template]
+        KEYWORD_CUSTOM,     // [Custom]
+        KEYWORD_DELETE,     // delete
 
         // 运算符
         ASSIGN,     // =

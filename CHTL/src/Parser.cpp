@@ -135,6 +135,10 @@ namespace CHTL
         {
             return parseOriginNode();
         }
+        else if (m_currentToken.type == TokenType::KEYWORD_SCRIPT)
+        {
+            return parseScriptNode();
+        }
         return nullptr;
     }
 
@@ -1300,9 +1304,32 @@ namespace CHTL
 
         // After readRawBlockContent, the lexer's state is at the closing '}'.
         // We need to fully re-sync the parser's token buffer.
-        m_peekToken = m_lexer.NextToken(); // This is the token *after* the '}'
-        m_currentToken = m_peekToken;      // Set current token to the one after '}'
+        m_currentToken = m_lexer.NextToken(); // This is the token *after* the '}'
         m_peekToken = m_lexer.NextToken(); // Set peek token to the one after that
+
+        return node;
+    }
+
+    // 解析脚本节点 e.g., script { ... }
+    std::unique_ptr<ScriptNode> Parser::parseScriptNode()
+    {
+        auto node = std::make_unique<ScriptNode>();
+        // Current token is KEYWORD_SCRIPT
+
+        if (m_peekToken.type != TokenType::LBRACE) {
+            m_errors.push_back("Expected '{' for script block.");
+            return nullptr;
+        }
+
+        // Manually advance past the LBRACE *without* triggering the lexer's NextToken()
+        // which would skip whitespace. This is critical for readRawBlockContent.
+        m_currentToken = m_peekToken;
+
+        node->content = m_lexer.readRawBlockContent();
+
+        // After readRawBlockContent, re-sync the parser's token buffer.
+        m_currentToken = m_lexer.NextToken();
+        m_peekToken = m_lexer.NextToken();
 
         return node;
     }

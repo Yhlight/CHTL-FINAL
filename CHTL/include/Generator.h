@@ -18,6 +18,7 @@ namespace CHTL
         void visit(ElementNode* node, EvalContext& context);
         void visit(TextNode* node, EvalContext& context);
         void visit(CommentNode* node, EvalContext& context);
+        void visit(ScriptNode* node, EvalContext& context);
         void visit(OriginNode* node, EvalContext& context);
         void visit(NamespaceNode* node, EvalContext& context);
         void visit(TemplateUsageNode* node, EvalContext& context);

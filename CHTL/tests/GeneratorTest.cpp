@@ -662,3 +662,28 @@ TEST_CASE("Generator handles local style blocks correctly after refactoring", "[
     REQUIRE(style_attr_content.find("border:1px solid black;") != std::string::npos);
     REQUIRE(style_attr_content.find("font-size") == std::string::npos); // font-size should not be inline
 }
+
+TEST_CASE("Generator correctly generates script blocks", "[generator][script]")
+{
+    std::string input = R"(
+        div {
+            script {
+                let a = 1;
+                if (a > 0) { console.log("hello"); }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_script_content = R"(
+                let a = 1;
+                if (a > 0) { console.log("hello"); }
+            )";
+    std::string expected_html = "<div><script>" + expected_script_content + "</script></div>";
+    REQUIRE(html_output == expected_html);
+}

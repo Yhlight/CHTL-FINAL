@@ -59,6 +59,9 @@ namespace CHTL
             case NodeType::Origin:
                 visit(static_cast<OriginNode*>(node), context);
                 break;
+            case NodeType::Script:
+                visit(static_cast<ScriptNode*>(node), context);
+                break;
             case NodeType::Import:
                  visit(static_cast<ImportNode*>(node), context);
                  break;
@@ -458,6 +461,11 @@ namespace CHTL
     void Generator::visit(CommentNode* node, EvalContext& context)
     {
         m_output << "<!-- " << node->value << " -->";
+    }
+
+    void Generator::visit(ScriptNode* node, EvalContext& context)
+    {
+        m_output << "<script>" << node->content << "</script>";
     }
 
     void Generator::visit(OriginNode* node, EvalContext& context)

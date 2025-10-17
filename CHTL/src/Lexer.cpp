@@ -412,7 +412,10 @@ std::string Lexer::readRawBlockContent()
     }
 
     size_t end_pos = scan_pos - 1;
-    std::string content = m_input.substr(start_pos, end_pos - start_pos);
+    std::string content;
+    if (end_pos >= start_pos) {
+        content = m_input.substr(start_pos, end_pos - start_pos);
+    }
 
     while(m_position < end_pos) {
         readChar();

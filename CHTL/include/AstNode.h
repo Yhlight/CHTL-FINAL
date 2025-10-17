@@ -30,6 +30,7 @@ namespace CHTL
         NameConfig,
         Use,
         Except,
+        Script,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -306,6 +307,15 @@ namespace CHTL
         std::vector<Constraint> constraints;
 
         NodeType GetType() const override { return NodeType::Except; }
+        std::string ToString() const override;
+    };
+
+    // 脚本节点, e.g., script { ... }
+    struct ScriptNode : public AstNode
+    {
+        std::string content;
+
+        NodeType GetType() const override { return NodeType::Script; }
         std::string ToString() const override;
     };
 

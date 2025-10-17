@@ -370,4 +370,51 @@ Token Lexer::NextToken()
     return tok;
 }
 
+std::string Lexer::readRawBlockContent()
+{
+    // This function is called right after the parser has manually advanced
+    // its current token to '{'. The lexer's internal state is such that
+    // m_char is the character *after* the '{'. This is our starting point.
+    size_t start_pos = m_position;
+    size_t scan_pos = m_position;
+    int brace_level = 1;
+
+    // We start scanning from the current character.
+    if (m_char == '{') brace_level++;
+    if (m_char == '}') brace_level--;
+    scan_pos = m_readPosition;
+
+
+    while (brace_level > 0 && scan_pos < m_input.length())
+    {
+        char current_char = m_input[scan_pos];
+        if (current_char == '{')
+        {
+            brace_level++;
+        }
+        else if (current_char == '}')
+        {
+            brace_level--;
+        }
+        scan_pos++;
+    }
+
+    if (brace_level > 0)
+    {
+        size_t end_pos = m_input.length();
+        std::string content = m_input.substr(start_pos, end_pos - start_pos);
+        while(m_readPosition < end_pos) { readChar(); }
+        return content;
+    }
+
+    size_t end_pos = scan_pos - 1;
+    std::string content = m_input.substr(start_pos, end_pos - start_pos);
+
+    while(m_position < end_pos) {
+        readChar();
+    }
+
+    return content;
+}
+
 } // namespace CHTL

@@ -11,6 +11,12 @@ namespace CHTL
         Lexer(const std::string& input);
 
         Token NextToken();
+        std::string readRawBlockContent();
+
+        // Getters for parser to query state
+        size_t GetPosition() const { return m_position; }
+        size_t GetReadPosition() const { return m_readPosition; }
+        const std::string& GetInput() const { return m_input; } // Needed for raw content parsing
 
     private:
         void readChar();

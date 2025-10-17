@@ -24,6 +24,7 @@ namespace CHTL
         DeleteSpecialization,
         Import,
         Namespace,
+        Origin,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -234,6 +235,17 @@ namespace CHTL
         std::vector<std::unique_ptr<AstNode>> children;
 
         NodeType GetType() const override { return NodeType::Namespace; }
+        std::string ToString() const override;
+    };
+
+    // 原始嵌入节点, e.g., [Origin] @Html { ... }
+    struct OriginNode : public AstNode
+    {
+        std::string type; // e.g., "@Html", "@Style"
+        std::string name; // Optional: e.g., box in [Origin] @Html box { ... }
+        std::string content;
+
+        NodeType GetType() const override { return NodeType::Origin; }
         std::string ToString() const override;
     };
 

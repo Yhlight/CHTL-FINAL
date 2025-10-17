@@ -78,6 +78,9 @@ namespace CHTL
             case NodeType::Comment:
                 visit(static_cast<CommentNode*>(node), context);
                 break;
+            case NodeType::Origin:
+                visit(static_cast<OriginNode*>(node), context);
+                break;
             case NodeType::TemplateUsage:
                 visit(static_cast<TemplateUsageNode*>(node), context);
                 break;
@@ -274,6 +277,11 @@ namespace CHTL
     void Generator::visit(CommentNode* node, EvalContext& context)
     {
         m_output << "<!-- " << node->value << " -->";
+    }
+
+    void Generator::visit(OriginNode* node, EvalContext& context)
+    {
+        m_output << node->content;
     }
 
     void Generator::visit(TemplateUsageNode* node, EvalContext& context)

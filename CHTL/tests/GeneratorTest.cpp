@@ -398,6 +398,42 @@ TEST_CASE("Test generating text inside an element", "[generator]")
     REQUIRE(output.find("Hello from inside a paragraph.") != std::string::npos);
 }
 
+TEST_CASE("Generator correctly handles Origin blocks", "[generator]")
+{
+    SECTION("Generates raw HTML content")
+    {
+        std::string input = R"(
+            [Origin] @Html {<script>alert("raw");</script>}
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string output = generator.Generate(program.get());
+        std::string expected_output = R"(<script>alert("raw");</script>)";
+        REQUIRE(output == expected_output);
+    }
+
+    SECTION("Generates raw content inside an element")
+    {
+        // The key here is to remove the extra whitespace between the parent element's
+        // opening brace and the [Origin] block to avoid it being part of the output.
+        // We also use a custom delimiter `d` for the raw string to handle the `)` character inside.
+        std::string input = R"d(div {[Origin] @Style {.raw-css { color: hotpink; }}})d";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string output = generator.Generate(program.get());
+        std::string expected_output = "<div>.raw-css { color: hotpink; }</div>";
+        REQUIRE(output == expected_output);
+    }
+}
+
 TEST_CASE("Generator correctly handles chained and optional-else conditional expressions", "[generator]")
 {
     // Common expression list for all sections

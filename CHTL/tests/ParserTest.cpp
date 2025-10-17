@@ -63,6 +63,50 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a simple Origin block", "[parser]")
+{
+    std::string input = R"(
+        [Origin] @Html {
+            <div class="raw-html"></div>
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* origin_node = dynamic_cast<CHTL::OriginNode*>(program->children[0].get());
+    REQUIRE(origin_node != nullptr);
+    REQUIRE(origin_node->type == "@Html");
+    REQUIRE(origin_node->name.empty()); // No name in this case
+    // Note: The content includes the surrounding whitespace from the input string.
+    // A more robust parser might trim this, but for now we test the raw capture.
+    REQUIRE(origin_node->content == "\n            <div class=\"raw-html\"></div>\n        ");
+}
+
+TEST_CASE("Test parsing a named Origin block", "[parser]")
+{
+    std::string input = R"([Origin] @JavaScript myScript { let x = 1; })";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* origin_node = dynamic_cast<CHTL::OriginNode*>(program->children[0].get());
+    REQUIRE(origin_node != nullptr);
+    REQUIRE(origin_node->type == "@JavaScript");
+    REQUIRE(origin_node->name == "myScript");
+    REQUIRE(origin_node->content == " let x = 1; ");
+}
+
 TEST_CASE("Test parsing a conditional expression in a style property", "[parser]")
 {
     std::string input = R"(

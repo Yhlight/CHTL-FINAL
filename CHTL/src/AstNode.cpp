@@ -148,6 +148,17 @@ namespace CHTL
         return "[Namespace] " + name + " { ... }";
     }
 
+    std::string OriginNode::ToString() const
+    {
+        std::string result = "[Origin] " + type;
+        if (!name.empty())
+        {
+            result += " " + name;
+        }
+        result += " { " + content + " }";
+        return result;
+    }
+
     std::string ExpressionListNode::ToString() const
     {
         std::stringstream ss;

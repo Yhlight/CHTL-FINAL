@@ -171,6 +171,10 @@ std::string readFile(const std::string& path) {
         {
             return parseCommentNode();
         }
+        else if (m_currentToken.type == TokenType::KEYWORD_ORIGIN)
+        {
+            return parseOriginNode();
+        }
         return nullptr;
     }
 
@@ -942,6 +946,49 @@ std::string readFile(const std::string& path) {
         if (!expectPeek(TokenType::RPAREN)) {
             return nullptr;
         }
+
+        return node;
+    }
+
+    // 解析原始嵌入节点 e.g., [Origin] @Html myDiv { <div>...</div> }
+    std::unique_ptr<OriginNode> Parser::parseOriginNode()
+    {
+        auto node = std::make_unique<OriginNode>();
+        // Current token is [Origin]
+
+        if (!expectPeek(TokenType::AT)) {
+            m_errors.push_back("Expected '@' for origin type.");
+            return nullptr;
+        }
+        if (!expectPeek(TokenType::IDENT)) {
+             m_errors.push_back("Expected origin type keyword after '@'.");
+            return nullptr;
+        }
+        node->type = "@" + m_currentToken.literal;
+
+        // Check for an optional name
+        if (m_peekToken.type == TokenType::IDENT) {
+            nextToken();
+            node->name = m_currentToken.literal;
+        }
+
+        if (m_peekToken.type != TokenType::LBRACE) {
+            m_errors.push_back("Expected '{' for origin block.");
+            return nullptr;
+        }
+        // Manually advance past the LBRACE *without* triggering the lexer's NextToken()
+        // which would skip whitespace.
+        m_currentToken = m_peekToken;
+
+        // At this point, the lexer's read position is exactly after the '{',
+        // which is what readRawBlockContent expects.
+        node->content = m_lexer.readRawBlockContent();
+
+        // After readRawBlockContent, the lexer's state is at the closing '}'.
+        // We need to fully re-sync the parser's token buffer.
+        m_peekToken = m_lexer.NextToken(); // This is the token *after* the '}'
+        m_currentToken = m_peekToken;      // Set current token to the one after '}'
+        m_peekToken = m_lexer.NextToken(); // Set peek token to the one after that
 
         return node;
     }

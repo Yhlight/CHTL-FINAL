@@ -244,8 +244,8 @@ TEST_CASE("Generator correctly handles custom style definitions with specializat
                 @Style BaseBox {
                     delete border;
                     delete height;
+                    background-color: "red"; // Override
                 }
-                background-color: "red"; // Override
             }
         }
     )";
@@ -270,6 +270,85 @@ TEST_CASE("Generator correctly handles custom style definitions with specializat
     // Later properties should override earlier ones.
     REQUIRE(style_content.find("background-color:blue") == std::string::npos);
     REQUIRE(style_content.find("background-color:red") != std::string::npos);
+}
+
+TEST_CASE("Generator handles element templates with insert specialization", "[generator][insert]")
+{
+    SECTION("Inserts a node after a specified element") {
+        std::string input = R"(
+            [Custom] @Element Box {
+                p { text: "first"; }
+                p { text: "second"; }
+            }
+
+            body {
+                @Element Box {
+                    insert after p[0] {
+                        div { text: "inserted"; }
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><p>first</p><div>inserted</div><p>second</p></body>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Inserts a node at the top") {
+        std::string input = R"(
+            [Custom] @Element Box {
+                p { text: "first"; }
+            }
+
+            body {
+                @Element Box {
+                    insert at top {
+                        div { text: "inserted at top"; }
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><div>inserted at top</div><p>first</p></body>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Deletes a specified element") {
+        std::string input = R"(
+            [Custom] @Element Box {
+                p { text: "first"; }
+                div { text: "to be deleted"; }
+                span { text: "third"; }
+            }
+
+            body {
+                @Element Box {
+                    delete div;
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><p>first</p><span>third</span></body>";
+        REQUIRE(html_output == expected_html);
+    }
 }
 
 TEST_CASE("Generator correctly handles imported templates", "[generator]")

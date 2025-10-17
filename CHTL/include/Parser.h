@@ -61,6 +61,7 @@ namespace CHTL
         std::unique_ptr<UseNode> parseUseStatement();
         std::unique_ptr<AstNode> parseAtUsage();
         std::unique_ptr<DeleteSpecializationNode> parseDeleteSpecialization();
+        std::unique_ptr<InsertSpecializationNode> parseInsertSpecialization();
         Attribute parseAttribute();
 
         // Expression parsing

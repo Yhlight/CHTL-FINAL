@@ -63,6 +63,76 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a CustomUsage with insert specialization", "[parser]")
+{
+    SECTION("insert after selector")
+    {
+        std::string input = R"(
+            @Element MyCustomElement {
+                insert after div[0] {
+                    span {}
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        // We need to parse this within a context that allows @Element usage, like a style block or element body
+        // Let's wrap it in a dummy element
+        std::string wrapped_input = "body { " + input + " }";
+        CHTL::Lexer l_wrapped(wrapped_input);
+        CHTL::Parser p_wrapped(l_wrapped);
+        auto program = p_wrapped.ParseProgram();
+
+        checkParserErrors(p_wrapped);
+
+        REQUIRE(program != nullptr);
+        auto* body = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+        REQUIRE(body != nullptr);
+        auto* usage = dynamic_cast<CHTL::CustomUsageNode*>(body->children[0].get());
+        REQUIRE(usage != nullptr);
+        REQUIRE(usage->type == "@Element");
+        REQUIRE(usage->name == "MyCustomElement");
+        REQUIRE(usage->specializations.size() == 1);
+
+        auto* insert_spec = dynamic_cast<CHTL::InsertSpecializationNode*>(usage->specializations[0].get());
+        REQUIRE(insert_spec != nullptr);
+        REQUIRE(insert_spec->position == "after");
+        REQUIRE(insert_spec->target_selector == "div[0]");
+        REQUIRE(insert_spec->content.size() == 1);
+        auto* inserted_content = dynamic_cast<CHTL::ElementNode*>(insert_spec->content[0].get());
+        REQUIRE(inserted_content != nullptr);
+        REQUIRE(inserted_content->tag_name == "span");
+    }
+
+    SECTION("insert at top")
+    {
+        std::string input = R"(
+            @Element MyCustomElement {
+                insert at top {
+                    p { text: "Header"; }
+                }
+            }
+        )";
+        std::string wrapped_input = "body { " + input + " }";
+        CHTL::Lexer l(wrapped_input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto* body = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+        auto* usage = dynamic_cast<CHTL::CustomUsageNode*>(body->children[0].get());
+        auto* insert_spec = dynamic_cast<CHTL::InsertSpecializationNode*>(usage->specializations[0].get());
+
+        REQUIRE(insert_spec != nullptr);
+        REQUIRE(insert_spec->position == "at top");
+        REQUIRE(insert_spec->target_selector.empty());
+        REQUIRE(insert_spec->content.size() == 1);
+        auto* p_node = dynamic_cast<CHTL::ElementNode*>(insert_spec->content[0].get());
+        REQUIRE(p_node != nullptr);
+        REQUIRE(p_node->tag_name == "p");
+    }
+}
+
 // Helper to read a file for test setup
 static std::string readTestFile(const std::string& path) {
     std::ifstream file(path);

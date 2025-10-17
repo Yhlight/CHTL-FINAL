@@ -65,16 +65,127 @@ namespace CHTL
             case NodeType::TemplateUsage:
                 visit(static_cast<TemplateUsageNode*>(node), context);
                 break;
+            case NodeType::CustomUsage:
+                visit(static_cast<CustomUsageNode*>(node), context);
+                break;
             case NodeType::TemplateDefinition:
             case NodeType::CustomDefinition:
             case NodeType::Style:
-            case NodeType::CustomUsage:
             case NodeType::StyleRule:
             case NodeType::StyleProperty:
                 // These nodes are handled contextually by their parents.
                 break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
+        }
+    }
+
+    // Helper to find the index of a target node based on a simple selector like "tag[index]"
+    static int findTargetIndex(const std::vector<AstNode*>& nodes, const std::string& selector)
+    {
+        std::string tag;
+        int target_occurrence = 0; // 0-based index of the desired occurrence
+
+        size_t bracket_pos = selector.find('[');
+        if (bracket_pos != std::string::npos) {
+            tag = selector.substr(0, bracket_pos);
+            size_t end_bracket_pos = selector.find(']');
+            if (end_bracket_pos != std::string::npos) {
+                std::string index_str = selector.substr(bracket_pos + 1, end_bracket_pos - bracket_pos - 1);
+                try {
+                    target_occurrence = std::stoi(index_str);
+                } catch(...) {
+                    target_occurrence = 0;
+                }
+            }
+        } else {
+            tag = selector;
+        }
+
+        int current_occurrence = 0;
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            if (nodes[i] && nodes[i]->GetType() == NodeType::Element) {
+                auto* el = static_cast<ElementNode*>(nodes[i]);
+                if (el->tag_name == tag) {
+                    if (current_occurrence == target_occurrence) {
+                        return i;
+                    }
+                    current_occurrence++;
+                }
+            }
+        }
+        return -1; // Not found
+    }
+
+    void Generator::visit(CustomUsageNode* node, EvalContext& context)
+    {
+        if (node->type != "@Element") {
+            // @Style and @Var usages are handled within visit(StyleNode*).
+            return;
+        }
+
+        const CustomDefinitionNode* def = nullptr;
+        if (m_programNode->customs.count(context.current_namespace) && m_programNode->customs.at(context.current_namespace).count(node->name))
+        {
+            def = m_programNode->customs.at(context.current_namespace).at(node->name);
+        }
+        else if (context.current_namespace != GLOBAL_NAMESPACE && m_programNode->customs.count(GLOBAL_NAMESPACE) && m_programNode->customs.at(GLOBAL_NAMESPACE).count(node->name))
+        {
+            def = m_programNode->customs.at(GLOBAL_NAMESPACE).at(node->name);
+        }
+
+        if (!def) { return; }
+
+        // Use a vector of raw pointers. This is less safe but avoids incomplete clone logic for now.
+        // The pointed-to nodes are owned by the ProgramNode and will outlive the generator.
+        std::vector<AstNode*> processed_nodes;
+        for(const auto& child : def->children) {
+            processed_nodes.push_back(child.get());
+        }
+
+        // Apply specializations
+        for (const auto& spec : node->specializations)
+        {
+            if (spec->GetType() == NodeType::InsertSpecialization)
+            {
+                auto* insert_spec = static_cast<InsertSpecializationNode*>(spec.get());
+                std::vector<AstNode*> nodes_to_insert;
+                for(const auto& content_node : insert_spec->content) {
+                    nodes_to_insert.push_back(content_node.get());
+                }
+
+                if (insert_spec->position == "at top") {
+                    processed_nodes.insert(processed_nodes.begin(), nodes_to_insert.begin(), nodes_to_insert.end());
+                } else if (insert_spec->position == "at bottom") {
+                    processed_nodes.insert(processed_nodes.end(), nodes_to_insert.begin(), nodes_to_insert.end());
+                } else {
+                    int target_idx = findTargetIndex(processed_nodes, insert_spec->target_selector);
+                    if (target_idx != -1) {
+                        if (insert_spec->position == "after") {
+                            processed_nodes.insert(processed_nodes.begin() + target_idx + 1, nodes_to_insert.begin(), nodes_to_insert.end());
+                        } else if (insert_spec->position == "before") {
+                             processed_nodes.insert(processed_nodes.begin() + target_idx, nodes_to_insert.begin(), nodes_to_insert.end());
+                        } else if (insert_spec->position == "replace") {
+                            processed_nodes.erase(processed_nodes.begin() + target_idx);
+                            processed_nodes.insert(processed_nodes.begin() + target_idx, nodes_to_insert.begin(), nodes_to_insert.end());
+                        }
+                    }
+                }
+            }
+            else if (spec->GetType() == NodeType::DeleteSpecialization)
+            {
+                auto* delete_spec = static_cast<DeleteSpecializationNode*>(spec.get());
+                int target_idx = findTargetIndex(processed_nodes, delete_spec->property_name); // Re-using property_name for selector
+                if (target_idx != -1) {
+                    processed_nodes.erase(processed_nodes.begin() + target_idx);
+                }
+            }
+        }
+
+        // Generate the final list of nodes
+        for (const auto& child : processed_nodes)
+        {
+            visit(child, context);
         }
     }
 

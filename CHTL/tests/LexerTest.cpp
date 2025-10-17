@@ -206,3 +206,19 @@ TEST_CASE("Test generator comments", "[lexer]")
         runLexerTest(input, expected);
     }
 }
+
+TEST_CASE("Test insert related keywords", "[lexer]")
+{
+    std::string input = "insert after before replace at top bottom";
+    std::vector<CHTL::Token> expected = {
+        {CHTL::TokenType::KEYWORD_INSERT, "insert"},
+        {CHTL::TokenType::KEYWORD_AFTER, "after"},
+        {CHTL::TokenType::KEYWORD_BEFORE, "before"},
+        {CHTL::TokenType::KEYWORD_REPLACE, "replace"},
+        {CHTL::TokenType::KEYWORD_AT, "at"},
+        {CHTL::TokenType::KEYWORD_TOP, "top"},
+        {CHTL::TokenType::KEYWORD_BOTTOM, "bottom"},
+        {CHTL::TokenType::END_OF_FILE, ""}
+    };
+    runLexerTest(input, expected);
+}

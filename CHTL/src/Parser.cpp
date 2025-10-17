@@ -191,16 +191,98 @@ namespace CHTL
                 }
             }
 
-            if (m_currentToken.type == TokenType::SEMICOLON) {
-                nextToken();
-            } else {
-                nextToken();
-            }
+            // After parsing a statement or attribute, advance to the next token for the next iteration.
+            nextToken();
         }
 
         if (m_currentToken.type != TokenType::RBRACE)
         {
             m_errors.push_back("Expected '}' to close element block.");
+            return nullptr;
+        }
+
+        return node;
+    }
+
+    std::unique_ptr<InsertSpecializationNode> Parser::parseInsertSpecialization()
+    {
+        auto node = std::make_unique<InsertSpecializationNode>();
+        nextToken(); // consume 'insert'
+
+        if (m_currentToken.type == TokenType::KEYWORD_AFTER ||
+            m_currentToken.type == TokenType::KEYWORD_BEFORE ||
+            m_currentToken.type == TokenType::KEYWORD_REPLACE)
+        {
+            node->position = m_currentToken.literal;
+            nextToken(); // consume position keyword
+
+            std::string selector;
+            // A simple selector is IDENT, followed by optional [NUMBER]
+            if (m_currentToken.type == TokenType::IDENT) {
+                selector += m_currentToken.literal;
+                nextToken();
+                if (m_currentToken.type == TokenType::LBRACKET) {
+                    selector += m_currentToken.literal;
+                    nextToken();
+                    if (m_currentToken.type == TokenType::NUMBER) {
+                        selector += m_currentToken.literal;
+                        nextToken();
+                        if (m_currentToken.type == TokenType::RBRACKET) {
+                            selector += m_currentToken.literal;
+                            nextToken();
+                        } else {
+                             m_errors.push_back("Expected ']' to close selector index.");
+                        }
+                    } else {
+                        m_errors.push_back("Expected number for selector index.");
+                    }
+                }
+            }
+
+            if (selector.empty()) {
+                m_errors.push_back("Expected target selector after '" + node->position + "'.");
+                return nullptr;
+            }
+            node->target_selector = selector;
+        }
+        else if (m_currentToken.type == TokenType::KEYWORD_AT)
+        {
+             nextToken(); // consume 'at'
+             if (m_currentToken.type == TokenType::KEYWORD_TOP) {
+                 node->position = "at top";
+             } else if (m_currentToken.type == TokenType::KEYWORD_BOTTOM) {
+                 node->position = "at bottom";
+             } else {
+                 m_errors.push_back("Expected 'top' or 'bottom' after 'at'.");
+                 return nullptr;
+             }
+             nextToken();
+        }
+        else
+        {
+            m_errors.push_back("Invalid keyword after 'insert'. Expected 'after', 'before', 'replace', or 'at'.");
+            return nullptr;
+        }
+
+        if (m_currentToken.type != TokenType::LBRACE) {
+            m_errors.push_back("Expected '{' for insert content block.");
+            return nullptr;
+        }
+        nextToken(); // Consume '{'
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            auto stmt = parseStatement();
+            if (stmt) {
+                node->content.push_back(std::move(stmt));
+            }
+            // CRITICAL FIX: Do NOT call nextToken() here.
+            // parseStatement() advances the token to the end of the statement it parsed.
+            // The loop condition will then correctly check the next token.
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close insert content block.");
             return nullptr;
         }
 
@@ -559,8 +641,8 @@ namespace CHTL
                 else
                 {
                     m_errors.push_back("Invalid token in " + node->type + " custom definition block: " + m_currentToken.ToString());
-                    nextToken();
                 }
+                nextToken();
             }
             else // Element
             {
@@ -628,18 +710,27 @@ namespace CHTL
                 {
                     node->specializations.push_back(parseDeleteSpecialization());
                 }
+                else if (m_currentToken.type == TokenType::KEYWORD_INSERT)
+                {
+                    node->specializations.push_back(parseInsertSpecialization());
+                }
+                else if (m_currentToken.type == TokenType::IDENT)
+                {
+                    // This handles property overrides inside a specialization block
+                    node->specializations.push_back(parseStyleProperty());
+                }
                 else
                 {
                     m_errors.push_back("Unsupported specialization: " + m_currentToken.literal);
-                    nextToken(); // Skip unknown token
                 }
+                nextToken();
             }
 
             if (m_currentToken.type != TokenType::RBRACE) {
                  m_errors.push_back("Expected '}' to close specialization block.");
                  return nullptr;
             }
-            nextToken(); // Consume '}'
+            // Do NOT consume '}'. Let the calling loop handle it.
 
             return node;
         }
@@ -667,8 +758,7 @@ namespace CHTL
              m_errors.push_back("Expected ';' after delete statement.");
             return nullptr;
         }
-        // After expectPeek, current token is the semicolon. The calling loop needs us to advance past it.
-        nextToken();
+        // After expectPeek, current token is the semicolon. The calling loop will advance past it.
 
         return node;
     }
@@ -722,8 +812,8 @@ namespace CHTL
                 else
                 {
                     m_errors.push_back("Invalid token in " + node->type + " template definition block: " + m_currentToken.ToString());
-                    nextToken();
                 }
+                nextToken(); // Advance past the property or the invalid token.
             }
             else // Element template
             {
@@ -905,7 +995,7 @@ namespace CHTL
         {
             nextToken();
         }
-        nextToken();
+        // Do not advance token here. The calling loop will do it.
 
         return prop;
     }
@@ -934,13 +1024,16 @@ namespace CHTL
         // Now parse the properties inside the rule block
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            auto prop = parseStyleProperty();
-            if (prop) {
-                node->properties.push_back(std::move(prop));
+            if (m_currentToken.type == TokenType::IDENT) {
+                auto prop = parseStyleProperty();
+                if (prop) {
+                    node->properties.push_back(std::move(prop));
+                }
             } else {
-                // If parseStyleProperty failed, we need to advance to avoid an infinite loop.
-                nextToken();
+                 m_errors.push_back("Invalid token in style rule: " + m_currentToken.ToString());
             }
+            // After a property, the current token is ';'. Advance to the next property or '}'.
+            nextToken();
         }
 
         if (m_currentToken.type != TokenType::RBRACE) {

@@ -27,6 +27,7 @@ namespace CHTL
         Origin,
         Configuration,
         NameConfig,
+        Use,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -270,6 +271,15 @@ namespace CHTL
         std::unique_ptr<NameConfigNode> name_config;
 
         NodeType GetType() const override { return NodeType::Configuration; }
+        std::string ToString() const override;
+    };
+
+    // use 语句节点, e.g., use html5;
+    struct UseNode : public AstNode
+    {
+        std::vector<std::string> path; // e.g., {"[Configuration]", "@Config", "Basic"} or {"html5"}
+
+        NodeType GetType() const override { return NodeType::Use; }
         std::string ToString() const override;
     };
 

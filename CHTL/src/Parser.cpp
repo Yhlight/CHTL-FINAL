@@ -74,6 +74,10 @@ std::string readFile(const std::string& path) {
             {
                 stmt = parseConfigurationStatement();
             }
+            else if (m_currentToken.type == TokenType::KEYWORD_USE)
+            {
+                stmt = parseUseStatement();
+            }
             else
             {
                 stmt = parseStatement();
@@ -434,6 +438,50 @@ std::string readFile(const std::string& path) {
             return nullptr;
         }
         // The calling function (parseConfigurationStatement) will advance the token past '}'
+        return node;
+    }
+
+    // 解析 use 语句 e.g., use html5; or use @Config Basic;
+    std::unique_ptr<UseNode> Parser::parseUseStatement()
+    {
+        auto node = std::make_unique<UseNode>();
+        // Current token is 'use'
+        nextToken(); // consume 'use'
+
+        // The path can be a simple identifier like 'html5' or a more complex path
+        while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            std::string path_part;
+            if (m_currentToken.type == TokenType::AT)
+            {
+                path_part = "@";
+                nextToken(); // consume '@'
+                 if (m_currentToken.type != TokenType::IDENT) {
+                     m_errors.push_back("Expected identifier after '@' in use statement.");
+                     return nullptr;
+                }
+                 path_part += m_currentToken.literal;
+                 node->path.push_back(path_part);
+            }
+            else if (m_currentToken.type == TokenType::IDENT || m_currentToken.type == TokenType::KEYWORD_HTML5)
+            {
+                node->path.push_back(m_currentToken.literal);
+            }
+            else
+            {
+                m_errors.push_back("Invalid token in use statement: " + m_currentToken.ToString());
+                return nullptr;
+            }
+            nextToken();
+        }
+
+        if (m_currentToken.type != TokenType::SEMICOLON)
+        {
+            m_errors.push_back("Expected ';' after use statement.");
+            return nullptr;
+        }
+        // The main loop in ParseProgram will advance past the semicolon
+
         return node;
     }
 

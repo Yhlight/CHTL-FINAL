@@ -54,6 +54,7 @@ namespace CHTL
         std::unique_ptr<NamespaceNode> parseNamespaceNode(ProgramNode& program);
         std::unique_ptr<ConfigurationNode> parseConfigurationStatement();
         std::unique_ptr<NameConfigNode> parseNameConfigNode();
+        std::unique_ptr<UseNode> parseUseStatement();
         std::unique_ptr<AstNode> parseAtUsage();
         std::unique_ptr<DeleteSpecializationNode> parseDeleteSpecialization();
         Attribute parseAttribute();

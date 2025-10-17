@@ -119,6 +119,43 @@ TEST_CASE("Test parsing Configuration with a Name block", "[parser]")
     REQUIRE(name_config_node->settings.at("KEYWORD_TEXT") == "text_element");
 }
 
+TEST_CASE("Test parsing a simple use statement", "[parser]")
+{
+    std::string input = "use html5;";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[0].get());
+    REQUIRE(use_node != nullptr);
+    REQUIRE(use_node->path.size() == 1);
+    REQUIRE(use_node->path[0] == "html5");
+}
+
+TEST_CASE("Test parsing a complex use statement for config", "[parser]")
+{
+    std::string input = "use @Config Basic;";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[0].get());
+    REQUIRE(use_node != nullptr);
+    REQUIRE(use_node->path.size() == 2);
+    REQUIRE(use_node->path[0] == "@Config");
+    REQUIRE(use_node->path[1] == "Basic");
+}
+
 TEST_CASE("Test parsing a simple Origin block", "[parser]")
 {
     std::string input = R"(

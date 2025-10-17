@@ -490,3 +490,48 @@ TEST_CASE("Generator correctly handles chained and optional-else conditional exp
         REQUIRE(html_output.find("background-color:white") == std::string::npos);
     }
 }
+
+TEST_CASE("Generator handles local style blocks correctly after refactoring", "[generator]")
+{
+    std::string input = R"(
+        div {
+            style {
+                // This should be an inline style
+                color: "blue";
+
+                // This should be a global style rule
+                .box {
+                    font-size: 16px;
+                }
+
+                // This should also be an inline style
+                border: "1px solid black";
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+
+    // 1. Check for the global style block in <head>
+    std::string expected_global_style = "<head><style>.box{font-size:16px;}</style></head>";
+    REQUIRE(html_output.find(expected_global_style) != std::string::npos);
+
+    // 2. Check for the generated element with class and inline styles
+    std::string element_part = html_output.substr(html_output.find("<div"));
+
+    // Check for automatic class attribute
+    REQUIRE(element_part.find("class=\"box\"") != std::string::npos);
+
+    // Check for inline style attribute
+    std::string style_attr_content = element_part.substr(element_part.find("style=\"") + 7);
+    style_attr_content = style_attr_content.substr(0, style_attr_content.find("\""));
+
+    REQUIRE(style_attr_content.find("color:blue;") != std::string::npos);
+    REQUIRE(style_attr_content.find("border:1px solid black;") != std::string::npos);
+    REQUIRE(style_attr_content.find("font-size") == std::string::npos); // font-size should not be inline
+}

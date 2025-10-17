@@ -70,6 +70,10 @@ std::string readFile(const std::string& path) {
             {
                 stmt = parseNamespaceNode(*program);
             }
+            else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION)
+            {
+                stmt = parseConfigurationStatement();
+            }
             else
             {
                 stmt = parseStatement();
@@ -310,6 +314,126 @@ std::string readFile(const std::string& path) {
         // Restore previous namespace
         m_current_namespace = prev_namespace;
 
+        return node;
+    }
+
+    // 解析配置组 e.g., [Configuration] { KEY = VALUE; }
+    std::unique_ptr<ConfigurationNode> Parser::parseConfigurationStatement()
+    {
+        auto node = std::make_unique<ConfigurationNode>();
+        // Current token is [Configuration]
+
+        // Check for an optional name
+        if (m_peekToken.type == TokenType::AT) {
+            nextToken(); // consume '@'
+            if (!expectPeek(TokenType::IDENT)) {
+                m_errors.push_back("Expected configuration name after '@'.");
+                return nullptr;
+            }
+            node->name = m_currentToken.literal;
+        }
+
+        if (!expectPeek(TokenType::LBRACE)) {
+            m_errors.push_back("Expected '{' for configuration block.");
+            return nullptr;
+        }
+        nextToken(); // Consume '{'
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            if (m_currentToken.type == TokenType::KEYWORD_NAME)
+            {
+                node->name_config = parseNameConfigNode();
+            }
+            else if (m_currentToken.type == TokenType::IDENT)
+            {
+                std::string key = m_currentToken.literal;
+
+                if (!expectPeek(TokenType::COLON)) { // COLON is ':' or '='
+                     m_errors.push_back("Expected '=' or ':' after configuration key.");
+                     return nullptr;
+                }
+
+                nextToken(); // Move to the value token
+
+                std::string value;
+                if (m_currentToken.type == TokenType::IDENT || m_currentToken.type == TokenType::NUMBER || m_currentToken.type == TokenType::STRING) {
+                    value = m_currentToken.literal;
+                } else {
+                    m_errors.push_back("Invalid value for configuration key " + key);
+                    return nullptr;
+                }
+                node->settings[key] = value;
+
+                if (m_peekToken.type == TokenType::SEMICOLON) {
+                    nextToken();
+                }
+            }
+            else
+            {
+                m_errors.push_back("Invalid token in configuration block: " + m_currentToken.ToString());
+            }
+            nextToken();
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close configuration block.");
+            return nullptr;
+        }
+
+        return node;
+    }
+
+    // 解析Name配置块 e.g., [Name] { KEY = VALUE; }
+    std::unique_ptr<NameConfigNode> Parser::parseNameConfigNode()
+    {
+        auto node = std::make_unique<NameConfigNode>();
+        // Current token is [Name]
+
+        if (!expectPeek(TokenType::LBRACE)) {
+            m_errors.push_back("Expected '{' for [Name] block.");
+            return nullptr;
+        }
+        nextToken(); // Consume '{'
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            if (m_currentToken.type == TokenType::IDENT)
+            {
+                std::string key = m_currentToken.literal;
+
+                if (!expectPeek(TokenType::COLON)) { // COLON is ':' or '='
+                     m_errors.push_back("Expected '=' or ':' after name config key.");
+                     return nullptr;
+                }
+
+                nextToken(); // Move to the value token
+
+                std::string value;
+                if (m_currentToken.type == TokenType::IDENT) {
+                    value = m_currentToken.literal;
+                } else {
+                    m_errors.push_back("Invalid value for name config key " + key + ". Must be an identifier.");
+                    return nullptr;
+                }
+                node->settings[key] = value;
+
+                if (m_peekToken.type == TokenType::SEMICOLON) {
+                    nextToken();
+                }
+            }
+            else
+            {
+                m_errors.push_back("Invalid token in [Name] block: " + m_currentToken.ToString());
+            }
+            nextToken();
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close [Name] block.");
+            return nullptr;
+        }
+        // The calling function (parseConfigurationStatement) will advance the token past '}'
         return node;
     }
 

@@ -165,6 +165,10 @@ Token Lexer::readBlockKeyword()
     {
         return {TokenType::KEYWORD_CONFIGURATION, "[Configuration]", startLine, startColumn};
     }
+    else if (identifier == "Name")
+    {
+        return {TokenType::KEYWORD_NAME, "[Name]", startLine, startColumn};
+    }
 
     return {TokenType::ILLEGAL, "[" + identifier + "]", startLine, startColumn};
 }

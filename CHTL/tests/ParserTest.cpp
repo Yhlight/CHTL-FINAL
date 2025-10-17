@@ -63,6 +63,62 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a simple Configuration block", "[parser]")
+{
+    std::string input = R"(
+        [Configuration] {
+            DEBUG_MODE = true;
+            INDEX_INITIAL_COUNT = 1;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* config_node = dynamic_cast<CHTL::ConfigurationNode*>(program->children[0].get());
+    REQUIRE(config_node != nullptr);
+    REQUIRE(config_node->name.empty());
+    REQUIRE(config_node->settings.size() == 2);
+    REQUIRE(config_node->settings.count("DEBUG_MODE") == 1);
+    REQUIRE(config_node->settings.at("DEBUG_MODE") == "true");
+    REQUIRE(config_node->settings.count("INDEX_INITIAL_COUNT") == 1);
+    REQUIRE(config_node->settings.at("INDEX_INITIAL_COUNT") == "1");
+}
+
+TEST_CASE("Test parsing Configuration with a Name block", "[parser]")
+{
+    std::string input = R"(
+        [Configuration] {
+            [Name] {
+                KEYWORD_TEXT = text_element;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* config_node = dynamic_cast<CHTL::ConfigurationNode*>(program->children[0].get());
+    REQUIRE(config_node != nullptr);
+    REQUIRE(config_node->settings.empty());
+    REQUIRE(config_node->name_config != nullptr);
+
+    auto* name_config_node = config_node->name_config.get();
+    REQUIRE(name_config_node->settings.size() == 1);
+    REQUIRE(name_config_node->settings.count("KEYWORD_TEXT") == 1);
+    REQUIRE(name_config_node->settings.at("KEYWORD_TEXT") == "text_element");
+}
+
 TEST_CASE("Test parsing a simple Origin block", "[parser]")
 {
     std::string input = R"(

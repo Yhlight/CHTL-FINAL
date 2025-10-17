@@ -208,14 +208,39 @@ namespace CHTL
         context.current_namespace = previous_namespace;
     }
 
+    // Helper to check if a node is forbidden by any of the except constraints
+    static bool isNodeForbidden(const AstNode* node, const std::vector<const ExceptNode*>& except_nodes)
+    {
+        if (!node) return false;
+
+        for (const auto* except_node : except_nodes) {
+            for (const auto& constraint : except_node->constraints) {
+                if (node->GetType() == NodeType::Element) {
+                    auto* el = static_cast<const ElementNode*>(node);
+                    // Simple tag name check, e.g., "except span;"
+                    if (constraint.path.size() == 1 && constraint.path[0] == el->tag_name) {
+                        return true;
+                    }
+                }
+                // More complex checks for [Custom] @Element Box etc. can be added here
+            }
+        }
+        return false;
+    }
+
     void Generator::visit(ElementNode* node, EvalContext& context)
     {
-        // Process style node first to populate attributes (like class, id, style)
+        // First pass: process style and collect except nodes
+        std::vector<const ExceptNode*> except_nodes;
         for (const auto& child : node->children)
         {
             if (child->GetType() == NodeType::Style)
             {
                 visit(static_cast<StyleNode*>(child.get()), context, node);
+            }
+            else if (child->GetType() == NodeType::Except)
+            {
+                except_nodes.push_back(static_cast<const ExceptNode*>(child.get()));
             }
         }
 
@@ -226,13 +251,19 @@ namespace CHTL
         }
         m_output << ">";
 
-        // Process non-style children
+        // Second pass: process and generate content children, checking constraints
         for (const auto& child : node->children)
         {
-            if (child->GetType() != NodeType::Style)
-            {
-                visit(child.get(), context);
+            // Skip nodes that are not for content generation or are forbidden
+            if (child->GetType() == NodeType::Style || child->GetType() == NodeType::Except) {
+                continue;
             }
+
+            if (isNodeForbidden(child.get(), except_nodes)) {
+                continue;
+            }
+
+            visit(child.get(), context);
         }
 
         m_output << "</" << node->tag_name << ">";

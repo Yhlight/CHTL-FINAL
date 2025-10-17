@@ -182,6 +182,10 @@ namespace CHTL
             {
                 node->children.push_back(parseAtUsage());
             }
+            else if (m_currentToken.type == TokenType::KEYWORD_EXCEPT)
+            {
+                node->children.push_back(parseExceptNode());
+            }
             else // 否则就是子元素
             {
                 auto stmt = parseStatement();
@@ -200,6 +204,63 @@ namespace CHTL
             m_errors.push_back("Expected '}' to close element block.");
             return nullptr;
         }
+
+        return node;
+    }
+
+    // except span, [Custom] @Element Box;
+    std::unique_ptr<ExceptNode> Parser::parseExceptNode()
+    {
+        auto node = std::make_unique<ExceptNode>();
+        nextToken(); // consume 'except'
+
+        while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            ExceptNode::Constraint constraint;
+            constraint.is_type_constraint = false; // Default
+
+            // Check for block keywords like [Custom]
+            if (m_currentToken.type == TokenType::KEYWORD_CUSTOM ||
+                m_currentToken.type == TokenType::KEYWORD_TEMPLATE ||
+                m_currentToken.type == TokenType::KEYWORD_ORIGIN)
+            {
+                constraint.path.push_back(m_currentToken.literal);
+                nextToken();
+            }
+
+            // Check for @ keywords like @Element or @Html
+            if (m_currentToken.type == TokenType::AT)
+            {
+                constraint.is_type_constraint = true;
+                nextToken(); // consume '@'
+                if (m_currentToken.type != TokenType::IDENT) {
+                    m_errors.push_back("Expected type identifier after '@' in except constraint.");
+                    return nullptr;
+                }
+                constraint.path.push_back("@" + m_currentToken.literal);
+                nextToken();
+            }
+
+            // Check for a specific name
+            if (m_currentToken.type == TokenType::IDENT) {
+                constraint.path.push_back(m_currentToken.literal);
+                nextToken();
+            }
+
+            node->constraints.push_back(constraint);
+
+            if (m_currentToken.type == TokenType::COMMA) {
+                nextToken(); // consume comma and continue loop
+            } else {
+                break; // End of constraint list
+            }
+        }
+
+        if (m_currentToken.type != TokenType::SEMICOLON) {
+            m_errors.push_back("Expected ';' to terminate except statement.");
+            return nullptr;
+        }
+        // Calling loop in parseElementNode will consume the semicolon.
 
         return node;
     }

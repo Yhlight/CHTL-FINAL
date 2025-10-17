@@ -131,6 +131,29 @@ TEST_CASE("Test parsing a CustomUsage with insert specialization", "[parser]")
         REQUIRE(p_node != nullptr);
         REQUIRE(p_node->tag_name == "p");
     }
+    }
+
+TEST_CASE("Test parsing an except statement", "[parser][except]")
+{
+    std::string input = "div { except span, a; }";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    auto* div = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+
+    auto* except_node = dynamic_cast<CHTL::ExceptNode*>(div->children[0].get());
+    REQUIRE(except_node != nullptr);
+    REQUIRE(except_node->constraints.size() == 2);
+    REQUIRE(except_node->constraints[0].path.size() == 1);
+    REQUIRE(except_node->constraints[0].path[0] == "span");
+    REQUIRE(except_node->constraints[1].path.size() == 1);
+    REQUIRE(except_node->constraints[1].path[0] == "a");
 }
 
 // Helper to read a file for test setup

@@ -29,6 +29,7 @@ namespace CHTL
         Configuration,
         NameConfig,
         Use,
+        Except,
         // Expressions
         NumberLiteral,
         InfixExpression,
@@ -292,6 +293,19 @@ namespace CHTL
         std::vector<std::string> path; // e.g., {"[Configuration]", "@Config", "Basic"} or {"html5"}
 
         NodeType GetType() const override { return NodeType::Use; }
+        std::string ToString() const override;
+    };
+
+    // except 约束节点, e.g., except span, [Custom] @Element Box;
+    struct ExceptNode : public AstNode
+    {
+        struct Constraint {
+            bool is_type_constraint; // true if it's like [Custom] or @Html
+            std::vector<std::string> path; // e.g., {"span"} or {"[Custom]", "@Element", "Box"} or {"@Html"}
+        };
+        std::vector<Constraint> constraints;
+
+        NodeType GetType() const override { return NodeType::Except; }
         std::string ToString() const override;
     };
 

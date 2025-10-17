@@ -53,6 +53,27 @@ TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]"
     }
 }
 
+TEST_CASE("Generator handles except constraints", "[generator][except]")
+{
+    std::string input = R"(
+        div {
+            except span;
+            p { text: "allowed"; }
+            span { text: "forbidden"; }
+            a { text: "allowed"; }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<div><p>allowed</p><a>allowed</a></div>";
+    REQUIRE(html_output == expected_html);
+}
+
 TEST_CASE("Generator correctly generates HTML for complex structures", "[generator]")
 {
     std::string input = R"(
@@ -347,6 +368,33 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
         CHTL::Generator generator;
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<body><p>first</p><span>third</span></body>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Replaces a specified element") {
+        std::string input = R"(
+            [Custom] @Element Box {
+                p { text: "first"; }
+                div { text: "to be replaced"; }
+                span { text: "third"; }
+            }
+
+            body {
+                @Element Box {
+                    insert replace div {
+                        i { text: "replaced"; }
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><p>first</p><i>replaced</i><span>third</span></body>";
         REQUIRE(html_output == expected_html);
     }
 }

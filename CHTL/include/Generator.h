@@ -22,6 +22,7 @@ namespace CHTL
         void visit(NamespaceNode* node, EvalContext& context);
         void visit(TemplateUsageNode* node, EvalContext& context);
         void visit(CustomDefinitionNode* node, EvalContext& context);
+        void visit(ImportNode* node, EvalContext& context);
         void visit(StyleNode* node, EvalContext& context, ElementNode* parent);
         void visit(StyleRuleNode* node, EvalContext& context, ElementNode* parent);
         void visit(StyleProperty* node, EvalContext& context, std::stringstream& style_stream);

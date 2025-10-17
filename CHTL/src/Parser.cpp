@@ -1,25 +1,16 @@
 #include "Parser.h"
+#include "Loader.h"
 #include <memory>
 #include <fstream>
 #include <sstream>
 #include <unordered_set>
+#include <filesystem>
 
 namespace CHTL
 {
+    const std::string GLOBAL_NAMESPACE = "_global";
+    std::unordered_set<std::string> Parser::s_parsed_files;
 
-const std::string GLOBAL_NAMESPACE = "_global";
-
-// Helper function to read a file into a string
-std::string readFile(const std::string& path) {
-    std::ifstream file(path);
-    if (!file.is_open()) {
-        // In a real implementation, you'd want better error handling
-        return "";
-    }
-    std::stringstream buffer;
-    buffer << file.rdbuf();
-    return buffer.str();
-}
     std::unordered_map<TokenType, Parser::Precedence> Parser::precedences = {
         {TokenType::PLUS,     Parser::Precedence::SUM},
         {TokenType::MINUS,    Parser::Precedence::SUM},
@@ -32,10 +23,9 @@ std::string readFile(const std::string& path) {
         {TokenType::QUESTION, Parser::Precedence::CONDITIONAL},
     };
 
-    Parser::Parser(Lexer& lexer)
-        : m_lexer(lexer), m_current_namespace(GLOBAL_NAMESPACE)
+    Parser::Parser(Lexer& lexer, std::string file_path)
+        : m_lexer(lexer), m_current_file_path(std::move(file_path)), m_current_namespace(GLOBAL_NAMESPACE)
     {
-        // 读取两个Token，以设置好currentToken和peekToken
         nextToken();
         nextToken();
     }
@@ -46,10 +36,15 @@ std::string readFile(const std::string& path) {
         m_peekToken = m_lexer.NextToken();
     }
 
-    // 主解析函数
     std::unique_ptr<ProgramNode> Parser::ParseProgram()
     {
         auto program = std::make_unique<ProgramNode>();
+
+        // Add the initial file to the parsed list to prevent self-import
+        if (!m_current_file_path.empty()) {
+            std::filesystem::path canonical_path = std::filesystem::weakly_canonical(m_current_file_path);
+            s_parsed_files.insert(canonical_path.string());
+        }
 
         while (m_currentToken.type != TokenType::END_OF_FILE)
         {
@@ -57,14 +52,22 @@ std::string readFile(const std::string& path) {
             if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE)
             {
                 stmt = parseTemplateDefinition();
+                if (stmt) {
+                    auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
+                    program->templates[m_current_namespace][tmpl_def->name] = tmpl_def;
+                }
             }
             else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM)
             {
                 stmt = parseCustomDefinitionNode();
+                 if (stmt) {
+                    auto* custom_def = static_cast<CustomDefinitionNode*>(stmt.get());
+                    program->customs[m_current_namespace][custom_def->name] = custom_def;
+                }
             }
             else if (m_currentToken.type == TokenType::KEYWORD_IMPORT)
             {
-                stmt = parseImportNode();
+                stmt = parseImportNode(*program);
             }
             else if (m_currentToken.type == TokenType::KEYWORD_NAMESPACE)
             {
@@ -85,58 +88,7 @@ std::string readFile(const std::string& path) {
 
             if (stmt)
             {
-                if (stmt->GetType() == NodeType::Import)
-                {
-                    auto* import_node = static_cast<ImportNode*>(stmt.get());
-                    if (m_imported_files.find(import_node->path) == m_imported_files.end())
-                    {
-                        m_imported_files.insert(import_node->path);
-                        std::string file_content = readFile(import_node->path);
-                        if (!file_content.empty())
-                        {
-                            Lexer imported_lexer(file_content);
-                            Parser imported_parser(imported_lexer);
-                            auto imported_program = imported_parser.ParseProgram();
-
-                            // Merge templates
-                            for(auto const& [key, val] : imported_program->templates)
-                            {
-                                program->templates[key] = val;
-                            }
-                            // Merge customs
-                             for(auto const& [key, val] : imported_program->customs)
-                            {
-                                program->customs[key] = val;
-                            }
-                             // Also merge errors
-                            for(const auto& err : imported_parser.GetErrors())
-                            {
-                                m_errors.push_back("Error in imported file '" + import_node->path + "': " + err);
-                            }
-
-                            // Transfer ownership to prevent memory errors
-                            program->imported_programs.push_back(std::move(imported_program));
-                        }
-                        else
-                        {
-                            m_errors.push_back("Could not read imported file: " + import_node->path);
-                        }
-                    }
-                }
-                else
-                {
-                    if (stmt->GetType() == NodeType::TemplateDefinition)
-                    {
-                        auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
-                    program->templates[m_current_namespace][tmpl_def->name] = tmpl_def;
-                    }
-                    else if (stmt->GetType() == NodeType::CustomDefinition)
-                    {
-                        auto* custom_def = static_cast<CustomDefinitionNode*>(stmt.get());
-                    program->customs[m_current_namespace][custom_def->name] = custom_def;
-                    }
-                    program->children.push_back(std::move(stmt));
-                }
+                program->children.push_back(std::move(stmt));
             }
             nextToken();
         }
@@ -486,11 +438,9 @@ std::string readFile(const std::string& path) {
     }
 
     // 解析导入语句 e.g., [Import] @Chtl from "./file.chtl";
-    std::unique_ptr<ImportNode> Parser::parseImportNode()
+    std::unique_ptr<ImportNode> Parser::parseImportNode(ProgramNode& program)
     {
         auto node = std::make_unique<ImportNode>();
-
-        // Current token is [Import]
 
         if (!expectPeek(TokenType::AT)) {
             m_errors.push_back("Expected '@' for import type.");
@@ -512,6 +462,44 @@ std::string readFile(const std::string& path) {
             return nullptr;
         }
         node->path = m_currentToken.literal;
+
+        try {
+            std::filesystem::path full_path = std::filesystem::weakly_canonical(std::filesystem::path(m_current_file_path).parent_path() / node->path);
+
+            if (s_parsed_files.count(full_path.string())) {
+                // Already parsed, skip to avoid circular dependency.
+                // We still return the node to represent the import statement, but do not process it.
+            } else {
+                std::string file_content = Loader::ReadFile(m_current_file_path, node->path);
+                Lexer imported_lexer(file_content);
+                Parser imported_parser(imported_lexer, full_path.string());
+                auto imported_program = imported_parser.ParseProgram();
+
+                // Merge templates
+                for(auto const& [ns, def_map] : imported_program->templates) {
+                    for (auto const& [name, def] : def_map) {
+                        program.templates[ns][name] = def;
+                    }
+                }
+                // Merge customs
+                for(auto const& [ns, def_map] : imported_program->customs) {
+                    for (auto const& [name, def] : def_map) {
+                        program.customs[ns][name] = def;
+                    }
+                }
+                // Also merge errors
+                for(const auto& err : imported_parser.GetErrors()) {
+                    m_errors.push_back("Error in imported file '" + node->path + "': " + err);
+                }
+
+                // Transfer ownership to prevent memory errors
+                program.imported_programs.push_back(std::move(imported_program));
+            }
+
+        } catch (const std::runtime_error& e) {
+            m_errors.push_back("Could not import file '" + node->path + "'. Reason: " + e.what());
+        }
+
 
         if (!expectPeek(TokenType::SEMICOLON)) {
             m_errors.push_back("Expected ';' after import statement.");

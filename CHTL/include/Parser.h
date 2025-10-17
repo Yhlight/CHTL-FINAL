@@ -3,6 +3,7 @@
 #include "Lexer.h"
 #include "AstNode.h"
 #include "Token.h"
+#include "Loader.h"
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -13,10 +14,13 @@ namespace CHTL
     class Parser
     {
     public:
-        Parser(Lexer& lexer);
+        Parser(Lexer& lexer, std::string file_path = "");
 
         std::unique_ptr<ProgramNode> ParseProgram();
         const std::vector<std::string>& GetErrors() const { return m_errors; }
+
+        // For testing purposes
+        static void ResetParsedFiles() { s_parsed_files.clear(); }
 
     private:
         // Pratt Parser related types
@@ -49,7 +53,7 @@ namespace CHTL
         std::unique_ptr<StyleProperty> parseStyleProperty();
         std::unique_ptr<TemplateDefinitionNode> parseTemplateDefinition();
         std::unique_ptr<CustomDefinitionNode> parseCustomDefinitionNode();
-        std::unique_ptr<ImportNode> parseImportNode();
+        std::unique_ptr<ImportNode> parseImportNode(ProgramNode& program);
         std::unique_ptr<OriginNode> parseOriginNode();
         std::unique_ptr<NamespaceNode> parseNamespaceNode(ProgramNode& program);
         std::unique_ptr<ConfigurationNode> parseConfigurationStatement();
@@ -71,9 +75,13 @@ namespace CHTL
         Lexer& m_lexer;
         Token m_currentToken;
         Token m_peekToken;
-        std::vector<std::string> m_errors; // 用于收集解析错误
-        std::unordered_set<std::string> m_imported_files; // 用于防止循环导入
-        std::string m_current_namespace; // 当前正在解析的命名空间
+        std::vector<std::string> m_errors;
+        std::string m_current_file_path;
+        std::string m_current_namespace;
+
+        // Static member to track parsed files across all parser instances
+        // to prevent circular dependencies.
+        static std::unordered_set<std::string> s_parsed_files;
     };
 
     extern const std::string GLOBAL_NAMESPACE;

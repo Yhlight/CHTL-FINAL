@@ -63,6 +63,87 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+// Helper to read a file for test setup
+static std::string readTestFile(const std::string& path) {
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        FAIL("Could not open test file: " + path);
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
+TEST_CASE("Parser handles [Import] statements", "[parser][import]")
+{
+    // The test executable runs from `CHTL/build/tests/`.
+    // The test resources are in `CHTL/tests/resources/`.
+    // So, the relative path to the resources directory is `../tests/resources/`.
+
+    SECTION("Successfully imports and parses a namespaced template")
+    {
+        // We pretend the main file is in `CHTL/tests/`
+        std::string main_file_path = "../tests/main.chtl";
+        // And it imports a file from its sub-directory 'resources'
+        std::string main_file_content = R"([Import] @Chtl from "./resources/namespaced_template.chtl";)";
+
+        // Clear the static set of parsed files before this test section
+        CHTL::Parser::ResetParsedFiles();
+
+        CHTL::Lexer l(main_file_content);
+        CHTL::Parser p(l, main_file_path);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+
+        REQUIRE(program != nullptr);
+        REQUIRE(program->templates.count("TestSpace") == 1);
+        const auto& test_space = program->templates.at("TestSpace");
+        REQUIRE(test_space.count("TestStyle") == 1);
+        const auto* tmpl = test_space.at("TestStyle");
+        REQUIRE(tmpl->name == "TestStyle");
+    }
+
+    SECTION("Gracefully handles circular dependencies")
+    {
+        std::string main_file_path = "../tests/resources/integration_A.chtl";
+        std::string main_file_content = readTestFile(main_file_path);
+
+        // Clear the static set of parsed files before this test section
+        CHTL::Parser::ResetParsedFiles();
+
+        CHTL::Lexer l(main_file_content);
+        CHTL::Parser p(l, main_file_path);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+
+        REQUIRE(program != nullptr);
+        REQUIRE(program->templates.count(CHTL::GLOBAL_NAMESPACE) == 1);
+        const auto& global_ns = program->templates.at(CHTL::GLOBAL_NAMESPACE);
+        REQUIRE(global_ns.count("StyleA") == 1);
+        REQUIRE(global_ns.count("StyleB") == 1);
+    }
+
+    SECTION("Reports an error for a non-existent file")
+    {
+        std::string main_file_path = "../tests/main.chtl";
+        std::string main_file_content = R"([Import] @Chtl from "./resources/non_existent_file.chtl";)";
+
+        // Clear the static set of parsed files before this test section
+        CHTL::Parser::ResetParsedFiles();
+
+        CHTL::Lexer l(main_file_content);
+        CHTL::Parser p(l, main_file_path);
+        auto program = p.ParseProgram();
+
+        const auto& errors = p.GetErrors();
+        REQUIRE(!errors.empty());
+        REQUIRE(errors[0].find("Could not import file") != std::string::npos);
+        REQUIRE(errors[0].find("non_existent_file.chtl") != std::string::npos);
+    }
+}
+
 TEST_CASE("Test parsing a simple Configuration block", "[parser]")
 {
     std::string input = R"(

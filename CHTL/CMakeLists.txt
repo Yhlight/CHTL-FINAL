@@ -17,6 +17,7 @@ set(CHTL_SOURCES
     src/Generator.cpp
     src/Evaluator.cpp
     src/Value.cpp
+    src/Loader.cpp
 )
 set(CHTL_HEADERS
     include/Token.h
@@ -26,6 +27,7 @@ set(CHTL_HEADERS
     include/Generator.h
     include/Evaluator.h
     include/Value.h
+    include/Loader.h
 )
 
 # 添加库

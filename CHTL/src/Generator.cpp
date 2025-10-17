@@ -59,6 +59,9 @@ namespace CHTL
             case NodeType::Origin:
                 visit(static_cast<OriginNode*>(node), context);
                 break;
+            case NodeType::Import:
+                 visit(static_cast<ImportNode*>(node), context);
+                 break;
             case NodeType::TemplateUsage:
                 visit(static_cast<TemplateUsageNode*>(node), context);
                 break;
@@ -347,5 +350,11 @@ namespace CHTL
     void Generator::visit(CustomDefinitionNode* node, EvalContext& context)
     {
         // Intentionally empty. Custom definitions are not directly generated, but used.
+    }
+
+    void Generator::visit(ImportNode* node, EvalContext& context)
+    {
+        // Intentionally empty. The import logic is handled by the parser.
+        // The generator's job is just to not crash on this node.
     }
 }

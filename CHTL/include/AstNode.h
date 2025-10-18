@@ -30,6 +30,7 @@ namespace CHTL
         // Specializations
         DeleteSpecialization,
         InsertSpecialization,
+        If,
         // Style-related
         StyleProperty,
         StyleRule,
@@ -53,25 +54,26 @@ namespace CHTL
 }
 
 // 包含所有具体的节点定义
-#include "nodes/ProgramNode.h"
-#include "nodes/ElementNode.h"
-#include "nodes/TextNode.h"
-#include "nodes/StyleNode.h"
-#include "nodes/CommentNode.h"
-#include "nodes/ScriptNode.h"
-#include "nodes/OriginNode.h"
-#include "nodes/ImportNode.h"
-#include "nodes/NamespaceNode.h"
-#include "nodes/ConfigurationNode.h"
-#include "nodes/NameConfigNode.h"
-#include "nodes/UseNode.h"
-#include "nodes/ExceptNode.h"
-#include "nodes/TemplateDefinitionNode.h"
-#include "nodes/CustomDefinitionNode.h"
-#include "nodes/TemplateUsageNode.h"
-#include "nodes/CustomUsageNode.h"
-#include "nodes/DeleteSpecializationNode.h"
-#include "nodes/InsertSpecializationNode.h"
-#include "nodes/StylePropertyNode.h"
-#include "nodes/StyleRuleNode.h"
-#include "nodes/ExpressionNode.h"
+#include "ProgramNode.h"
+#include "ElementNode.h"
+#include "TextNode.h"
+#include "StyleNode.h"
+#include "CommentNode.h"
+#include "ScriptNode.h"
+#include "OriginNode.h"
+#include "ImportNode.h"
+#include "NamespaceNode.h"
+#include "ConfigurationNode.h"
+#include "NameConfigNode.h"
+#include "UseNode.h"
+#include "ExceptNode.h"
+#include "TemplateDefinitionNode.h"
+#include "CustomDefinitionNode.h"
+#include "TemplateUsageNode.h"
+#include "CustomUsageNode.h"
+#include "DeleteSpecializationNode.h"
+#include "InsertSpecializationNode.h"
+#include "IfNode.h"
+#include "StylePropertyNode.h"
+#include "StyleRuleNode.h"
+#include "ExpressionNode.h"

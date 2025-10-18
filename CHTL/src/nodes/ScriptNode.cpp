@@ -1,4 +1,4 @@
-#include "nodes/ScriptNode.h"
+#include "ScriptNode.h"
 
 namespace CHTL
 {

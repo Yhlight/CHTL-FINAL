@@ -73,6 +73,7 @@ namespace CHTL
                 break;
             case NodeType::TemplateDefinition:
             case NodeType::CustomDefinition:
+            case NodeType::If:
             case NodeType::Style:
             case NodeType::StyleRule:
             case NodeType::StyleProperty:
@@ -233,8 +234,9 @@ namespace CHTL
 
     void Generator::visit(ElementNode* node, EvalContext& context)
     {
-        // First pass: process style and collect except nodes
+        // First pass: process style, if, and except nodes
         std::vector<const ExceptNode*> except_nodes;
+        Evaluator evaluator;
         for (const auto& child : node->children)
         {
             if (child->GetType() == NodeType::Style)
@@ -244,6 +246,31 @@ namespace CHTL
             else if (child->GetType() == NodeType::Except)
             {
                 except_nodes.push_back(static_cast<const ExceptNode*>(child.get()));
+            }
+            else if (child->GetType() == NodeType::If)
+            {
+                auto* if_node = static_cast<IfNode*>(child.get());
+                Value condition_result = evaluator.Eval(if_node->condition.get(), context);
+                if (condition_result.type == ValueType::BOOL && condition_result.boolean)
+                {
+                    // Condition is true, apply styles
+                    std::stringstream temp_style_stream;
+                    for (const auto& prop : if_node->consequence) {
+                        visit(prop.get(), context, temp_style_stream);
+                    }
+
+                    bool style_attr_exists = false;
+                    for (auto& attr : node->attributes) {
+                        if (attr.name == "style") {
+                            attr.value += temp_style_stream.str();
+                            style_attr_exists = true;
+                            break;
+                        }
+                    }
+                    if (!style_attr_exists && !temp_style_stream.str().empty()) {
+                        node->attributes.push_back({"style", temp_style_stream.str()});
+                    }
+                }
             }
         }
 

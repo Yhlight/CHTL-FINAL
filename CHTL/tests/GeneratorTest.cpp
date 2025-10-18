@@ -687,3 +687,48 @@ TEST_CASE("Generator correctly generates script blocks", "[generator][script]")
     std::string expected_html = "<div><script>" + expected_script_content + "</script></div>";
     REQUIRE(html_output == expected_html);
 }
+
+TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[generator][if]")
+{
+    SECTION("Applies styles when condition is true")
+    {
+        std::string input = R"(
+            div {
+                if {
+                    condition: 1 > 0,
+                    display: none,
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = R"(<div style="display:none;"></div>)";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Does not apply styles when condition is false")
+    {
+        std::string input = R"(
+            div {
+                if {
+                    condition: 1 < 0,
+                    display: none,
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        CHTL::Generator generator;
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<div></div>";
+        REQUIRE(html_output == expected_html);
+    }
+}

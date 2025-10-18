@@ -1,4 +1,4 @@
-#include "nodes/StyleNode.h"
+#include "StyleNode.h"
 #include <sstream>
 
 namespace CHTL

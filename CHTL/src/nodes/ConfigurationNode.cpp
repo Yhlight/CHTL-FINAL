@@ -1,5 +1,5 @@
-#include "nodes/ConfigurationNode.h"
-#include "nodes/NameConfigNode.h"
+#include "ConfigurationNode.h"
+#include "NameConfigNode.h"
 #include <sstream>
 
 namespace CHTL

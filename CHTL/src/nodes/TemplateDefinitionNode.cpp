@@ -1,5 +1,5 @@
-#include "nodes/TemplateDefinitionNode.h"
-#include "nodes/StylePropertyNode.h"
+#include "TemplateDefinitionNode.h"
+#include "StylePropertyNode.h"
 #include <sstream>
 
 namespace CHTL

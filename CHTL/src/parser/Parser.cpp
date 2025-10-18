@@ -40,7 +40,6 @@ namespace CHTL
     {
         auto program = std::make_unique<ProgramNode>();
 
-        // Add the initial file to the parsed list to prevent self-import
         if (!m_current_file_path.empty()) {
             std::filesystem::path canonical_path = std::filesystem::weakly_canonical(m_current_file_path);
             s_parsed_files.insert(canonical_path.string());
@@ -95,7 +94,6 @@ namespace CHTL
         return program;
     }
 
-    // 期待下一个Token是指定类型
     bool Parser::expectPeek(TokenType t)
     {
         if (m_peekToken.type == t)
@@ -105,14 +103,12 @@ namespace CHTL
         }
         else
         {
-            // 记录错误
             m_errors.push_back("Expected next token to be " + TokenTypeToString(t) +
                                ", got " + TokenTypeToString(m_peekToken.type) + " instead.");
             return false;
         }
     }
 
-    // 解析一个语句（目前仅支持元素节点）
     std::unique_ptr<AstNode> Parser::parseStatement()
     {
         if (m_currentToken.type == TokenType::IDENT)
@@ -142,7 +138,6 @@ namespace CHTL
         return nullptr;
     }
 
-    // 解析元素节点: e.g., div { id: box; ... }
     std::unique_ptr<ElementNode> Parser::parseElementNode()
     {
         auto node = std::make_unique<ElementNode>();
@@ -155,15 +150,12 @@ namespace CHTL
 
         nextToken();
 
-        // 解析属性和子节点
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            // 判断是属性还是子元素
             if (m_currentToken.type == TokenType::KEYWORD_TEXT && m_peekToken.type == TokenType::COLON)
             {
-                // 这是 text: "value"; 语法
-                nextToken(); // consume 'text'
-                nextToken(); // consume ':' or '='
+                nextToken();
+                nextToken();
 
                 if (m_currentToken.type != TokenType::STRING) {
                     m_errors.push_back("Expected string literal for text property.");
@@ -190,7 +182,11 @@ namespace CHTL
             {
                 node->children.push_back(parseExceptNode());
             }
-            else // 否则就是子元素
+            else if (m_currentToken.type == TokenType::KEYWORD_IF)
+            {
+                node->children.push_back(parseIfNode());
+            }
+            else
             {
                 auto stmt = parseStatement();
                 if (stmt)
@@ -199,7 +195,6 @@ namespace CHTL
                 }
             }
 
-            // After parsing a statement or attribute, advance to the next token for the next iteration.
             nextToken();
         }
 
@@ -212,18 +207,17 @@ namespace CHTL
         return node;
     }
 
-    // except span, [Custom] @Element Box;
+
     std::unique_ptr<ExceptNode> Parser::parseExceptNode()
     {
         auto node = std::make_unique<ExceptNode>();
-        nextToken(); // consume 'except'
+        nextToken();
 
         while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::END_OF_FILE)
         {
             ExceptNode::Constraint constraint;
-            constraint.is_type_constraint = false; // Default
+            constraint.is_type_constraint = false;
 
-            // Check for block keywords like [Custom]
             if (m_currentToken.type == TokenType::KEYWORD_CUSTOM ||
                 m_currentToken.type == TokenType::KEYWORD_TEMPLATE ||
                 m_currentToken.type == TokenType::KEYWORD_ORIGIN)
@@ -232,11 +226,10 @@ namespace CHTL
                 nextToken();
             }
 
-            // Check for @ keywords like @Element or @Html
             if (m_currentToken.type == TokenType::AT)
             {
                 constraint.is_type_constraint = true;
-                nextToken(); // consume '@'
+                nextToken();
                 if (m_currentToken.type != TokenType::IDENT) {
                     m_errors.push_back("Expected type identifier after '@' in except constraint.");
                     return nullptr;
@@ -245,7 +238,6 @@ namespace CHTL
                 nextToken();
             }
 
-            // Check for a specific name
             if (m_currentToken.type == TokenType::IDENT) {
                 constraint.path.push_back(m_currentToken.literal);
                 nextToken();
@@ -254,9 +246,9 @@ namespace CHTL
             node->constraints.push_back(constraint);
 
             if (m_currentToken.type == TokenType::COMMA) {
-                nextToken(); // consume comma and continue loop
+                nextToken();
             } else {
-                break; // End of constraint list
+                break;
             }
         }
 
@@ -264,8 +256,50 @@ namespace CHTL
             m_errors.push_back("Expected ';' to terminate except statement.");
             return nullptr;
         }
-        // Calling loop in parseElementNode will consume the semicolon.
 
+        return node;
+    }
+
+    std::unique_ptr<IfNode> Parser::parseIfNode()
+    {
+        auto node = std::make_unique<IfNode>();
+        if (!expectPeek(TokenType::LBRACE)) {
+            m_errors.push_back("Expected '{' for if block.");
+            return nullptr;
+        }
+        nextToken();
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
+        {
+            if (m_currentToken.type != TokenType::IDENT) {
+                m_errors.push_back("Expected identifier in if block.");
+                nextToken();
+                continue;
+            }
+
+            std::string key = m_currentToken.literal;
+
+            if (!expectPeek(TokenType::COLON)) {
+                m_errors.push_back("Expected ':' after key '" + key + "' in if block.");
+                return nullptr;
+            }
+            nextToken();
+
+            if (key == "condition") {
+                node->condition = parseExpression(LOWEST);
+            } else {
+                auto prop = std::make_unique<StyleProperty>();
+                prop->name = key;
+                prop->value = parseExpression(LOWEST);
+                node->consequence.push_back(std::move(prop));
+            }
+
+            if (m_peekToken.type == TokenType::COMMA) {
+                nextToken();
+            }
+
+            nextToken();
+        }
         return node;
     }
 
@@ -282,7 +316,6 @@ namespace CHTL
             nextToken(); // consume position keyword
 
             std::string selector;
-            // A simple selector is IDENT, followed by optional [NUMBER]
             if (m_currentToken.type == TokenType::IDENT) {
                 selector += m_currentToken.literal;
                 nextToken();
@@ -341,9 +374,6 @@ namespace CHTL
             if (stmt) {
                 node->content.push_back(std::move(stmt));
             }
-            // CRITICAL FIX: Do NOT call nextToken() here.
-            // parseStatement() advances the token to the end of the statement it parsed.
-            // The loop condition will then correctly check the next token.
         }
 
         if (m_currentToken.type != TokenType::RBRACE) {
@@ -354,27 +384,21 @@ namespace CHTL
         return node;
     }
 
-    // 解析命名空间 e.g., [Namespace] MySpace { ... }
     std::unique_ptr<NamespaceNode> Parser::parseNamespaceNode(ProgramNode& program)
     {
         auto node = std::make_unique<NamespaceNode>();
-
-        // Current token is [Namespace]
         if (!expectPeek(TokenType::IDENT)) {
             m_errors.push_back("Expected namespace name.");
             return nullptr;
         }
         node->name = m_currentToken.literal;
-
-        // Set current namespace
         std::string prev_namespace = m_current_namespace;
         m_current_namespace = node->name;
-
         if (!expectPeek(TokenType::LBRACE)) {
             m_errors.push_back("Expected '{' for namespace block.");
             return nullptr;
         }
-        nextToken(); // Consume '{'
+        nextToken();
 
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
@@ -387,7 +411,6 @@ namespace CHTL
             {
                 stmt = parseCustomDefinitionNode();
             }
-            // Note: Imports and nested namespaces could be supported here in the future.
             else
             {
                 stmt = parseStatement();
@@ -413,34 +436,26 @@ namespace CHTL
             m_errors.push_back("Expected '}' to close namespace block.");
             return nullptr;
         }
-
-        // Restore previous namespace
         m_current_namespace = prev_namespace;
-
         return node;
     }
 
-    // 解析配置组 e.g., [Configuration] { KEY = VALUE; }
     std::unique_ptr<ConfigurationNode> Parser::parseConfigurationStatement()
     {
         auto node = std::make_unique<ConfigurationNode>();
-        // Current token is [Configuration]
-
-        // Check for an optional name
         if (m_peekToken.type == TokenType::AT) {
-            nextToken(); // consume '@'
+            nextToken();
             if (!expectPeek(TokenType::IDENT)) {
                 m_errors.push_back("Expected configuration name after '@'.");
                 return nullptr;
             }
             node->name = m_currentToken.literal;
         }
-
         if (!expectPeek(TokenType::LBRACE)) {
             m_errors.push_back("Expected '{' for configuration block.");
             return nullptr;
         }
-        nextToken(); // Consume '{'
+        nextToken();
 
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
@@ -451,14 +466,11 @@ namespace CHTL
             else if (m_currentToken.type == TokenType::IDENT)
             {
                 std::string key = m_currentToken.literal;
-
-                if (!expectPeek(TokenType::COLON)) { // COLON is ':' or '='
+                if (!expectPeek(TokenType::COLON)) {
                      m_errors.push_back("Expected '=' or ':' after configuration key.");
                      return nullptr;
                 }
-
-                nextToken(); // Move to the value token
-
+                nextToken();
                 std::string value;
                 if (m_currentToken.type == TokenType::IDENT || m_currentToken.type == TokenType::NUMBER || m_currentToken.type == TokenType::STRING) {
                     value = m_currentToken.literal;
@@ -467,7 +479,6 @@ namespace CHTL
                     return nullptr;
                 }
                 node->settings[key] = value;
-
                 if (m_peekToken.type == TokenType::SEMICOLON) {
                     nextToken();
                 }
@@ -478,40 +489,32 @@ namespace CHTL
             }
             nextToken();
         }
-
         if (m_currentToken.type != TokenType::RBRACE) {
             m_errors.push_back("Expected '}' to close configuration block.");
             return nullptr;
         }
-
         return node;
     }
 
-    // 解析Name配置块 e.g., [Name] { KEY = VALUE; }
     std::unique_ptr<NameConfigNode> Parser::parseNameConfigNode()
     {
         auto node = std::make_unique<NameConfigNode>();
-        // Current token is [Name]
-
         if (!expectPeek(TokenType::LBRACE)) {
             m_errors.push_back("Expected '{' for [Name] block.");
             return nullptr;
         }
-        nextToken(); // Consume '{'
+        nextToken();
 
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
             if (m_currentToken.type == TokenType::IDENT)
             {
                 std::string key = m_currentToken.literal;
-
-                if (!expectPeek(TokenType::COLON)) { // COLON is ':' or '='
+                if (!expectPeek(TokenType::COLON)) {
                      m_errors.push_back("Expected '=' or ':' after name config key.");
                      return nullptr;
                 }
-
-                nextToken(); // Move to the value token
-
+                nextToken();
                 std::string value;
                 if (m_currentToken.type == TokenType::IDENT) {
                     value = m_currentToken.literal;
@@ -520,7 +523,6 @@ namespace CHTL
                     return nullptr;
                 }
                 node->settings[key] = value;
-
                 if (m_peekToken.type == TokenType::SEMICOLON) {
                     nextToken();
                 }
@@ -531,30 +533,25 @@ namespace CHTL
             }
             nextToken();
         }
-
         if (m_currentToken.type != TokenType::RBRACE) {
             m_errors.push_back("Expected '}' to close [Name] block.");
             return nullptr;
         }
-        // The calling function (parseConfigurationStatement) will advance the token past '}'
         return node;
     }
 
-    // 解析 use 语句 e.g., use html5; or use @Config Basic;
     std::unique_ptr<UseNode> Parser::parseUseStatement()
     {
         auto node = std::make_unique<UseNode>();
-        // Current token is 'use'
-        nextToken(); // consume 'use'
+        nextToken();
 
-        // The path can be a simple identifier like 'html5' or a more complex path
         while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::END_OF_FILE)
         {
             std::string path_part;
             if (m_currentToken.type == TokenType::AT)
             {
                 path_part = "@";
-                nextToken(); // consume '@'
+                nextToken();
                  if (m_currentToken.type != TokenType::IDENT) {
                      m_errors.push_back("Expected identifier after '@' in use statement.");
                      return nullptr;
@@ -573,22 +570,17 @@ namespace CHTL
             }
             nextToken();
         }
-
         if (m_currentToken.type != TokenType::SEMICOLON)
         {
             m_errors.push_back("Expected ';' after use statement.");
             return nullptr;
         }
-        // The main loop in ParseProgram will advance past the semicolon
-
         return node;
     }
 
-    // 解析导入语句 e.g., [Import] @Chtl from "./file.chtl";
     std::unique_ptr<ImportNode> Parser::parseImportNode(ProgramNode& program)
     {
         auto node = std::make_unique<ImportNode>();
-
         if (!expectPeek(TokenType::AT)) {
             m_errors.push_back("Expected '@' for import type.");
             return nullptr;
@@ -598,72 +590,51 @@ namespace CHTL
             return nullptr;
         }
         node->type = "@" + m_currentToken.literal;
-
         if (!expectPeek(TokenType::KEYWORD_FROM)) {
             m_errors.push_back("Expected 'from' keyword in import statement.");
             return nullptr;
         }
-
         if (!expectPeek(TokenType::STRING)) {
             m_errors.push_back("Expected file path string after 'from'.");
             return nullptr;
         }
         node->path = m_currentToken.literal;
-
         try {
             std::filesystem::path full_path = std::filesystem::weakly_canonical(std::filesystem::path(m_current_file_path).parent_path() / node->path);
-
             if (s_parsed_files.count(full_path.string())) {
-                // Already parsed, skip to avoid circular dependency.
-                // We still return the node to represent the import statement, but do not process it.
             } else {
                 std::string file_content = Loader::ReadFile(m_current_file_path, node->path);
                 Lexer imported_lexer(file_content);
                 Parser imported_parser(imported_lexer, full_path.string());
                 auto imported_program = imported_parser.ParseProgram();
-
-                // Merge templates
                 for(auto const& [ns, def_map] : imported_program->templates) {
                     for (auto const& [name, def] : def_map) {
                         program.templates[ns][name] = def;
                     }
                 }
-                // Merge customs
                 for(auto const& [ns, def_map] : imported_program->customs) {
                     for (auto const& [name, def] : def_map) {
                         program.customs[ns][name] = def;
                     }
                 }
-                // Also merge errors
                 for(const auto& err : imported_parser.GetErrors()) {
                     m_errors.push_back("Error in imported file '" + node->path + "': " + err);
                 }
-
-                // Transfer ownership to prevent memory errors
                 program.imported_programs.push_back(std::move(imported_program));
             }
-
         } catch (const std::runtime_error& e) {
             m_errors.push_back("Could not import file '" + node->path + "'. Reason: " + e.what());
         }
-
-
         if (!expectPeek(TokenType::SEMICOLON)) {
             m_errors.push_back("Expected ';' after import statement.");
             return nullptr;
         }
-
         return node;
     }
 
-    // 解析自定义定义 e.g., [Custom] @Style MyStyle { ... }
     std::unique_ptr<CustomDefinitionNode> Parser::parseCustomDefinitionNode()
     {
         auto node = std::make_unique<CustomDefinitionNode>();
-
-        // Current token is KEYWORD_CUSTOM
-
-        // Expect @Style or @Element
         if (!expectPeek(TokenType::AT)) {
             m_errors.push_back("Expected '@' for custom type.");
             return nullptr;
@@ -672,31 +643,24 @@ namespace CHTL
              m_errors.push_back("Expected custom type keyword after '@'.");
             return nullptr;
         }
-
         std::string customType = m_currentToken.literal;
         if (customType != "Style" && customType != "Element" && customType != "Var") {
             m_errors.push_back("Unsupported custom type: @" + customType);
             return nullptr;
         }
         node->type = "@" + customType;
-
-        // Expect custom name
         if (!expectPeek(TokenType::IDENT)) {
             m_errors.push_back("Expected custom definition name.");
             return nullptr;
         }
         node->name = m_currentToken.literal;
-
-        // Expect { ... } block
         if (!expectPeek(TokenType::LBRACE)) {
             m_errors.push_back("Expected '{' for custom definition block.");
             return nullptr;
         }
-        nextToken(); // Consume '{'
-
+        nextToken();
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            // TODO: Implement parsing for specializations like 'delete'
             if (customType == "Style" || customType == "Var")
             {
                 if (m_currentToken.type == TokenType::IDENT)
@@ -709,7 +673,7 @@ namespace CHTL
                 }
                 nextToken();
             }
-            else // Element
+            else
             {
                 auto stmt = parseStatement();
                 if (stmt)
@@ -719,21 +683,16 @@ namespace CHTL
                 nextToken();
             }
         }
-
         if (m_currentToken.type != TokenType::RBRACE) {
             m_errors.push_back("Expected '}' to close custom definition block.");
             return nullptr;
         }
-
         return node;
     }
 
-    // 解析 @ 关键字用法, e.g., @Style DefaultText; or @Element MyCustom { delete ...; }
     std::unique_ptr<AstNode> Parser::parseAtUsage()
     {
-        // Current token is '@'
-        nextToken(); // Consume '@'
-
+        nextToken();
         if (m_currentToken.type != TokenType::IDENT) {
             m_errors.push_back("Expected type keyword after '@'.");
             return nullptr;
@@ -743,18 +702,14 @@ namespace CHTL
             m_errors.push_back("Unsupported usage: @" + atType);
             return nullptr;
         }
-
         if (!expectPeek(TokenType::IDENT)) {
             m_errors.push_back("Expected name after @" + atType);
             return nullptr;
         }
         std::string name = m_currentToken.literal;
-
-        // Now, decide if it's a TemplateUsage or CustomUsage based on the *peek* token.
         if (m_peekToken.type == TokenType::SEMICOLON)
         {
-            nextToken(); // consume name
-            // It's a simple TemplateUsage
+            nextToken();
             auto node = std::make_unique<TemplateUsageNode>();
             node->type = "@" + atType;
             node->name = name;
@@ -762,13 +717,11 @@ namespace CHTL
         }
         else if (m_peekToken.type == TokenType::LBRACE)
         {
-            nextToken(); // consume name
-            nextToken(); // consume '{'
-            // It's a CustomUsage with a specialization block
+            nextToken();
+            nextToken();
             auto node = std::make_unique<CustomUsageNode>();
             node->type = "@" + atType;
             node->name = name;
-
             while(m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
             {
                 if (m_currentToken.type == TokenType::KEYWORD_DELETE)
@@ -781,7 +734,6 @@ namespace CHTL
                 }
                 else if (m_currentToken.type == TokenType::IDENT)
                 {
-                    // This handles property overrides inside a specialization block
                     node->specializations.push_back(parseStyleProperty());
                 }
                 else
@@ -790,13 +742,10 @@ namespace CHTL
                 }
                 nextToken();
             }
-
             if (m_currentToken.type != TokenType::RBRACE) {
                  m_errors.push_back("Expected '}' to close specialization block.");
                  return nullptr;
             }
-            // Do NOT consume '}'. Let the calling loop handle it.
-
             return node;
         }
         else
@@ -808,34 +757,24 @@ namespace CHTL
 
     std::unique_ptr<DeleteSpecializationNode> Parser::parseDeleteSpecialization()
     {
-        // Current token is 'delete'
         auto node = std::make_unique<DeleteSpecializationNode>();
-        nextToken(); // consume 'delete'
-
+        nextToken();
         if (m_currentToken.type != TokenType::IDENT)
         {
             m_errors.push_back("Expected property name after 'delete'.");
             return nullptr;
         }
         node->property_name = m_currentToken.literal;
-
         if (!expectPeek(TokenType::SEMICOLON)) {
              m_errors.push_back("Expected ';' after delete statement.");
             return nullptr;
         }
-        // After expectPeek, current token is the semicolon. The calling loop will advance past it.
-
         return node;
     }
 
-    // 解析模板定义 e.g., [Template] @Style DefaultText { ... }
     std::unique_ptr<TemplateDefinitionNode> Parser::parseTemplateDefinition()
     {
         auto node = std::make_unique<TemplateDefinitionNode>();
-
-        // The current token is KEYWORD_TEMPLATE.
-
-        // Expect @Style or @Var
         if (!expectPeek(TokenType::AT)) {
             m_errors.push_back("Expected '@' for template type.");
             return nullptr;
@@ -844,28 +783,22 @@ namespace CHTL
              m_errors.push_back("Expected template type keyword after '@'.");
             return nullptr;
         }
-
         std::string templateType = m_currentToken.literal;
         if (templateType != "Style" && templateType != "Var" && templateType != "Element") {
             m_errors.push_back("Unsupported template type: @" + templateType);
             return nullptr;
         }
         node->type = "@" + templateType;
-
-        // Expect template name
         if (!expectPeek(TokenType::IDENT)) {
             m_errors.push_back("Expected template name.");
             return nullptr;
         }
         node->name = m_currentToken.literal;
-
-        // Expect { ... } block
         if (!expectPeek(TokenType::LBRACE)) {
             m_errors.push_back("Expected '{' for template block.");
             return nullptr;
         }
-        nextToken(); // Consume '{'
-
+        nextToken();
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
             if (templateType == "Style" || templateType == "Var")
@@ -878,9 +811,9 @@ namespace CHTL
                 {
                     m_errors.push_back("Invalid token in " + node->type + " template definition block: " + m_currentToken.ToString());
                 }
-                nextToken(); // Advance past the property or the invalid token.
+                nextToken();
             }
-            else // Element template
+            else
             {
                 auto stmt = parseStatement();
                 if (stmt)
@@ -890,32 +823,26 @@ namespace CHTL
                 nextToken();
             }
         }
-
         if (m_currentToken.type != TokenType::RBRACE) {
             m_errors.push_back("Expected '}' to close template block.");
             return nullptr;
         }
-
         return node;
     }
 
-    // 解析文本节点: e.g., text { "content" } or text { unquoted content }
     std::unique_ptr<TextNode> Parser::parseTextNode()
     {
         auto node = std::make_unique<TextNode>();
-
         if (!expectPeek(TokenType::LBRACE))
         {
             return nullptr;
         }
-        nextToken(); // Consume '{'
-
+        nextToken();
         std::string text_content;
         bool first_token = true;
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
             if (!first_token) {
-                // Add a space, unless the current token is punctuation like a dot.
                 if (m_currentToken.type != TokenType::DOT) {
                     text_content += " ";
                 }
@@ -924,30 +851,21 @@ namespace CHTL
             first_token = false;
             nextToken();
         }
-
         node->value = text_content;
-
         if (m_currentToken.type != TokenType::RBRACE)
         {
             m_errors.push_back("Expected '}' to close text block.");
             return nullptr;
         }
-
         return node;
     }
 
-    // 解析属性: e.g., id: "box"; or class = container;
     Attribute Parser::parseAttribute()
     {
         Attribute attr;
         attr.name = m_currentToken.literal;
-
-        // 跳过 ':' or '='
         nextToken();
-
-        nextToken(); // 前进到值Token
-
-        // 值的类型可以是 STRING, IDENT (无引号), or NUMBER
+        nextToken();
         if (m_currentToken.type == TokenType::STRING ||
             m_currentToken.type == TokenType::IDENT ||
             m_currentToken.type == TokenType::NUMBER)
@@ -958,35 +876,27 @@ namespace CHTL
         {
             m_errors.push_back("Invalid attribute value token: " + m_currentToken.ToString());
         }
-
-        // 处理可选的分号
         if (m_peekToken.type == TokenType::SEMICOLON)
         {
             nextToken();
         }
-
         return attr;
     }
 
-    // 解析样式块: e.g., style { width: 100px; .box { ... } }
     std::unique_ptr<StyleNode> Parser::parseStyleNode()
     {
         auto node = std::make_unique<StyleNode>();
-
         if (!expectPeek(TokenType::LBRACE))
         {
             return nullptr;
         }
-        nextToken(); // 消费'{'
-
+        nextToken();
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
             if (m_currentToken.type == TokenType::DOT || m_currentToken.type == TokenType::AMPERSAND)
             {
-                // 解析CSS规则
                 node->children.push_back(parseStyleRuleNode());
-                // After a rule is parsed, current token is '}'
-                nextToken(); // Consume '}'
+                nextToken();
             }
             else if (m_currentToken.type == TokenType::AT)
             {
@@ -994,29 +904,25 @@ namespace CHTL
             }
             else if (m_currentToken.type == TokenType::IDENT)
             {
-                // 解析内联样式属性
                 node->children.push_back(parseStyleProperty());
             }
             else
             {
                 m_errors.push_back("Invalid token in style block: " + m_currentToken.ToString());
-                nextToken(); // 跳过无法识别的Token
+                nextToken();
             }
             if (m_currentToken.type == TokenType::SEMICOLON) {
                 nextToken();
             }
         }
-
         if (m_currentToken.type != TokenType::RBRACE)
         {
             m_errors.push_back("Expected '}' to close style block.");
             return nullptr;
         }
-
         return node;
     }
 
-    // 解析注释节点: e.g., # this is a comment
     std::unique_ptr<CommentNode> Parser::parseCommentNode()
     {
         auto node = std::make_unique<CommentNode>();
@@ -1024,69 +930,51 @@ namespace CHTL
         return node;
     }
 
-    // 解析样式属性 e.g. width: 100px, 200px;
     std::unique_ptr<StyleProperty> Parser::parseStyleProperty()
     {
         auto prop = std::make_unique<StyleProperty>();
         prop->name = m_currentToken.literal;
-
         if (m_peekToken.type != TokenType::COLON) {
             m_errors.push_back("Expected ':' after style property name.");
             return nullptr;
         }
-        nextToken(); // 消费属性名
-        nextToken(); // 消费':'
-
+        nextToken();
+        nextToken();
         auto first_expr = parseExpression(LOWEST);
-
         if (m_peekToken.type != TokenType::COMMA) {
-            // Single expression
             prop->value = std::move(first_expr);
         } else {
-            // Expression list
             auto list_node = std::make_unique<ExpressionListNode>();
             list_node->expressions.push_back(std::move(first_expr));
-
             while (m_peekToken.type == TokenType::COMMA) {
-                nextToken(); // consume ','
-                nextToken(); // move to start of next expression
+                nextToken();
+                nextToken();
                 list_node->expressions.push_back(parseExpression(LOWEST));
             }
             prop->value = std::move(list_node);
         }
-
-
         if (m_peekToken.type == TokenType::SEMICOLON)
         {
             nextToken();
         }
-        // Do not advance token here. The calling loop will do it.
-
         return prop;
     }
 
-    // 解析CSS规则 e.g. .box { width: 100px; } or &:hover { ... }
     std::unique_ptr<StyleRuleNode> Parser::parseStyleRuleNode()
     {
         auto node = std::make_unique<StyleRuleNode>();
         std::string selector = "";
-
-        // The tokens that make up the selector are IDENT, DOT, AMPERSAND, COLON, etc.
-        // We consume them until we hit the opening brace of the rule block.
         while (m_currentToken.type != TokenType::LBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
             selector += m_currentToken.literal;
             nextToken();
         }
         node->selector = selector;
-
         if (m_currentToken.type != TokenType::LBRACE) {
             m_errors.push_back("Expected '{' to begin style rule block.");
             return nullptr;
         }
-        nextToken(); // Consume '{'
-
-        // Now parse the properties inside the rule block
+        nextToken();
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
             if (m_currentToken.type == TokenType::IDENT) {
@@ -1097,26 +985,17 @@ namespace CHTL
             } else {
                  m_errors.push_back("Invalid token in style rule: " + m_currentToken.ToString());
             }
-            // After a property, the current token is ';'. Advance to the next property or '}'.
             nextToken();
         }
-
         if (m_currentToken.type != TokenType::RBRACE) {
             m_errors.push_back("Expected '}' to close style rule block.");
             return nullptr;
         }
-        // The calling function (parseStyleNode) is responsible for consuming the closing brace.
-        // We leave m_currentToken on '}' so it knows where we are.
-
         return node;
     }
 
-
-    // --- Expression Parsing Methods ---
-
     std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence)
     {
-        // Prefix position
         std::unique_ptr<Expression> leftExp;
         if (m_currentToken.type == TokenType::NUMBER)
         {
@@ -1139,12 +1018,10 @@ namespace CHTL
         }
         else
         {
-            // No prefix parse function for the token, record an error
             m_errors.push_back("No prefix parse function for " + TokenTypeToString(m_currentToken.type) + " found.");
             return nullptr;
         }
 
-        // Infix position
         while (m_peekToken.type != TokenType::SEMICOLON && precedence < (precedences.count(m_peekToken.type) ? precedences[m_peekToken.type] : LOWEST))
         {
             TokenType peekType = m_peekToken.type;
@@ -1166,7 +1043,6 @@ namespace CHTL
                 return leftExp;
             }
         }
-
         return leftExp;
     }
 
@@ -1182,14 +1058,11 @@ namespace CHTL
             m_errors.push_back("Could not parse " + m_currentToken.literal + " as double.");
             return nullptr;
         }
-
-        // Check for a unit identifier (e.g., "px", "em")
         if (m_peekToken.type == TokenType::IDENT)
         {
             nextToken();
             literal->unit = m_currentToken.literal;
         }
-
         return literal;
     }
 
@@ -1198,33 +1071,26 @@ namespace CHTL
         auto expr = std::make_unique<InfixExpression>();
         expr->left = std::move(left);
         expr->op = m_currentToken.literal;
-
         Precedence curPrecedence = precedences.count(m_currentToken.type) ? precedences[m_currentToken.type] : LOWEST;
         nextToken();
         expr->right = parseExpression(curPrecedence);
-
         return expr;
     }
 
-    // 解析条件表达式: e.g., <condition> ? <consequence> [: <alternative>]
     std::unique_ptr<Expression> Parser::parseConditionalExpression(std::unique_ptr<Expression> condition)
     {
         auto expr = std::make_unique<ConditionalExpression>();
         expr->condition = std::move(condition);
-
-        nextToken(); // 消费 '?'
-        expr->consequence = parseExpression(LOWEST); // Parse consequence with lowest precedence until ':' or ',' or ';'
-
-        // Optional alternative
+        nextToken();
+        expr->consequence = parseExpression(LOWEST);
         if (m_peekToken.type == TokenType::COLON)
         {
-            nextToken(); // 消费 ':'
-            nextToken(); // Move to the start of the alternative expression
+            nextToken();
+            nextToken();
             expr->alternative = parseExpression(LOWEST);
         } else {
             expr->alternative = nullptr;
         }
-
         return expr;
     }
 
@@ -1242,38 +1108,28 @@ namespace CHTL
         return literal;
     }
 
-    // 解析变量访问表达式 e.g., ThemeColor(tableColor)
     std::unique_ptr<Expression> Parser::parseVariableAccessExpression()
     {
         auto node = std::make_unique<VariableAccessNode>();
-
-        // Current token is the template name (IDENT)
         node->template_name = m_currentToken.literal;
-
         if (!expectPeek(TokenType::LPAREN)) {
             return nullptr;
         }
-        nextToken(); // Consume '('
-
+        nextToken();
         if (m_currentToken.type != TokenType::IDENT) {
             m_errors.push_back("Expected variable name inside variable access.");
             return nullptr;
         }
         node->variable_name = m_currentToken.literal;
-
         if (!expectPeek(TokenType::RPAREN)) {
             return nullptr;
         }
-
         return node;
     }
 
-    // 解析原始嵌入节点 e.g., [Origin] @Html myDiv { <div>...</div> }
     std::unique_ptr<OriginNode> Parser::parseOriginNode()
     {
         auto node = std::make_unique<OriginNode>();
-        // Current token is [Origin]
-
         if (!expectPeek(TokenType::AT)) {
             m_errors.push_back("Expected '@' for origin type.");
             return nullptr;
@@ -1283,55 +1139,32 @@ namespace CHTL
             return nullptr;
         }
         node->type = "@" + m_currentToken.literal;
-
-        // Check for an optional name
         if (m_peekToken.type == TokenType::IDENT) {
             nextToken();
             node->name = m_currentToken.literal;
         }
-
         if (m_peekToken.type != TokenType::LBRACE) {
             m_errors.push_back("Expected '{' for origin block.");
             return nullptr;
         }
-        // Manually advance past the LBRACE *without* triggering the lexer's NextToken()
-        // which would skip whitespace.
         m_currentToken = m_peekToken;
-
-        // At this point, the lexer's read position is exactly after the '{',
-        // which is what readRawBlockContent expects.
         node->content = m_lexer.readRawBlockContent();
-
-        // After readRawBlockContent, the lexer's state is at the closing '}'.
-        // We need to fully re-sync the parser's token buffer.
-        m_currentToken = m_lexer.NextToken(); // This is the token *after* the '}'
-        m_peekToken = m_lexer.NextToken(); // Set peek token to the one after that
-
+        m_currentToken = m_lexer.NextToken();
+        m_peekToken = m_lexer.NextToken();
         return node;
     }
 
-    // 解析脚本节点 e.g., script { ... }
     std::unique_ptr<ScriptNode> Parser::parseScriptNode()
     {
         auto node = std::make_unique<ScriptNode>();
-        // Current token is KEYWORD_SCRIPT
-
         if (m_peekToken.type != TokenType::LBRACE) {
             m_errors.push_back("Expected '{' for script block.");
             return nullptr;
         }
-
-        // Manually advance past the LBRACE *without* triggering the lexer's NextToken()
-        // which would skip whitespace. This is critical for readRawBlockContent.
         m_currentToken = m_peekToken;
-
         node->content = m_lexer.readRawBlockContent();
-
-        // After readRawBlockContent, re-sync the parser's token buffer.
         m_currentToken = m_lexer.NextToken();
         m_peekToken = m_lexer.NextToken();
-
         return node;
     }
-
-} // namespace CHTL
+}

@@ -1,4 +1,4 @@
-#include "nodes/TextNode.h"
+#include "TextNode.h"
 
 namespace CHTL
 {

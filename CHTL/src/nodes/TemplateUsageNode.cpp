@@ -1,4 +1,4 @@
-#include "nodes/TemplateUsageNode.h"
+#include "TemplateUsageNode.h"
 
 namespace CHTL
 {

@@ -1,4 +1,4 @@
-#include "nodes/CustomDefinitionNode.h"
+#include "CustomDefinitionNode.h"
 
 namespace CHTL
 {

@@ -1,4 +1,4 @@
-#include "nodes/NamespaceNode.h"
+#include "NamespaceNode.h"
 
 namespace CHTL
 {

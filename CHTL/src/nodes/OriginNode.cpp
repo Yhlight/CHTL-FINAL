@@ -1,4 +1,4 @@
-#include "nodes/OriginNode.h"
+#include "OriginNode.h"
 
 namespace CHTL
 {

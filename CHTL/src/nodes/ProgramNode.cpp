@@ -1,4 +1,4 @@
-#include "nodes/ProgramNode.h"
+#include "ProgramNode.h"
 #include <sstream>
 
 namespace CHTL

@@ -9,7 +9,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 使用 glob 自动查找所有源文件
-file(GLOB_RECURSE CHTL_SOURCES "src/*.cpp" "src/eval/*.cpp" "src/generator/*.cpp" "src/lexer/*.cpp" "src/loader/*.cpp" "src/nodes/*.cpp" "src/parser/*.cpp")
+file(GLOB_RECURSE CHTL_SOURCES
+    "src/*.cpp"
+    "src/eval/*.cpp"
+    "src/generator/*.cpp"
+    "src/lexer/*.cpp"
+    "src/loader/*.cpp"
+    "src/nodes/*.cpp"
+    "src/parser/*.cpp"
+)
 
 # HEADERS 变量现在是不必要的，因为 target_include_directories 已经处理了路径。
 # 我们可以将其保留为空，或者完全删除它。为了清晰起见，我们将其删除。

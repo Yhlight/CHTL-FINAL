@@ -1,4 +1,4 @@
-#include "nodes/NameConfigNode.h"
+#include "NameConfigNode.h"
 #include <sstream>
 
 namespace CHTL

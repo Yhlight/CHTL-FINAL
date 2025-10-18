@@ -1,4 +1,4 @@
-#include "nodes/InsertSpecializationNode.h"
+#include "InsertSpecializationNode.h"
 #include <sstream>
 
 namespace CHTL

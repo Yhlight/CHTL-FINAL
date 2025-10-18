@@ -1,5 +1,5 @@
-#include "nodes/StylePropertyNode.h"
-#include "nodes/ExpressionNode.h"
+#include "StylePropertyNode.h"
+#include "ExpressionNode.h"
 
 namespace CHTL
 {

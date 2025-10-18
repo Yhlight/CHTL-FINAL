@@ -103,6 +103,48 @@ TEST_CASE("Test parsing a Var Template definition", "[parser][template]")
     REQUIRE(value2->value == "blue");
 }
 
+TEST_CASE("Test parsing an Element Template definition", "[parser][template]")
+{
+    std::string input = R"(
+        [Template] @Element MyBox {
+            div {
+                text: "This is a box.";
+            }
+            span {}
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* template_def_node = dynamic_cast<CHTL::TemplateDefinitionNode*>(program->children[0].get());
+    REQUIRE(template_def_node != nullptr);
+    REQUIRE(template_def_node->type == "@Element");
+    REQUIRE(template_def_node->name == "MyBox");
+    REQUIRE(template_def_node->body.size() == 2);
+
+    // Check first child (div)
+    auto* div_node = dynamic_cast<CHTL::ElementNode*>(template_def_node->body[0].get());
+    REQUIRE(div_node != nullptr);
+    REQUIRE(div_node->tag_name == "div");
+    REQUIRE(div_node->children.size() == 1);
+
+    auto* text_node = dynamic_cast<CHTL::TextNode*>(div_node->children[0].get());
+    REQUIRE(text_node != nullptr);
+    REQUIRE(text_node->value == "This is a box.");
+
+    // Check second child (span)
+    auto* span_node = dynamic_cast<CHTL::ElementNode*>(template_def_node->body[1].get());
+    REQUIRE(span_node != nullptr);
+    REQUIRE(span_node->tag_name == "span");
+    REQUIRE(span_node->children.empty());
+}
+
 TEST_CASE("Test parsing a style property using a variable", "[parser][expression]")
 {
     std::string input = R"(

@@ -74,6 +74,31 @@ TEST_CASE("Generator handles except constraints", "[generator][except]")
     REQUIRE(html_output == expected_html);
 }
 
+TEST_CASE("Generator correctly handles element template usage", "[generator][template]")
+{
+    std::string input = R"(
+        [Template] @Element MyComponent {
+            h1 { text: "Title"; }
+            p { text: "Paragraph content."; }
+        }
+
+        body {
+            @Element MyComponent;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator g;
+    std::string output = g.Generate(program.get());
+
+    INFO("Generated Output:\n" << output);
+    std::string expected_html = "<body><h1>Title</h1><p>Paragraph content.</p></body>";
+    REQUIRE(output == expected_html);
+}
+
 TEST_CASE("Generator correctly generates HTML for complex structures", "[generator]")
 {
     std::string input = R"(

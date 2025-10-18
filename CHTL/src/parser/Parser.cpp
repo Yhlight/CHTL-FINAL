@@ -854,11 +854,36 @@ namespace CHTL
         nextToken();
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {
-            if (templateType == "Style" || templateType == "Var")
+            if (templateType == "Var")
+            {
+                if (m_currentToken.type != TokenType::IDENT) {
+                    m_errors.push_back("Expected identifier for variable name in @Var template.");
+                    nextToken();
+                    continue;
+                }
+                std::string varName = m_currentToken.literal;
+                if (!expectPeek(TokenType::COLON)) {
+                    m_errors.push_back("Expected ':' after variable name '" + varName + "'.");
+                    break;
+                }
+                nextToken(); // Consume ':', current token is the start of the value expression
+
+                node->variables[varName] = parseExpression(LOWEST);
+
+                if (m_peekToken.type == TokenType::SEMICOLON) {
+                    nextToken();
+                }
+                 nextToken();
+            }
+            else if (templateType == "Style")
             {
                 if (m_currentToken.type == TokenType::IDENT)
                 {
                     node->properties.push_back(std::move(parseStyleProperty()));
+                }
+                else if (m_currentToken.type == TokenType::AT)
+                {
+                     node->properties.push_back(std::move(parseAtUsage()));
                 }
                 else
                 {
@@ -866,7 +891,7 @@ namespace CHTL
                 }
                 nextToken();
             }
-            else
+            else // @Element
             {
                 auto stmt = parseStatement();
                 if (stmt)

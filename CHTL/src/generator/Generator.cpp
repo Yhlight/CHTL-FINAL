@@ -412,9 +412,9 @@ namespace CHTL
 
         for (const auto& child : node->children)
         {
-            if (child->GetType() == NodeType::StyleProperty)
+            if (auto* prop = dynamic_cast<StyleProperty*>(child.get()))
             {
-                evaluateAndStoreProperty(static_cast<StyleProperty*>(child.get()), local_context, inline_properties);
+                evaluateAndStoreProperty(prop, local_context, inline_properties);
             }
             else if (child->GetType() == NodeType::StyleRule)
             {
@@ -437,7 +437,9 @@ namespace CHTL
 
                 if (tmpl) {
                     for (const auto& prop_ptr : tmpl->properties) {
-                        evaluateAndStoreProperty(prop_ptr.get(), local_context, inline_properties);
+                        if (auto* prop = dynamic_cast<StyleProperty*>(prop_ptr.get())) {
+                            evaluateAndStoreProperty(prop, local_context, inline_properties);
+                        }
                     }
                 }
             }

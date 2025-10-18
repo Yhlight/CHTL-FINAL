@@ -160,11 +160,20 @@ namespace CHTL
                     }
 
                     if (tmpl) {
-                        for (const auto& prop : tmpl->properties)
-                        {
-                            if (prop->name == var_access_node->variable_name)
+                        if (tmpl->type == "@Var") {
+                             auto it = tmpl->variables.find(var_access_node->variable_name);
+                            if (it != tmpl->variables.end()) {
+                                return eval(it->second.get(), context);
+                            }
+                        } else if (tmpl->type == "@Style") {
+                            for (const auto& node : tmpl->properties)
                             {
-                                return eval(prop->value.get(), context);
+                                if (auto* prop = dynamic_cast<StyleProperty*>(node.get())) {
+                                     if (prop->name == var_access_node->variable_name)
+                                    {
+                                        return eval(prop->value.get(), context);
+                                    }
+                                }
                             }
                         }
                     }

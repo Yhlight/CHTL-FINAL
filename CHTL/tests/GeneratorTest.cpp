@@ -618,6 +618,33 @@ TEST_CASE("Generator correctly handles chained and optional-else conditional exp
     }
 }
 
+TEST_CASE("Generator handles variable template usage in styles", "[generator][template]")
+{
+    std::string input = R"(
+        [Template] @Var Theme {
+            brandColor: "#A020F0";
+        }
+
+        div {
+            style {
+                color: Theme(brandColor);
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator g;
+    std::string output = g.Generate(program.get());
+
+    INFO("Generated Output:\n" << output);
+
+    // The style should be inlined in the div element
+    REQUIRE(output.find(R"(<div style="color:#A020F0;"></div>)") != std::string::npos);
+}
+
 TEST_CASE("Generator handles local style blocks correctly after refactoring", "[generator]")
 {
     std::string input = R"(

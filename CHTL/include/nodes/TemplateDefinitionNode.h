@@ -1,21 +1,26 @@
 #pragma once
 
+#pragma once
+
 #include "AstNode.h"
 #include <vector>
 #include <memory>
 #include <string>
+#include <map>
 
 namespace CHTL
 {
-    struct StyleProperty; // Forward declaration
+    struct Expression; // Forward declaration
 
     // 模板定义节点, e.g., [Template] @Style DefaultText { ... }
     struct TemplateDefinitionNode : public AstNode
     {
-        std::string type; // e.g., "@Style", "@Element"
+        std::string type; // e.g., "@Style", "@Element", "@Var"
         std::string name;
-        // For @Style or @Var templates
-        std::vector<std::unique_ptr<StyleProperty>> properties;
+        // For @Var templates
+        std::map<std::string, std::unique_ptr<Expression>> variables;
+        // For @Style templates
+        std::vector<std::unique_ptr<AstNode>> properties; // Can be StyleProperty or TemplateUsage
         // For @Element templates
         std::vector<std::unique_ptr<AstNode>> body;
 

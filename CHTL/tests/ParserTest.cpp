@@ -65,6 +65,74 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a Var Template definition", "[parser][template]")
+{
+    std::string input = R"(
+        [Template] @Var ThemeColors {
+            primary: "#ff0000";
+            secondary: blue;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* template_def_node = dynamic_cast<CHTL::TemplateDefinitionNode*>(program->children[0].get());
+    REQUIRE(template_def_node != nullptr);
+    REQUIRE(template_def_node->type == "@Var");
+    REQUIRE(template_def_node->name == "ThemeColors");
+    REQUIRE(template_def_node->variables.size() == 2);
+
+    // Check first variable
+    auto it = template_def_node->variables.find("primary");
+    REQUIRE(it != template_def_node->variables.end());
+    auto* value1 = dynamic_cast<CHTL::StringLiteral*>(it->second.get());
+    REQUIRE(value1 != nullptr);
+    REQUIRE(value1->value == "#ff0000");
+
+    // Check second variable
+    it = template_def_node->variables.find("secondary");
+    REQUIRE(it != template_def_node->variables.end());
+    auto* value2 = dynamic_cast<CHTL::Identifier*>(it->second.get());
+    REQUIRE(value2 != nullptr);
+    REQUIRE(value2->value == "blue");
+}
+
+TEST_CASE("Test parsing a style property using a variable", "[parser][expression]")
+{
+    std::string input = R"(
+        style {
+            color: ThemeColors(primary);
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
+    REQUIRE(style_node != nullptr);
+    REQUIRE(style_node->children.size() == 1);
+
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "color");
+
+    auto* var_access = dynamic_cast<CHTL::VariableAccessNode*>(prop->value.get());
+    REQUIRE(var_access != nullptr);
+    REQUIRE(var_access->template_name == "ThemeColors");
+    REQUIRE(var_access->variable_name == "primary");
+}
+
 TEST_CASE("Test parsing attribute access expression in a style property", "[parser][expression]")
 {
     std::string input = R"(

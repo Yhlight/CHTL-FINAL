@@ -157,6 +157,16 @@ TEST_CASE("Test More Block Keywords", "[lexer]")
     runLexerTest(input, expected);
 }
 
+TEST_CASE("Test script keyword", "[lexer]")
+{
+	std::string input = "script";
+	std::vector<CHTL::Token> expected = {
+		{CHTL::TokenType::KEYWORD_SCRIPT, "script"},
+		{CHTL::TokenType::END_OF_FILE, ""}
+	};
+	runLexerTest(input, expected);
+}
+
 TEST_CASE("Test Number with Unit", "[lexer]")
 {
     std::string input = "100px 2.5rem 50%";

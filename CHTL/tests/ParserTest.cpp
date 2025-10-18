@@ -63,6 +63,45 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a script block", "[parser][script]")
+{
+    std::string input = R"(
+        div {
+            script {
+                let a = 1;
+                if (a > 0) {
+                    console.log("hello");
+                }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* element_node = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(element_node != nullptr);
+    REQUIRE(element_node->tag_name == "div");
+    REQUIRE(element_node->children.size() == 1);
+
+    auto* script_node = dynamic_cast<CHTL::ScriptNode*>(element_node->children[0].get());
+    REQUIRE(script_node != nullptr);
+
+    // Verify that the content is preserved exactly, including whitespace and newlines
+    std::string expected_content = R"(
+                let a = 1;
+                if (a > 0) {
+                    console.log("hello");
+                }
+            )";
+    REQUIRE(script_node->content == expected_content);
+}
+
 TEST_CASE("Test parsing an if block", "[parser][if]")
 {
     std::string input = R"(

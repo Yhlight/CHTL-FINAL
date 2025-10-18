@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "Parser.h"
-#include "Lexer.h"
+#include "parser/Parser.h"
+#include "lexer/Lexer.h"
 #include "AstNode.h"
 
 #include <string>

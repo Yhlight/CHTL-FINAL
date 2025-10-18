@@ -1,6 +1,6 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "Evaluator.h"
+#include "eval/Evaluator.h"
 #include "AstNode.h"
 
 #include <memory>

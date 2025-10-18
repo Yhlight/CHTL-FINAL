@@ -1,5 +1,5 @@
-#include "Generator.h"
-#include "Evaluator.h"
+#include "generator/Generator.h"
+#include "eval/Evaluator.h"
 #include <stdexcept>
 #include <vector>
 #include <unordered_set>

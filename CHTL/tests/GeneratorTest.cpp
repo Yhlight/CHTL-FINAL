@@ -1,8 +1,8 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "Parser.h"
-#include "Lexer.h"
-#include "Generator.h"
+#include "parser/Parser.h"
+#include "lexer/Lexer.h"
+#include "generator/Generator.h"
 #include "AstNode.h"
 
 #include <string>

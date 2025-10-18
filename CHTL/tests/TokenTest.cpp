@@ -1,7 +1,7 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
-#include "Lexer.h"
-#include "Token.h"
+#include "lexer/Lexer.h"
+#include "lexer/Token.h"
 
 #include <vector>
 

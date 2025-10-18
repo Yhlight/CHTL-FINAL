@@ -1,7 +1,7 @@
 #pragma once
 
 #include "AstNode.h"
-#include "Evaluator.h" // For EvalContext
+#include "eval/Evaluator.h" // For EvalContext
 #include <string>
 #include <sstream>
 

@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Lexer.h"
+#include "lexer/Lexer.h"
 #include "AstNode.h"
-#include "Token.h"
-#include "Loader.h"
+#include "lexer/Token.h"
+#include "loader/Loader.h"
 #include <memory>
 #include <unordered_set>
 #include <vector>

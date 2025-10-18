@@ -25,6 +25,7 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"use", TokenType::KEYWORD_USE},
     {"html5", TokenType::KEYWORD_HTML5},
     {"if", TokenType::KEYWORD_IF},
+    {"else", TokenType::KEYWORD_ELSE},
 };
 
 Lexer::Lexer(const std::string& input)

@@ -113,6 +113,10 @@ namespace CHTL
     {
         if (m_currentToken.type == TokenType::IDENT)
         {
+            if (m_peekToken.type == TokenType::COLON)
+            {
+                return parseStyleProperty();
+            }
             return parseElementNode();
         }
         else if (m_currentToken.type == TokenType::KEYWORD_TEXT)
@@ -184,7 +188,7 @@ namespace CHTL
             }
             else if (m_currentToken.type == TokenType::KEYWORD_IF)
             {
-                node->children.push_back(parseIfNode());
+                node->children.push_back(parseIfChain());
             }
             else
             {
@@ -207,6 +211,90 @@ namespace CHTL
         return node;
     }
 
+    std::unique_ptr<AstNode> Parser::parseIfChain()
+    {
+        // Expects m_currentToken to be KEYWORD_IF
+        auto if_node = std::make_unique<IfNode>();
+
+        if (!expectPeek(TokenType::LBRACE)) { // consumes 'if', current is '{'
+            m_errors.push_back("Expected '{' to start if block.");
+            return nullptr;
+        }
+        nextToken(); // consumes '{', current is 'condition'
+
+        if (m_currentToken.type != TokenType::IDENT || m_currentToken.literal != "condition") {
+            m_errors.push_back("Expected 'condition' keyword in if block.");
+            return nullptr;
+        }
+
+        if (!expectPeek(TokenType::COLON)) { // consumes 'condition', current is ':'
+            m_errors.push_back("Expected ':' after 'condition'.");
+            return nullptr;
+        }
+        nextToken(); // consumes ':', current is start of expression
+
+        if_node->condition = parseExpression(LOWEST); // consumes expression, current is last token of it
+
+        if (m_peekToken.type != TokenType::SEMICOLON) { // Check peek
+            m_errors.push_back("Expected ';' after if condition.");
+            return nullptr;
+        }
+        nextToken(); // consume last of expr, current is ';'
+        nextToken(); // consume ';', current is start of first statement in block
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE) {
+            auto stmt = parseStatement(); // Should consume until its own end (e.g. ';')
+            if (stmt) {
+                if_node->consequence.push_back(std::move(stmt));
+            }
+            nextToken(); // Move to the next statement
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close if block.");
+            return nullptr;
+        }
+
+        // At this point, m_currentToken is '}'.
+        if (m_peekToken.type == TokenType::KEYWORD_ELSE) {
+            nextToken(); // consume '}', current is 'else'
+
+            if (m_peekToken.type == TokenType::KEYWORD_IF) {
+                nextToken(); // consume 'else', current is 'if'
+                if_node->alternative = parseIfChain(); // Recurse. The recursive call will consume until its own '}'
+            } else { // plain else
+                nextToken(); // consume 'else', current is '{'
+                if_node->alternative = parseElseBlock(); // This will consume until its '}'
+            }
+        }
+
+        return if_node;
+    }
+
+    std::unique_ptr<ElseNode> Parser::parseElseBlock()
+    {
+        // Expects m_currentToken to be '{'
+        auto node = std::make_unique<ElseNode>();
+        if (m_currentToken.type != TokenType::LBRACE) {
+            m_errors.push_back("Expected '{' for else block.");
+            return nullptr;
+        }
+        nextToken(); // consume '{'
+
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE) {
+            auto stmt = parseStatement();
+            if (stmt) {
+                node->consequence.push_back(std::move(stmt));
+            }
+            nextToken();
+        }
+
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close else block.");
+            return nullptr;
+        }
+        return node;
+    }
 
     std::unique_ptr<ExceptNode> Parser::parseExceptNode()
     {
@@ -257,49 +345,6 @@ namespace CHTL
             return nullptr;
         }
 
-        return node;
-    }
-
-    std::unique_ptr<IfNode> Parser::parseIfNode()
-    {
-        auto node = std::make_unique<IfNode>();
-        if (!expectPeek(TokenType::LBRACE)) {
-            m_errors.push_back("Expected '{' for if block.");
-            return nullptr;
-        }
-        nextToken();
-
-        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
-        {
-            if (m_currentToken.type != TokenType::IDENT) {
-                m_errors.push_back("Expected identifier in if block.");
-                nextToken();
-                continue;
-            }
-
-            std::string key = m_currentToken.literal;
-
-            if (!expectPeek(TokenType::COLON)) {
-                m_errors.push_back("Expected ':' after key '" + key + "' in if block.");
-                return nullptr;
-            }
-            nextToken();
-
-            if (key == "condition") {
-                node->condition = parseExpression(LOWEST);
-            } else {
-                auto prop = std::make_unique<StyleProperty>();
-                prop->name = key;
-                prop->value = parseExpression(LOWEST);
-                node->consequence.push_back(std::move(prop));
-            }
-
-            if (m_peekToken.type == TokenType::COMMA) {
-                nextToken();
-            }
-
-            nextToken();
-        }
         return node;
     }
 

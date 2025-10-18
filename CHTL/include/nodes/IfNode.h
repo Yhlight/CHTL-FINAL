@@ -7,13 +7,11 @@
 namespace CHTL
 {
     struct Expression;
-    struct StyleProperty;
-
     struct IfNode : public AstNode
     {
         std::unique_ptr<Expression> condition;
-        std::vector<std::unique_ptr<StyleProperty>> consequence;
-        // TODO: Add support for else-if and else chains
+        std::vector<std::unique_ptr<AstNode>> consequence;
+        std::unique_ptr<AstNode> alternative; // Can be an IfNode or ElseNode
 
         NodeType GetType() const override { return NodeType::If; }
         std::string ToString() const override;

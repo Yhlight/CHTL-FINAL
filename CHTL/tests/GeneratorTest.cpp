@@ -695,8 +695,8 @@ TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[
         std::string input = R"(
             div {
                 if {
-                    condition: 1 > 0,
-                    display: none,
+                    condition: 1 > 0;
+                    display: none;
                 }
             }
         )";
@@ -716,8 +716,8 @@ TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[
         std::string input = R"(
             div {
                 if {
-                    condition: 1 < 0,
-                    display: none,
+                    condition: 1 < 0;
+                    display: none;
                 }
             }
         )";

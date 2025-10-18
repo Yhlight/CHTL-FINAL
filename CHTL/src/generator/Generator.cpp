@@ -1,5 +1,7 @@
 #include "generator/Generator.h"
 #include "eval/Evaluator.h"
+#include "nodes/IfNode.h"
+#include "nodes/ElseNode.h"
 #include <stdexcept>
 #include <vector>
 #include <unordered_set>
@@ -73,14 +75,44 @@ namespace CHTL
                 break;
             case NodeType::TemplateDefinition:
             case NodeType::CustomDefinition:
-            case NodeType::If:
             case NodeType::Style:
             case NodeType::StyleRule:
             case NodeType::StyleProperty:
                 // These nodes are handled contextually by their parents.
                 break;
+            case NodeType::If:
+                visit(static_cast<IfNode*>(node), context);
+                break;
+            case NodeType::Else:
+                visit(static_cast<ElseNode*>(node), context);
+                break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
+        }
+    }
+
+    void Generator::visit(IfNode* node, EvalContext& context)
+    {
+        Evaluator evaluator;
+        Value result = evaluator.Eval(node->condition.get(), context);
+        if (result.IsTruthy())
+        {
+            for (const auto& child : node->consequence)
+            {
+                visit(child.get(), context);
+            }
+        }
+        else if (node->alternative)
+        {
+            visit(node->alternative.get(), context);
+        }
+    }
+
+    void Generator::visit(ElseNode* node, EvalContext& context)
+    {
+        for (const auto& child : node->consequence)
+        {
+            visit(child.get(), context);
         }
     }
 
@@ -251,24 +283,28 @@ namespace CHTL
             {
                 auto* if_node = static_cast<IfNode*>(child.get());
                 Value condition_result = evaluator.Eval(if_node->condition.get(), context);
-                if (condition_result.type == ValueType::BOOL && condition_result.boolean)
+                if (condition_result.IsTruthy())
                 {
-                    // Condition is true, apply styles
                     std::stringstream temp_style_stream;
-                    for (const auto& prop : if_node->consequence) {
-                        visit(prop.get(), context, temp_style_stream);
-                    }
-
-                    bool style_attr_exists = false;
-                    for (auto& attr : node->attributes) {
-                        if (attr.name == "style") {
-                            attr.value += temp_style_stream.str();
-                            style_attr_exists = true;
-                            break;
+                    for (const auto& prop_node : if_node->consequence) {
+                        if (prop_node->GetType() == NodeType::StyleProperty) {
+                            visit(static_cast<StyleProperty*>(prop_node.get()), context, temp_style_stream);
                         }
                     }
-                    if (!style_attr_exists && !temp_style_stream.str().empty()) {
-                        node->attributes.push_back({"style", temp_style_stream.str()});
+
+                    std::string new_styles = temp_style_stream.str();
+                    if (!new_styles.empty()) {
+                        bool style_attr_exists = false;
+                        for (auto& attr : node->attributes) {
+                            if (attr.name == "style") {
+                                attr.value += new_styles;
+                                style_attr_exists = true;
+                                break;
+                            }
+                        }
+                        if (!style_attr_exists) {
+                            node->attributes.push_back({"style", new_styles});
+                        }
                     }
                 }
             }
@@ -285,7 +321,7 @@ namespace CHTL
         for (const auto& child : node->children)
         {
             // Skip nodes that are not for content generation or are forbidden
-            if (child->GetType() == NodeType::Style || child->GetType() == NodeType::Except) {
+            if (child->GetType() == NodeType::Style || child->GetType() == NodeType::Except || child->GetType() == NodeType::If) {
                 continue;
             }
 

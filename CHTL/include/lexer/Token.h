@@ -45,6 +45,7 @@ namespace CHTL
         KEYWORD_USE,        // use
         KEYWORD_HTML5,      // html5
         KEYWORD_IF,         // if
+        KEYWORD_ELSE,       // else
 
         // 运算符
         COLON,      // : or =

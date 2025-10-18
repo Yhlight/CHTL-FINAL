@@ -31,6 +31,7 @@ namespace CHTL
         DeleteSpecialization,
         InsertSpecialization,
         If,
+        Else,
         // Style-related
         StyleProperty,
         StyleRule,
@@ -74,6 +75,7 @@ namespace CHTL
 #include "DeleteSpecializationNode.h"
 #include "InsertSpecializationNode.h"
 #include "IfNode.h"
+#include "ElseNode.h"
 #include "StylePropertyNode.h"
 #include "StyleRuleNode.h"
 #include "ExpressionNode.h"

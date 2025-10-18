@@ -15,6 +15,20 @@ enum class ValueType { EMPTY, NUMBER, STRING, BOOL };
         std::string str = "";
         bool boolean = false;
 
+        bool IsTruthy() const {
+            switch (type) {
+                case ValueType::BOOL:
+                    return boolean;
+                case ValueType::NUMBER:
+                    return num != 0;
+                case ValueType::STRING:
+                    return !str.empty();
+                case ValueType::EMPTY:
+                    return false;
+            }
+            return false;
+        }
+
         // Overload operators for convenience
         Value operator+(const Value& other) const;
         Value operator-(const Value& other) const;

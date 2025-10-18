@@ -1,13 +1,12 @@
-#include "nodes/IfNode.h"
-#include "nodes/ExpressionNode.h"
+#include "nodes/ElseNode.h"
 #include <sstream>
 
 namespace CHTL
 {
-    std::string IfNode::ToString() const
+    std::string ElseNode::ToString() const
     {
         std::stringstream ss;
-        ss << "IfNode(condition: " << condition->ToString() << ", consequence: [";
+        ss << "ElseNode(consequence: [";
         for (size_t i = 0; i < consequence.size(); ++i)
         {
             ss << consequence[i]->ToString();
@@ -17,10 +16,6 @@ namespace CHTL
             }
         }
         ss << "])";
-        if (alternative)
-        {
-            ss << " else " << alternative->ToString();
-        }
         return ss.str();
     }
 }

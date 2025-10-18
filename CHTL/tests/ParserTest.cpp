@@ -68,9 +68,9 @@ TEST_CASE("Test parsing an if block", "[parser][if]")
     std::string input = R"(
         div {
             if {
-                condition: 1 > 0,
-                display: none,
-                color: "red",
+                condition: 1 > 0;
+                display: none;
+                color: "red";
             }
         }
     )";
@@ -97,15 +97,58 @@ TEST_CASE("Test parsing an if block", "[parser][if]")
 
     // Check consequence
     REQUIRE(if_node->consequence.size() == 2);
-    auto* prop1 = if_node->consequence[0].get();
-    REQUIRE(prop1->name == "display");
-    auto* prop1_val = dynamic_cast<CHTL::Identifier*>(prop1->value.get());
+    auto* prop1_node = dynamic_cast<CHTL::StyleProperty*>(if_node->consequence[0].get());
+    REQUIRE(prop1_node != nullptr);
+    REQUIRE(prop1_node->name == "display");
+    auto* prop1_val = dynamic_cast<CHTL::Identifier*>(prop1_node->value.get());
     REQUIRE(prop1_val->value == "none");
 
-    auto* prop2 = if_node->consequence[1].get();
-    REQUIRE(prop2->name == "color");
-    auto* prop2_val = dynamic_cast<CHTL::StringLiteral*>(prop2->value.get());
+    auto* prop2_node = dynamic_cast<CHTL::StyleProperty*>(if_node->consequence[1].get());
+    REQUIRE(prop2_node != nullptr);
+    REQUIRE(prop2_node->name == "color");
+    auto* prop2_val = dynamic_cast<CHTL::StringLiteral*>(prop2_node->value.get());
     REQUIRE(prop2_val->value == "red");
+}
+
+TEST_CASE("Test parsing an if-else if-else chain", "[parser][if]")
+{
+    std::string input = R"(
+        div {
+            if { condition: 1 > 2; color: "red"; }
+            else if { condition: 1 > 1; color: "green"; }
+            else { color: "blue"; }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    auto* element_node = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(element_node != nullptr);
+    REQUIRE(element_node->children.size() == 1);
+
+    // Check if-node
+    auto* if_node = dynamic_cast<CHTL::IfNode*>(element_node->children[0].get());
+    REQUIRE(if_node != nullptr);
+    REQUIRE(if_node->consequence.size() == 1);
+    REQUIRE(if_node->alternative != nullptr);
+
+    // Check else-if-node
+    auto* else_if_node = dynamic_cast<CHTL::IfNode*>(if_node->alternative.get());
+    REQUIRE(else_if_node != nullptr);
+    REQUIRE(else_if_node->consequence.size() == 1);
+    REQUIRE(else_if_node->alternative != nullptr);
+
+    // Check else-node
+    auto* else_node = dynamic_cast<CHTL::ElseNode*>(else_if_node->alternative.get());
+    REQUIRE(else_node != nullptr);
+    REQUIRE(else_node->consequence.size() == 1);
+    auto* prop_node = dynamic_cast<CHTL::StyleProperty*>(else_node->consequence[0].get());
+    REQUIRE(prop_node != nullptr);
+    REQUIRE(prop_node->name == "color");
 }
 
 TEST_CASE("Test parsing a CustomUsage with insert specialization", "[parser]")

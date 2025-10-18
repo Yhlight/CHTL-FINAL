@@ -28,6 +28,8 @@ namespace CHTL
         void visit(StyleNode* node, EvalContext& context, ElementNode* parent);
         void visit(StyleRuleNode* node, EvalContext& context, ElementNode* parent);
         void visit(StyleProperty* node, EvalContext& context, std::stringstream& style_stream);
+        void visit(IfNode* node, EvalContext& context);
+        void visit(ElseNode* node, EvalContext& context);
 
 
         std::stringstream m_output;

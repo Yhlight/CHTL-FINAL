@@ -42,6 +42,7 @@ namespace CHTL
         InfixExpression,
         ConditionalExpression,
         VariableAccess,
+        AttributeAccess,
         ExpressionList,
     };
 

@@ -74,6 +74,7 @@ namespace CHTL
         std::unique_ptr<Expression> parseNumberLiteral();
         std::unique_ptr<Expression> parseStringLiteral();
         std::unique_ptr<Expression> parseVariableAccessExpression();
+        std::unique_ptr<Expression> parseAttributeAccessExpression();
         std::unique_ptr<Expression> parseInfixExpression(std::unique_ptr<Expression> left);
         std::unique_ptr<Expression> parseConditionalExpression(std::unique_ptr<Expression> condition);
 

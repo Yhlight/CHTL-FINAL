@@ -80,4 +80,14 @@ namespace CHTL
         NodeType GetType() const override { return NodeType::ExpressionList; }
         std::string ToString() const override;
     };
+
+    // 属性访问表达式节点, e.g., .box.width
+    struct AttributeAccessExpression : public Expression
+    {
+        std::string selector;
+        std::string attribute_name;
+
+        NodeType GetType() const override { return NodeType::AttributeAccess; }
+        std::string ToString() const override { return selector + "." + attribute_name; }
+    };
 }

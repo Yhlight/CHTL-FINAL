@@ -1063,6 +1063,11 @@ namespace CHTL
         {
             leftExp = parseStringLiteral();
         }
+        else if (m_currentToken.type == TokenType::DOT)
+        {
+            nextToken();
+            leftExp = parseAttributeAccessExpression();
+        }
         else
         {
             m_errors.push_back("No prefix parse function for " + TokenTypeToString(m_currentToken.type) + " found.");
@@ -1139,6 +1144,32 @@ namespace CHTL
             expr->alternative = nullptr;
         }
         return expr;
+    }
+
+    std::unique_ptr<Expression> Parser::parseAttributeAccessExpression()
+    {
+        auto node = std::make_unique<AttributeAccessExpression>();
+        std::string selector;
+        // The first DOT is already consumed by the caller.
+        selector += ".";
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected identifier for class name in selector.");
+            return nullptr;
+        }
+        selector += m_currentToken.literal;
+        if (m_peekToken.type != TokenType::DOT) {
+            m_errors.push_back("Expected '.' after selector in attribute access.");
+            return nullptr;
+        }
+        nextToken(); // consume class name
+        nextToken(); // consume '.'
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected identifier for attribute name in attribute access.");
+            return nullptr;
+        }
+        node->selector = selector;
+        node->attribute_name = m_currentToken.literal;
+        return node;
     }
 
     std::unique_ptr<Expression> Parser::parseIdentifier()

@@ -65,6 +65,43 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing attribute access expression in a style property", "[parser][expression]")
+{
+    std::string input = R"(
+        style {
+            width: .box.width + 10;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
+    REQUIRE(style_node != nullptr);
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "width");
+
+    // Check for expression: (.box.width + 10)
+    auto* expr = dynamic_cast<CHTL::InfixExpression*>(prop->value.get());
+    REQUIRE(expr != nullptr);
+    REQUIRE(expr->op == "+");
+
+    // Check left side: .box.width
+    auto* attr_access = dynamic_cast<CHTL::AttributeAccessExpression*>(expr->left.get());
+    REQUIRE(attr_access != nullptr);
+    REQUIRE(attr_access->selector == ".box");
+    REQUIRE(attr_access->attribute_name == "width");
+
+    // Check right side: 10
+    auto* right_num = dynamic_cast<CHTL::NumberLiteral*>(expr->right.get());
+    REQUIRE(right_num != nullptr);
+    REQUIRE(right_num->value == 10.0);
+}
+
 TEST_CASE("Test parsing a script block", "[parser][script]")
 {
     std::string input = R"(

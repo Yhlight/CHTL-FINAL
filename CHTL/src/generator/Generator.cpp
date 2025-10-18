@@ -96,13 +96,18 @@ namespace CHTL
 
     void Generator::visit(IfNode* node, EvalContext& context)
     {
+        // This visitor is now only for content generation.
+        // Style application is handled in the ElementNode visitor's first pass.
         Evaluator evaluator;
         Value result = evaluator.Eval(node->condition.get(), context);
         if (result.IsTruthy())
         {
             for (const auto& child : node->consequence)
             {
-                visit(child.get(), context);
+                // We only visit content-generating nodes here.
+                if (child->GetType() != NodeType::StyleProperty) {
+                    visit(child.get(), context);
+                }
             }
         }
         else if (node->alternative)
@@ -120,6 +125,31 @@ namespace CHTL
     }
 
     // Helper to find the index of a target node based on a simple selector like "tag[index]"
+
+    // Helper function to append styles to an element's style attribute
+    void appendStyles(ElementNode* element, const std::string& new_styles)
+    {
+        if (new_styles.empty()) {
+            return;
+        }
+
+        bool style_attr_exists = false;
+        for (auto& attr : element->attributes) {
+            if (attr.name == "style") {
+                // Ensure there's a semicolon before adding new styles if the attribute is not empty
+                if (!attr.value.empty() && attr.value.back() != ';') {
+                    attr.value += ';';
+                }
+                attr.value += new_styles;
+                style_attr_exists = true;
+                break;
+            }
+        }
+        if (!style_attr_exists) {
+            element->attributes.push_back({"style", new_styles});
+        }
+    }
+
     static int findTargetIndex(const std::vector<AstNode*>& nodes, const std::string& selector)
     {
         std::string tag;
@@ -284,30 +314,42 @@ namespace CHTL
             }
             else if (child->GetType() == NodeType::If)
             {
-                auto* if_node = static_cast<IfNode*>(child.get());
-                Value condition_result = evaluator.Eval(if_node->condition.get(), context);
-                if (condition_result.IsTruthy())
-                {
-                    std::stringstream temp_style_stream;
-                    for (const auto& prop_node : if_node->consequence) {
-                        if (prop_node->GetType() == NodeType::StyleProperty) {
-                            visit(static_cast<StyleProperty*>(prop_node.get()), context, temp_style_stream);
+                // Find the first 'if' or 'else if' that is true in the chain.
+                AstNode* current_in_chain = child.get();
+                bool condition_met = false;
+                while(current_in_chain && !condition_met) {
+                    if (current_in_chain->GetType() == NodeType::If) {
+                        auto* if_node = static_cast<IfNode*>(current_in_chain);
+                        Value condition_result = evaluator.Eval(if_node->condition.get(), context);
+                        if (condition_result.IsTruthy()) {
+                            // Apply styles from this block
+                            std::stringstream temp_style_stream;
+                            for (const auto& prop_node : if_node->consequence) {
+                                if (prop_node->GetType() == NodeType::StyleProperty) {
+                                    visit(static_cast<StyleProperty*>(prop_node.get()), context, temp_style_stream);
+                                }
+                            }
+                            std::string new_styles = temp_style_stream.str();
+                            appendStyles(node, new_styles);
+                            condition_met = true;
                         }
-                    }
-
-                    std::string new_styles = temp_style_stream.str();
-                    if (!new_styles.empty()) {
-                        bool style_attr_exists = false;
-                        for (auto& attr : node->attributes) {
-                            if (attr.name == "style") {
-                                attr.value += new_styles;
-                                style_attr_exists = true;
-                                break;
+                        current_in_chain = if_node->alternative.get();
+                    } else if (current_in_chain->GetType() == NodeType::Else) {
+                        // This is the final 'else', it has no condition.
+                        // Apply its styles.
+                        auto* else_node = static_cast<ElseNode*>(current_in_chain);
+                        std::stringstream temp_style_stream;
+                        for (const auto& prop_node : else_node->consequence) {
+                           if (prop_node->GetType() == NodeType::StyleProperty) {
+                                visit(static_cast<StyleProperty*>(prop_node.get()), context, temp_style_stream);
                             }
                         }
-                        if (!style_attr_exists) {
-                            node->attributes.push_back({"style", new_styles});
-                        }
+                        std::string new_styles = temp_style_stream.str();
+                        appendStyles(node, new_styles);
+                        condition_met = true; // Stop searching
+                    } else {
+                        // Not an if or else, break the chain search.
+                        break;
                     }
                 }
             }
@@ -323,8 +365,8 @@ namespace CHTL
         // Second pass: process and generate content children, checking constraints
         for (const auto& child : node->children)
         {
-            // Skip nodes that are not for content generation or are forbidden
-            if (child->GetType() == NodeType::Style || child->GetType() == NodeType::Except || child->GetType() == NodeType::If) {
+            // Skip style and except nodes, but now PROCESS if nodes
+            if (child->GetType() == NodeType::Style || child->GetType() == NodeType::Except) {
                 continue;
             }
 

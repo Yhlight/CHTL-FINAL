@@ -32,3 +32,7 @@ target_include_directories(CHTLJSLexerTest PRIVATE ../../third-party)
 add_executable(CHTLJSParserTest CHTLJSParserTest.cpp)
 target_link_libraries(CHTLJSParserTest PRIVATE CHTL)
 target_include_directories(CHTLJSParserTest PRIVATE ../../third-party)
+
+add_executable(IfElseGeneratorTest IfElseGeneratorTest.cpp)
+target_link_libraries(IfElseGeneratorTest PRIVATE CHTL)
+target_include_directories(IfElseGeneratorTest PRIVATE ../../third-party)

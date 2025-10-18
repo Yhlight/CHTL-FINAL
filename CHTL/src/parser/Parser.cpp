@@ -141,6 +141,10 @@ namespace CHTL
         {
             return parseScriptNode();
         }
+        else if (m_currentToken.type == TokenType::KEYWORD_IF)
+        {
+            return parseIfChain();
+        }
         return nullptr;
     }
 
@@ -265,8 +269,10 @@ namespace CHTL
                 nextToken(); // consume 'else', current is 'if'
                 if_node->alternative = parseIfChain(); // Recurse. The recursive call will consume until its own '}'
             } else { // plain else
-                nextToken(); // consume 'else', current is '{'
-                if_node->alternative = parseElseBlock(); // This will consume until its '}'
+                if (m_peekToken.type == TokenType::LBRACE) {
+                    nextToken(); // consume 'else', current is '{'
+                    if_node->alternative = parseElseBlock(); // This will consume until its '}'
+                }
             }
         }
 

@@ -1,5 +1,7 @@
 #include "parser/Parser.h"
 #include "loader/Loader.h"
+#include "CHTLJS/include/lexer/Lexer.h"
+#include "CHTLJS/include/parser/Parser.h"
 #include <memory>
 #include <fstream>
 #include <sstream>
@@ -1206,10 +1208,31 @@ namespace CHTL
             m_errors.push_back("Expected '{' for script block.");
             return nullptr;
         }
+
+        // Manually advance currentToken to '{' without calling the lexer's NextToken().
+        // This preserves the lexer's state, pointing after the '{', and avoids skipping whitespace.
         m_currentToken = m_peekToken;
-        node->content = m_lexer.readRawBlockContent();
-        m_currentToken = m_lexer.NextToken();
-        m_peekToken = m_lexer.NextToken();
+
+        std::string script_content = m_lexer.readRawBlockContent();
+
+        // After readRawBlockContent, the lexer's state is positioned right after
+        // the closing '}'. We need to resynchronize the parser's tokens.
+        m_currentToken = m_lexer.NextToken(); // Get the token after '}' which should be '}' itself from parser's view.
+        if (m_currentToken.type != TokenType::RBRACE) {
+             m_errors.push_back("Expected '}' to close script block after reading content.");
+        }
+        m_peekToken = m_lexer.NextToken();     // And the one after that
+
+        // Now, parse the collected script content with the CHTLJS parser
+        CHTLJS::Lexer js_lexer(script_content);
+        CHTLJS::Parser js_parser(js_lexer);
+        node->js_ast = js_parser.ParseProgram();
+
+        // Transfer any errors from the JS parser to the main parser
+        for (const auto& err : js_parser.GetErrors()) {
+            m_errors.push_back("CHTL JS Parser Error: " + err);
+        }
+
         return node;
     }
 }

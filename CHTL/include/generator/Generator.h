@@ -5,6 +5,14 @@
 #include <string>
 #include <sstream>
 
+// Forward declarations for CHTLJS nodes to avoid including the headers here
+namespace CHTLJS {
+    struct AstNode;
+    struct ProgramNode;
+    struct EnhancedSelectorNode;
+    struct RawJSNode;
+}
+
 namespace CHTL
 {
     class Generator
@@ -30,6 +38,12 @@ namespace CHTL
         void visit(StyleProperty* node, EvalContext& context, std::stringstream& style_stream);
         void visit(IfNode* node, EvalContext& context);
         void visit(ElseNode* node, EvalContext& context);
+
+        // CHTL JS AST visitors
+        void visit(CHTLJS::AstNode* node, EvalContext& context);
+        void visit(CHTLJS::ProgramNode* node, EvalContext& context);
+        void visit(CHTLJS::EnhancedSelectorNode* node, EvalContext& context);
+        void visit(CHTLJS::RawJSNode* node, EvalContext& context);
 
 
         std::stringstream m_output;

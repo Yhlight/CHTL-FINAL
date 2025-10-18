@@ -1,13 +1,15 @@
 #pragma once
 
 #include "AstNode.h"
+#include "CHTLJS/include/nodes/AstNode.h"
 #include <string>
+#include <memory>
 
 namespace CHTL
 {
     struct ScriptNode : public AstNode
     {
-        std::string content;
+        std::unique_ptr<CHTLJS::ProgramNode> js_ast;
 
         NodeType GetType() const override { return NodeType::Script; }
         std::string ToString() const override;

@@ -2,6 +2,9 @@
 #include "eval/Evaluator.h"
 #include "nodes/IfNode.h"
 #include "nodes/ElseNode.h"
+#include "CHTLJS/include/nodes/AstNode.h"
+#include "CHTLJS/include/nodes/EnhancedSelectorNode.h"
+#include "CHTLJS/include/nodes/RawJSNode.h"
 #include <stdexcept>
 #include <vector>
 #include <unordered_set>
@@ -528,7 +531,53 @@ namespace CHTL
 
     void Generator::visit(ScriptNode* node, EvalContext& context)
     {
-        m_output << "<script>" << node->content << "</script>";
+        m_output << "<script>";
+        if (node->js_ast)
+        {
+            visit(node->js_ast.get(), context);
+        }
+        m_output << "</script>";
+    }
+
+    // CHTL JS Visitors
+    void Generator::visit(CHTLJS::AstNode* node, EvalContext& context)
+    {
+        if (!node) return;
+
+        switch (node->GetType())
+        {
+            case CHTLJS::NodeType::Program:
+                visit(static_cast<CHTLJS::ProgramNode*>(node), context);
+                break;
+            case CHTLJS::NodeType::EnhancedSelector:
+                visit(static_cast<CHTLJS::EnhancedSelectorNode*>(node), context);
+                break;
+            case CHTLJS::NodeType::RawJS:
+                visit(static_cast<CHTLJS::RawJSNode*>(node), context);
+                break;
+            default:
+                // For now, do nothing for unknown JS nodes
+                break;
+        }
+    }
+
+    void Generator::visit(CHTLJS::ProgramNode* node, EvalContext& context)
+    {
+        for (const auto& child : node->children)
+        {
+            visit(child.get(), context);
+        }
+    }
+
+    void Generator::visit(CHTLJS::RawJSNode* node, EvalContext& context)
+    {
+        m_output << node->content;
+    }
+
+    void Generator::visit(CHTLJS::EnhancedSelectorNode* node, EvalContext& context)
+    {
+        // Basic translation, doesn't handle all selector types from CHTL.md yet
+        m_output << "document.querySelector('" << node->selector << "')";
     }
 
     void Generator::visit(OriginNode* node, EvalContext& context)

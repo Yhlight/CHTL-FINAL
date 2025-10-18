@@ -663,13 +663,12 @@ TEST_CASE("Generator handles local style blocks correctly after refactoring", "[
     REQUIRE(style_attr_content.find("font-size") == std::string::npos); // font-size should not be inline
 }
 
-TEST_CASE("Generator correctly generates script blocks", "[generator][script]")
+TEST_CASE("Generator correctly generates script blocks with CHTL JS", "[generator][script]")
 {
     std::string input = R"(
         div {
             script {
-                let a = 1;
-                if (a > 0) { console.log("hello"); }
+                let my_element = {{ .my-div }};
             }
         }
     )";
@@ -680,11 +679,9 @@ TEST_CASE("Generator correctly generates script blocks", "[generator][script]")
 
     CHTL::Generator generator;
     std::string html_output = generator.Generate(program.get());
-    std::string expected_script_content = R"(
-                let a = 1;
-                if (a > 0) { console.log("hello"); }
-            )";
-    std::string expected_html = "<div><script>" + expected_script_content + "</script></div>";
+
+    // The CHTLJSParser should now correctly interleave RawJS and EnhancedSelector nodes.
+    std::string expected_html = "<div><script>\n                let my_element = document.querySelector('.my-div');\n            </script></div>";
     REQUIRE(html_output == expected_html);
 }
 

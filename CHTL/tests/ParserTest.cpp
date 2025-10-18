@@ -3,6 +3,8 @@
 #include "parser/Parser.h"
 #include "AstNode.h"
 #include "lexer/Lexer.h"
+#include "CHTLJS/include/nodes/EnhancedSelectorNode.h"
+#include "CHTLJS/include/nodes/RawJSNode.h"
 #include <vector>
 #include <string>
 
@@ -68,10 +70,7 @@ TEST_CASE("Test parsing a script block", "[parser][script]")
     std::string input = R"(
         div {
             script {
-                let a = 1;
-                if (a > 0) {
-                    console.log("hello");
-                }
+                let my_element = {{ .my-div }};
             }
         }
     )";
@@ -92,14 +91,21 @@ TEST_CASE("Test parsing a script block", "[parser][script]")
     auto* script_node = dynamic_cast<CHTL::ScriptNode*>(element_node->children[0].get());
     REQUIRE(script_node != nullptr);
 
-    // Verify that the content is preserved exactly, including whitespace and newlines
-    std::string expected_content = R"(
-                let a = 1;
-                if (a > 0) {
-                    console.log("hello");
-                }
-            )";
-    REQUIRE(script_node->content == expected_content);
+    // Verify that the CHTL JS AST was correctly generated
+    REQUIRE(script_node->js_ast != nullptr);
+    REQUIRE(script_node->js_ast->children.size() == 3);
+
+    auto* raw1 = dynamic_cast<CHTLJS::RawJSNode*>(script_node->js_ast->children[0].get());
+    REQUIRE(raw1 != nullptr);
+    REQUIRE(raw1->content == "\n                let my_element = ");
+
+    auto* selector_node = dynamic_cast<CHTLJS::EnhancedSelectorNode*>(script_node->js_ast->children[1].get());
+    REQUIRE(selector_node != nullptr);
+    REQUIRE(selector_node->selector == ".my-div");
+
+    auto* raw2 = dynamic_cast<CHTLJS::RawJSNode*>(script_node->js_ast->children[2].get());
+    REQUIRE(raw2 != nullptr);
+    REQUIRE(raw2->content == ";\n            ");
 }
 
 TEST_CASE("Test parsing an if block", "[parser][if]")

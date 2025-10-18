@@ -17,6 +17,10 @@ file(GLOB_RECURSE CHTL_SOURCES
     "src/loader/*.cpp"
     "src/nodes/*.cpp"
     "src/parser/*.cpp"
+    "CHTLJS/src/*.cpp"
+    "CHTLJS/src/lexer/*.cpp"
+    "CHTLJS/src/nodes/*.cpp"
+    "CHTLJS/src/parser/*.cpp"
 )
 
 # HEADERS 变量现在是不必要的，因为 target_include_directories 已经处理了路径。
@@ -27,6 +31,7 @@ add_library(CHTL STATIC ${CHTL_SOURCES})
 
 # 公开include目录
 target_include_directories(CHTL PUBLIC
+    .
     include
     include/eval
     include/generator

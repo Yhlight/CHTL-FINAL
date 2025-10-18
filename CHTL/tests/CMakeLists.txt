@@ -23,3 +23,12 @@ target_include_directories(GeneratorTest PRIVATE ../../third-party)
 target_include_directories(EvaluatorTest PRIVATE ../../third-party)
 target_include_directories(LexerTest PRIVATE ../../third-party)
 target_include_directories(ParserTest PRIVATE ../../third-party)
+
+# CHTL JS Tests
+add_executable(CHTLJSLexerTest CHTLJSLexerTest.cpp)
+target_link_libraries(CHTLJSLexerTest PRIVATE CHTL)
+target_include_directories(CHTLJSLexerTest PRIVATE ../../third-party)
+
+add_executable(CHTLJSParserTest CHTLJSParserTest.cpp)
+target_link_libraries(CHTLJSParserTest PRIVATE CHTL)
+target_include_directories(CHTLJSParserTest PRIVATE ../../third-party)

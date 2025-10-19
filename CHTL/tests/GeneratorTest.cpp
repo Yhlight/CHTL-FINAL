@@ -55,6 +55,79 @@ TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]"
     }
 }
 
+TEST_CASE("Generator correctly handles type imports", "[generator][import]")
+{
+    std::string main_content = R"CHTL(
+    [Import] [Template] @Style from "style_library.chtl";
+
+    div {
+        style {
+            @Style PrimaryButton;
+        }
+    }
+    p {
+        style {
+            @Style SecondaryText;
+        }
+    }
+)CHTL";
+
+    std::string imported_content = R"CHTL(
+    [Template] @Style PrimaryButton {
+        background-color: "blue";
+        color: "white";
+    }
+
+    [Template] @Style SecondaryText {
+        color: "grey";
+    }
+
+    // This template should not be imported
+    [Template] @Element Irrelevant {
+        span { text: "ignore"; }
+    }
+)CHTL";
+
+    std::ofstream("style_library.chtl") << imported_content;
+
+    CHTL::Lexer l(main_content);
+    CHTL::Parser p(l, "main.chtl");
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    // After parsing, the "Irrelevant" template should NOT be in the program's template map,
+    // because the import was specifically for @Style types.
+    REQUIRE(program->templates.count(CHTL::GLOBAL_NAMESPACE) == 1);
+    const auto& global_templates = program->templates.at(CHTL::GLOBAL_NAMESPACE);
+    REQUIRE(global_templates.count("Irrelevant") == 0);
+
+    CHTL::Generator generator;
+    std::string result = generator.Generate(program.get());
+
+    INFO("Generated HTML: " << result);
+
+    // Check the div's styles
+    size_t div_pos = result.find("<div");
+    REQUIRE(div_pos != std::string::npos);
+    size_t div_style_pos = result.find("style=\"", div_pos);
+    REQUIRE(div_style_pos != std::string::npos);
+    std::string div_style_content = result.substr(div_style_pos + 7);
+    div_style_content = div_style_content.substr(0, div_style_content.find("\""));
+    REQUIRE(div_style_content.find("background-color:blue") != std::string::npos);
+    REQUIRE(div_style_content.find("color:white") != std::string::npos);
+
+    // Check the p's styles
+    size_t p_pos = result.find("<p");
+    REQUIRE(p_pos != std::string::npos);
+    size_t p_style_pos = result.find("style=\"", p_pos);
+    REQUIRE(p_style_pos != std::string::npos);
+    std::string p_style_content = result.substr(p_style_pos + 7);
+    p_style_content = p_style_content.substr(0, p_style_content.find("\""));
+    REQUIRE(p_style_content.find("color:grey") != std::string::npos);
+
+    std::remove("style_library.chtl");
+}
+
 TEST_CASE("Generator handles except constraints", "[generator][except]")
 {
     std::string input = R"(

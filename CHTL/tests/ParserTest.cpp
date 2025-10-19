@@ -65,6 +65,30 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a type import statement", "[parser][import]")
+{
+    std::string input = R"([Import] [Template] @Style from "my-styles.chtl";)";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    // We expect an error at this stage
+    // checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* import_node = dynamic_cast<CHTL::ImportNode*>(program->children[0].get());
+    REQUIRE(import_node != nullptr);
+
+    REQUIRE(import_node->import_scope == "[Template]");
+    REQUIRE(import_node->specific_type == "@Style");
+    REQUIRE(import_node->path == "my-styles.chtl");
+    REQUIRE(import_node->imported_name.empty());
+    REQUIRE(import_node->alias.empty());
+    REQUIRE(import_node->type.empty());
+}
+
 TEST_CASE("Test parsing a Style Template with inherit keyword", "[parser][template]")
 {
     std::string input = R"(

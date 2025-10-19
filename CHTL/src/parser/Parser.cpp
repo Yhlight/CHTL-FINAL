@@ -776,33 +776,77 @@ namespace CHTL
                 }
                 else
                 {
-                    // Wildcard/type import.
+                    // This handles both wildcard imports (e.g., [Import] @Chtl) and type imports (e.g., [Import] [Template] @Style).
                     std::unordered_map<const AstNode *, AstNode *> already_cloned;
 
-                    for (auto const &[ns, def_map] : imported_program->templates)
+                    if (node->import_scope == "[Template]")
                     {
-                        for (auto const &[name, def_ptr] : def_map)
+                        for (auto const &[ns, def_map] : imported_program->templates)
                         {
-                            if (already_cloned.find(def_ptr) == already_cloned.end())
+                            for (auto const &[name, def_ptr] : def_map)
                             {
-                                std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-                                already_cloned[def_ptr] = cloned_def.get();
-                                program.children.push_back(std::move(cloned_def));
+                                // If specific_type is empty, it's a wildcard for the scope, so import all.
+                                // Otherwise, only import if the type matches.
+                                if (node->specific_type.empty() || def_ptr->type == node->specific_type)
+                                {
+                                    if (already_cloned.find(def_ptr) == already_cloned.end())
+                                    {
+                                        std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
+                                        already_cloned[def_ptr] = cloned_def.get();
+                                        program.children.push_back(std::move(cloned_def));
+                                    }
+                                    program.templates[ns][name] = static_cast<const TemplateDefinitionNode *>(already_cloned[def_ptr]);
+                                }
                             }
-                            program.templates[ns][name] = static_cast<const TemplateDefinitionNode *>(already_cloned[def_ptr]);
                         }
                     }
-                    for (auto const &[ns, def_map] : imported_program->customs)
+                    else if (node->import_scope == "[Custom]")
                     {
-                        for (auto const &[name, def_ptr] : def_map)
+                        for (auto const &[ns, def_map] : imported_program->customs)
                         {
-                            if (already_cloned.find(def_ptr) == already_cloned.end())
+                            for (auto const &[name, def_ptr] : def_map)
                             {
-                                std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-                                already_cloned[def_ptr] = cloned_def.get();
-                                program.children.push_back(std::move(cloned_def));
+                                if (node->specific_type.empty() || def_ptr->type == node->specific_type)
+                                {
+                                    if (already_cloned.find(def_ptr) == already_cloned.end())
+                                    {
+                                        std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
+                                        already_cloned[def_ptr] = cloned_def.get();
+                                        program.children.push_back(std::move(cloned_def));
+                                    }
+                                    program.customs[ns][name] = static_cast<const CustomDefinitionNode *>(already_cloned[def_ptr]);
+                                }
                             }
-                            program.customs[ns][name] = static_cast<const CustomDefinitionNode *>(already_cloned[def_ptr]);
+                        }
+                    }
+                    else
+                    {
+                        // Fallback for general wildcard import ([Import] @Chtl), import everything.
+                        for (auto const &[ns, def_map] : imported_program->templates)
+                        {
+                            for (auto const &[name, def_ptr] : def_map)
+                            {
+                                if (already_cloned.find(def_ptr) == already_cloned.end())
+                                {
+                                    std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
+                                    already_cloned[def_ptr] = cloned_def.get();
+                                    program.children.push_back(std::move(cloned_def));
+                                }
+                                program.templates[ns][name] = static_cast<const TemplateDefinitionNode *>(already_cloned[def_ptr]);
+                            }
+                        }
+                        for (auto const &[ns, def_map] : imported_program->customs)
+                        {
+                            for (auto const &[name, def_ptr] : def_map)
+                            {
+                                if (already_cloned.find(def_ptr) == already_cloned.end())
+                                {
+                                    std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
+                                    already_cloned[def_ptr] = cloned_def.get();
+                                    program.children.push_back(std::move(cloned_def));
+                                }
+                                program.customs[ns][name] = static_cast<const CustomDefinitionNode *>(already_cloned[def_ptr]);
+                            }
                         }
                     }
                 }

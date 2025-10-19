@@ -7,6 +7,7 @@
 #include <sstream>
 #include <unordered_set>
 #include <filesystem>
+#include <algorithm>
 
 namespace CHTL
 {
@@ -634,54 +635,184 @@ namespace CHTL
     std::unique_ptr<ImportNode> Parser::parseImportNode(ProgramNode& program)
     {
         auto node = std::make_unique<ImportNode>();
-        if (!expectPeek(TokenType::AT)) {
-            m_errors.push_back("Expected '@' for import type.");
+        nextToken(); // consume [Import]
+
+        // Check for precise/type import syntax: [Template], [Custom], [Origin]
+        if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE ||
+            m_currentToken.type == TokenType::KEYWORD_CUSTOM ||
+            m_currentToken.type == TokenType::KEYWORD_ORIGIN)
+        {
+            node->import_scope = m_currentToken.literal;
+            nextToken();
+
+            if (m_currentToken.type == TokenType::AT) {
+                nextToken(); // consume '@'
+                if (m_currentToken.type != TokenType::IDENT) {
+                    m_errors.push_back("Expected type identifier after '@' in import statement.");
+                    return nullptr;
+                }
+                node->specific_type = "@" + m_currentToken.literal;
+                nextToken();
+            }
+
+            if (m_currentToken.type == TokenType::IDENT) { // This is the name for precise import
+                node->imported_name = m_currentToken.literal;
+                nextToken();
+            }
+        }
+        else if (m_currentToken.type == TokenType::AT)
+        {
+             // Fallback to wildcard import, e.g. [Import] @Chtl
+            nextToken(); // consume '@'
+             if (m_currentToken.type != TokenType::IDENT) {
+                m_errors.push_back("Expected import type keyword after '@'.");
+                return nullptr;
+            }
+            node->type = "@" + m_currentToken.literal;
+            nextToken();
+        } else {
+            m_errors.push_back("Invalid token after [Import]. Expected [Template], [Custom], [Origin], or @.");
             return nullptr;
         }
-        if (!expectPeek(TokenType::IDENT)) {
-             m_errors.push_back("Expected import type keyword after '@'.");
-            return nullptr;
-        }
-        node->type = "@" + m_currentToken.literal;
-        if (!expectPeek(TokenType::KEYWORD_FROM)) {
+
+        if (m_currentToken.type != TokenType::KEYWORD_FROM) {
             m_errors.push_back("Expected 'from' keyword in import statement.");
             return nullptr;
         }
-        if (!expectPeek(TokenType::STRING)) {
+        nextToken();
+
+        if (m_currentToken.type != TokenType::STRING) {
             m_errors.push_back("Expected file path string after 'from'.");
             return nullptr;
         }
         node->path = m_currentToken.literal;
-        try {
+        nextToken();
+
+        if (m_currentToken.type == TokenType::KEYWORD_AS) {
+            nextToken();
+            if (m_currentToken.type != TokenType::IDENT) {
+                 m_errors.push_back("Expected alias name after 'as'.");
+                 return nullptr;
+            }
+            node->alias = m_currentToken.literal;
+            nextToken();
+        }
+
+        if (m_currentToken.type != TokenType::SEMICOLON) {
+            m_errors.push_back("Expected ';' after import statement.");
+            return nullptr;
+        }
+
+        try
+        {
             std::filesystem::path full_path = std::filesystem::weakly_canonical(std::filesystem::path(m_current_file_path).parent_path() / node->path);
-            if (s_parsed_files.count(full_path.string())) {
-            } else {
+            if (s_parsed_files.count(full_path.string()))
+            {
+                // skip if already parsed
+            }
+            else
+            {
                 std::string file_content = Loader::ReadFile(m_current_file_path, node->path);
                 Lexer imported_lexer(file_content);
                 Parser imported_parser(imported_lexer, full_path.string());
                 auto imported_program = imported_parser.ParseProgram();
-                for(auto const& [ns, def_map] : imported_program->templates) {
-                    for (auto const& [name, def] : def_map) {
-                        program.templates[ns][name] = def;
+
+                if (!imported_parser.GetErrors().empty())
+                {
+                    for (const auto &err : imported_parser.GetErrors())
+                    {
+                        m_errors.push_back("Error in imported file '" + node->path + "': " + err);
+                    }
+                    return node; // Return early if imported file has errors
+                }
+
+                if (!node->imported_name.empty())
+                {
+                    // Precise import
+                    const AstNode *found_node = nullptr;
+                    if (node->import_scope == "[Template]")
+                    {
+                        for (const auto &[ns, def_map] : imported_program->templates)
+                        {
+                            if (def_map.count(node->imported_name))
+                            {
+                                found_node = def_map.at(node->imported_name);
+                                break;
+                            }
+                        }
+                    }
+                    else if (node->import_scope == "[Custom]")
+                    {
+                        for (const auto &[ns, def_map] : imported_program->customs)
+                        {
+                            if (def_map.count(node->imported_name))
+                            {
+                                found_node = def_map.at(node->imported_name);
+                                break;
+                            }
+                        }
+                    }
+
+                    if (found_node)
+                    {
+                        std::unique_ptr<AstNode> cloned_node = found_node->clone();
+                        std::string final_name = node->alias.empty() ? node->imported_name : node->alias;
+
+                        if (node->import_scope == "[Template]")
+                        {
+                            program.templates[m_current_namespace][final_name] = static_cast<const TemplateDefinitionNode *>(cloned_node.get());
+                        }
+                        else if (node->import_scope == "[Custom]")
+                        {
+                            program.customs[m_current_namespace][final_name] = static_cast<const CustomDefinitionNode *>(cloned_node.get());
+                        }
+
+                        program.children.push_back(std::move(cloned_node));
+                    }
+                    else
+                    {
+                        m_errors.push_back("Could not find definition '" + node->imported_name + "' in file '" + node->path + "'.");
                     }
                 }
-                for(auto const& [ns, def_map] : imported_program->customs) {
-                    for (auto const& [name, def] : def_map) {
-                        program.customs[ns][name] = def;
+                else
+                {
+                    // Wildcard/type import.
+                    std::unordered_map<const AstNode *, AstNode *> already_cloned;
+
+                    for (auto const &[ns, def_map] : imported_program->templates)
+                    {
+                        for (auto const &[name, def_ptr] : def_map)
+                        {
+                            if (already_cloned.find(def_ptr) == already_cloned.end())
+                            {
+                                std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
+                                already_cloned[def_ptr] = cloned_def.get();
+                                program.children.push_back(std::move(cloned_def));
+                            }
+                            program.templates[ns][name] = static_cast<const TemplateDefinitionNode *>(already_cloned[def_ptr]);
+                        }
+                    }
+                    for (auto const &[ns, def_map] : imported_program->customs)
+                    {
+                        for (auto const &[name, def_ptr] : def_map)
+                        {
+                            if (already_cloned.find(def_ptr) == already_cloned.end())
+                            {
+                                std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
+                                already_cloned[def_ptr] = cloned_def.get();
+                                program.children.push_back(std::move(cloned_def));
+                            }
+                            program.customs[ns][name] = static_cast<const CustomDefinitionNode *>(already_cloned[def_ptr]);
+                        }
                     }
                 }
-                for(const auto& err : imported_parser.GetErrors()) {
-                    m_errors.push_back("Error in imported file '" + node->path + "': " + err);
-                }
-                program.imported_programs.push_back(std::move(imported_program));
             }
-        } catch (const std::runtime_error& e) {
+        }
+        catch (const std::runtime_error &e)
+        {
             m_errors.push_back("Could not import file '" + node->path + "'. Reason: " + e.what());
         }
-        if (!expectPeek(TokenType::SEMICOLON)) {
-            m_errors.push_back("Expected ';' after import statement.");
-            return nullptr;
-        }
+
         return node;
     }
 

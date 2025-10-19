@@ -955,6 +955,36 @@ TEST_CASE("Test parsing an import statement", "[parser]")
     REQUIRE(tmpl->properties.size() == 2);
 }
 
+TEST_CASE("Test parsing a precise import statement", "[parser][import]")
+{
+    // We are creating a dummy file for the parser to "load"
+    // The actual file loading is mocked out or handled by the Loader, but the parser
+    // needs to correctly interpret the import statement itself.
+    std::string input = R"([Import] [Template] @Style ImportedStyle from "../tests/resources/imported_template.chtl" as MyStyle;)";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+
+    // We call parseStatement instead of ParseProgram because import is a statement.
+    // Also, we don't want to trigger the actual file loading logic in ParseProgram for this unit test.
+    // Let's parse the whole program but verify the parsed node.
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    // The import node is now a child of the program node before being processed
+    REQUIRE(program->children.size() == 1);
+
+    auto* import_node = dynamic_cast<CHTL::ImportNode*>(program->children[0].get());
+    REQUIRE(import_node != nullptr);
+
+    REQUIRE(import_node->import_scope == "[Template]");
+    REQUIRE(import_node->specific_type == "@Style");
+    REQUIRE(import_node->imported_name == "ImportedStyle");
+    REQUIRE(import_node->path == "../tests/resources/imported_template.chtl");
+    REQUIRE(import_node->alias == "MyStyle");
+    REQUIRE(import_node->type.empty()); // 통配 import should be empty
+}
+
 TEST_CASE("Test parsing a namespace block", "[parser]")
 {
     std::string input = R"(

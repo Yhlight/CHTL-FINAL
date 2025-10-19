@@ -7,4 +7,11 @@ namespace CHTLJS
         return "RawJSNode(content: \"" + content + "\")";
     }
 
+    std::unique_ptr<AstNode> RawJSNode::clone() const
+    {
+        auto node = std::make_unique<RawJSNode>();
+        node->content = this->content;
+        return node;
+    }
+
 } // namespace CHTLJS

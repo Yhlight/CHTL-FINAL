@@ -11,5 +11,6 @@ namespace CHTL
 
         NodeType GetType() const override { return NodeType::Comment; }
         std::string ToString() const override { return "# " + value; }
+        std::unique_ptr<AstNode> clone() const override;
     };
 }

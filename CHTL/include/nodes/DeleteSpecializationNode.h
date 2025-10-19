@@ -12,5 +12,6 @@ namespace CHTL
 
         NodeType GetType() const override { return NodeType::DeleteSpecialization; }
         std::string ToString() const override { return "delete " + property_name + ";"; }
+        std::unique_ptr<AstNode> clone() const override;
     };
 }

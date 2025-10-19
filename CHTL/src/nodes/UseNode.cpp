@@ -18,4 +18,11 @@ namespace CHTL
         ss << "])";
         return ss.str();
     }
+
+    std::unique_ptr<AstNode> UseNode::clone() const
+    {
+        auto node = std::make_unique<UseNode>();
+        node->path = this->path;
+        return node;
+    }
 }

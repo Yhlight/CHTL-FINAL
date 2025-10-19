@@ -19,4 +19,15 @@ namespace CHTL
         ss << "])";
         return ss.str();
     }
+
+    std::unique_ptr<AstNode> StyleRuleNode::clone() const
+    {
+        auto node = std::make_unique<StyleRuleNode>();
+        node->selector = this->selector;
+        for (const auto &prop : this->properties)
+        {
+            node->properties.push_back(std::unique_ptr<StyleProperty>(static_cast<StyleProperty *>(prop->clone().release())));
+        }
+        return node;
+    }
 }

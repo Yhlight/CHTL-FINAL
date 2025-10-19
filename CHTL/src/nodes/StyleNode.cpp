@@ -18,4 +18,14 @@ namespace CHTL
         ss << "])";
         return ss.str();
     }
+
+    std::unique_ptr<AstNode> StyleNode::clone() const
+    {
+        auto node = std::make_unique<StyleNode>();
+        for (const auto& child : children)
+        {
+            node->children.push_back(child->clone());
+        }
+        return node;
+    }
 }

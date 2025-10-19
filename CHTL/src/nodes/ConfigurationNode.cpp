@@ -29,4 +29,16 @@ namespace CHTL
         ss << ")";
         return ss.str();
     }
+
+    std::unique_ptr<AstNode> ConfigurationNode::clone() const
+    {
+        auto node = std::make_unique<ConfigurationNode>();
+        node->name = this->name;
+        node->settings = this->settings;
+        if (this->name_config)
+        {
+            node->name_config.reset(static_cast<NameConfigNode *>(this->name_config->clone().release()));
+        }
+        return node;
+    }
 }

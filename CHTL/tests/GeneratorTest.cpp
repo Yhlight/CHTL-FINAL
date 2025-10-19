@@ -7,6 +7,8 @@
 
 #include <string>
 #include <memory>
+#include <fstream>
+#include <cstdio>
 
 // Helper to check for parsing errors from previous steps
 void checkParserErrors(const CHTL::Parser& p) {
@@ -639,6 +641,60 @@ TEST_CASE("Generator correctly renders comments", "[generator]")
     CHTL::Generator generator;
     std::string output = generator.Generate(program.get());
     REQUIRE(output.find("<!-- My Comment -->") != std::string::npos);
+}
+
+TEST_CASE("Generator correctly handles precisely imported templates", "[generator][import]")
+{
+    // This is an end-to-end test for precise imports.
+    // 1. Parser must correctly parse the precise import statement.
+    // 2. Parser's loading logic must only load the specified definition.
+    // 3. Generator must be able to find and use the aliased, imported template.
+    // 4. Test without alias
+    std::string main_content = R"CHTL(
+    [Import] [Template] @Style ImportedStyle from "imported_templates.chtl";
+
+    [Namespace] Test {
+        div {
+            style {
+                @Style ImportedStyle;
+            }
+        }
+    }
+)CHTL";
+    std::string imported_content = R"CHTL(
+    [Template] @Style ImportedStyle {
+        font-size: 16px;
+        color: "#333";
+    }
+)CHTL";
+
+    // Create a dummy file for the loader to find
+    std::ofstream("imported_templates.chtl") << imported_content;
+
+    CHTL::Lexer l(main_content);
+    CHTL::Parser p(l, "main.chtl");
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string result = generator.Generate(program.get());
+
+    INFO("Generated HTML: " << result);
+
+    // The style should be inlined on the div.
+    // We check for the presence of the style attribute and its content.
+    std::string expected_div_start = "<div style=\"";
+    REQUIRE(result.find(expected_div_start) != std::string::npos);
+
+    size_t style_attr_pos = result.find(expected_div_start);
+    std::string style_content = result.substr(style_attr_pos + expected_div_start.length());
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("font-size:16px") != std::string::npos);
+    REQUIRE(style_content.find("color:#333") != std::string::npos);
+
+    // Clean up the dummy file
+    std::remove("imported_templates.chtl");
 }
 
 TEST_CASE("Test generating a simple text node", "[generator]")

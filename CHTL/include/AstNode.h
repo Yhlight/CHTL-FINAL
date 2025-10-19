@@ -52,6 +52,7 @@ namespace CHTL
         virtual ~AstNode() = default;
         virtual NodeType GetType() const = 0;
         virtual std::string ToString() const = 0;
+        virtual std::unique_ptr<AstNode> clone() const = 0;
     };
 }
 

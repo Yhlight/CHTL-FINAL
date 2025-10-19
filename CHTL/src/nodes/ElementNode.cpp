@@ -27,4 +27,16 @@ namespace CHTL
         ss << "])";
         return ss.str();
     }
+
+    std::unique_ptr<AstNode> ElementNode::clone() const
+    {
+        auto node = std::make_unique<ElementNode>();
+        node->tag_name = this->tag_name;
+        node->attributes = this->attributes;
+        for (const auto& child : children)
+        {
+            node->children.push_back(child->clone());
+        }
+        return node;
+    }
 }

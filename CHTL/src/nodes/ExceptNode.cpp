@@ -21,4 +21,11 @@ namespace CHTL
         ss << "])";
         return ss.str();
     }
+
+    std::unique_ptr<AstNode> ExceptNode::clone() const
+    {
+        auto node = std::make_unique<ExceptNode>();
+        node->constraints = this->constraints;
+        return node;
+    }
 }

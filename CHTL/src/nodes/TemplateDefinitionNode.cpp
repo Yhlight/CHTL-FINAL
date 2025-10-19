@@ -33,4 +33,25 @@ namespace CHTL
         ss << " })";
         return ss.str();
     }
+
+    std::unique_ptr<AstNode> TemplateDefinitionNode::clone() const
+    {
+        auto node = std::make_unique<TemplateDefinitionNode>();
+        node->type = this->type;
+        node->name = this->name;
+        node->inherited_templates = this->inherited_templates;
+        for (const auto& var : variables)
+        {
+            node->variables[var.first] = std::unique_ptr<Expression>(static_cast<Expression*>(var.second->clone().release()));
+        }
+        for (const auto& prop : properties)
+        {
+            node->properties.push_back(prop->clone());
+        }
+        for (const auto& child : body)
+        {
+            node->body.push_back(child->clone());
+        }
+        return node;
+    }
 }

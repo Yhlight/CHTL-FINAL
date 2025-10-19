@@ -387,6 +387,21 @@ namespace CHTL
     {
         if (!tmpl) return;
 
+        // First, recursively apply inherited templates.
+        // This ensures that base styles are applied first and can be overridden.
+        for (const auto& inherited_name : tmpl->inherited_templates)
+        {
+            const TemplateDefinitionNode* inherited_tmpl = nullptr;
+            if (m_programNode->templates.count(context.current_namespace) && m_programNode->templates.at(context.current_namespace).count(inherited_name)) {
+                inherited_tmpl = m_programNode->templates.at(context.current_namespace).at(inherited_name);
+            }
+            else if (context.current_namespace != GLOBAL_NAMESPACE && m_programNode->templates.count(GLOBAL_NAMESPACE) && m_programNode->templates.at(GLOBAL_NAMESPACE).count(inherited_name)) {
+                inherited_tmpl = m_programNode->templates.at(GLOBAL_NAMESPACE).at(inherited_name);
+            }
+            applyStyleTemplate(inherited_tmpl, context, property_map);
+        }
+
+        // Second, apply the properties of the current template.
         for (const auto& node : tmpl->properties)
         {
             if (auto* prop = dynamic_cast<StyleProperty*>(node.get()))

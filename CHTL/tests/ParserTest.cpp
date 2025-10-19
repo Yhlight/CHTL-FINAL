@@ -65,6 +65,37 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a Style Template with inherit keyword", "[parser][template]")
+{
+    std::string input = R"(
+        [Template] @Style MyInheritedStyle inherit BaseStyle1, BaseStyle2 {
+            font-size: 16px;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* template_def_node = dynamic_cast<CHTL::TemplateDefinitionNode*>(program->children[0].get());
+    REQUIRE(template_def_node != nullptr);
+    REQUIRE(template_def_node->type == "@Style");
+    REQUIRE(template_def_node->name == "MyInheritedStyle");
+
+    REQUIRE(template_def_node->inherited_templates.size() == 2);
+    REQUIRE(template_def_node->inherited_templates[0] == "BaseStyle1");
+    REQUIRE(template_def_node->inherited_templates[1] == "BaseStyle2");
+
+    REQUIRE(template_def_node->properties.size() == 1);
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(template_def_node->properties[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "font-size");
+}
+
 TEST_CASE("Test parsing a Var Template definition", "[parser][template]")
 {
     std::string input = R"(

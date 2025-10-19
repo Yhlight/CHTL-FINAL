@@ -847,10 +847,36 @@ namespace CHTL
             return nullptr;
         }
         node->name = m_currentToken.literal;
-        if (!expectPeek(TokenType::LBRACE)) {
+
+        if (m_peekToken.type == TokenType::KEYWORD_INHERIT)
+        {
+            nextToken(); // consume name. current = 'inherit'
+            nextToken(); // consume 'inherit'. current = base_name
+
+            while (m_currentToken.type == TokenType::IDENT)
+            {
+                node->inherited_templates.push_back(m_currentToken.literal);
+                if (m_peekToken.type == TokenType::COMMA)
+                {
+                    nextToken(); // consume base name
+                    nextToken(); // consume comma
+                }
+                else
+                {
+                    break;
+                }
+            }
+             nextToken(); // consume last base name
+        } else {
+             nextToken(); // consume template name
+        }
+
+        // Now current token should be LBRACE
+        if (m_currentToken.type != TokenType::LBRACE) {
             m_errors.push_back("Expected '{' for template block.");
             return nullptr;
         }
+
         nextToken();
         while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
         {

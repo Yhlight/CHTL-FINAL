@@ -271,6 +271,49 @@ TEST_CASE("Generator handles composite template inheritance", "[generator][templ
     REQUIRE(style_content.find("color:blue") == std::string::npos);
 }
 
+TEST_CASE("Generator handles explicit template inheritance with 'inherit' keyword", "[generator][template][inheritance]")
+{
+    std::string input = R"(
+        [Template] @Style BaseStyle {
+            font-family: "Arial";
+            color: "blue";
+        }
+
+        [Template] @Style InheritedStyle inherit BaseStyle {
+            font-size: 16px;
+            color: "red"; // Override
+        }
+
+        div {
+            style {
+                @Style InheritedStyle;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+
+    INFO("Generated Output:\n" << html_output);
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    // 1. It should have the inherited property from BaseStyle.
+    REQUIRE(style_content.find("font-family:Arial") != std::string::npos);
+
+    // 2. It should have its own new property.
+    REQUIRE(style_content.find("font-size:16px") != std::string::npos);
+
+    // 3. The overridden property should have the new value from InheritedStyle.
+    REQUIRE(style_content.find("color:red") != std::string::npos);
+    REQUIRE(style_content.find("color:blue") == std::string::npos);
+}
+
 TEST_CASE("Generator correctly handles style group templates", "[generator]")
 {
     std::string input = R"(

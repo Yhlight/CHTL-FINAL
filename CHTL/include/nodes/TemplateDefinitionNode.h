@@ -17,6 +17,7 @@ namespace CHTL
     {
         std::string type; // e.g., "@Style", "@Element", "@Var"
         std::string name;
+        std::vector<std::string> inherited_templates;
         // For @Var templates
         std::map<std::string, std::unique_ptr<Expression>> variables;
         // For @Style templates

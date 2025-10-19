@@ -1012,12 +1012,23 @@ namespace CHTL
     {
         auto prop = std::make_unique<StyleProperty>();
         prop->name = m_currentToken.literal;
+
+        // Handle valueless properties, e.g., "color," or "font-size;"
+        if (m_peekToken.type == TokenType::COMMA || m_peekToken.type == TokenType::SEMICOLON)
+        {
+            prop->value = nullptr;
+            nextToken(); // Consume the property name, current is now ',' or ';'
+            return prop;
+        }
+
         if (m_peekToken.type != TokenType::COLON) {
             m_errors.push_back("Expected ':' after style property name.");
             return nullptr;
         }
-        nextToken();
-        nextToken();
+
+        nextToken(); // Consume property name, current is ':'
+        nextToken(); // Consume ':', current is start of expression
+
         auto first_expr = parseExpression(LOWEST);
         if (m_peekToken.type != TokenType::COMMA) {
             prop->value = std::move(first_expr);
@@ -1025,16 +1036,18 @@ namespace CHTL
             auto list_node = std::make_unique<ExpressionListNode>();
             list_node->expressions.push_back(std::move(first_expr));
             while (m_peekToken.type == TokenType::COMMA) {
-                nextToken();
-                nextToken();
+                nextToken(); // Consume comma
+                nextToken(); // Move to the start of the next expression
                 list_node->expressions.push_back(parseExpression(LOWEST));
             }
             prop->value = std::move(list_node);
         }
+
         if (m_peekToken.type == TokenType::SEMICOLON)
         {
             nextToken();
         }
+
         return prop;
     }
 

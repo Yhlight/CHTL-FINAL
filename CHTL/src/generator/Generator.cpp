@@ -456,26 +456,42 @@ namespace CHTL
 
                 if (custom_def) {
                     std::unordered_set<std::string> deleted_properties;
+                    std::map<std::string, StyleProperty*> provided_properties;
+
                     for (const auto& spec : usage->specializations) {
                         if (spec->GetType() == NodeType::DeleteSpecialization) {
                             deleted_properties.insert(static_cast<DeleteSpecializationNode*>(spec.get())->property_name);
                         }
+                        else if (auto* prop_spec = dynamic_cast<StyleProperty*>(spec.get())) {
+                            provided_properties[prop_spec->name] = prop_spec;
+                        }
                     }
 
-                    // Process base properties
+                    // Process base properties from the definition
                     for (const auto& child_node : custom_def->children) {
-                        if (child_node->GetType() == NodeType::StyleProperty) {
-                            auto* prop_ptr = static_cast<StyleProperty*>(child_node.get());
-                            if (deleted_properties.find(prop_ptr->name) == deleted_properties.end()) {
-                                evaluateAndStoreProperty(prop_ptr, local_context, inline_properties);
+                        if (auto* base_prop = dynamic_cast<StyleProperty*>(child_node.get())) {
+                            if (deleted_properties.count(base_prop->name)) {
+                                continue; // Skip deleted properties
                             }
+
+                            auto it = provided_properties.find(base_prop->name);
+                            if (it != provided_properties.end()) {
+                                // A value is provided in the usage block, use it.
+                                // This handles both overriding a default value and filling a valueless property.
+                                evaluateAndStoreProperty(it->second, local_context, inline_properties);
+                                provided_properties.erase(it); // Mark as used
+                            }
+                            else if (base_prop->value) {
+                                // No value provided in usage, but the base has a default value.
+                                evaluateAndStoreProperty(base_prop, local_context, inline_properties);
+                            }
+                             // If base_prop has no value and none is provided, it's skipped, which is correct.
                         }
                     }
-                    // Process overrides/additions from the usage block
-                    for (const auto& spec : usage->specializations) {
-                        if (spec->GetType() == NodeType::StyleProperty) {
-                            evaluateAndStoreProperty(static_cast<StyleProperty*>(spec.get()), local_context, inline_properties);
-                        }
+
+                    // Process any remaining properties from the usage block (new properties not in the base)
+                    for (const auto& pair : provided_properties) {
+                        evaluateAndStoreProperty(pair.second, local_context, inline_properties);
                     }
                 }
             }

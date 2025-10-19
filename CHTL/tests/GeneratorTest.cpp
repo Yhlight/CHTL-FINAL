@@ -189,6 +189,44 @@ TEST_CASE("Generator correctly handles conditional expressions", "[generator]")
     REQUIRE(style_content.find("background-color:red") != std::string::npos);
 }
 
+TEST_CASE("Generator handles instantiation of valueless custom styles", "[generator][custom]")
+{
+    std::string input = R"(
+        [Custom] @Style TextSet
+        {
+            color,
+            font-size;
+        }
+
+        div
+        {
+            style
+            {
+                @Style TextSet
+                {
+                    color: red;
+                    font-size: 16px;
+                }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+
+    INFO("Generated Output:\n" << html_output);
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("color:red") != std::string::npos);
+    REQUIRE(style_content.find("font-size:16px") != std::string::npos);
+}
+
 TEST_CASE("Generator correctly handles style group templates", "[generator]")
 {
     std::string input = R"(

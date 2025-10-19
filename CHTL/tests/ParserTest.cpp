@@ -145,6 +145,42 @@ TEST_CASE("Test parsing an Element Template definition", "[parser][template]")
     REQUIRE(span_node->children.empty());
 }
 
+TEST_CASE("Test parsing a Custom Style with valueless properties", "[parser][custom]")
+{
+    std::string input = R"(
+        [Custom] @Style ValuelessText {
+            color,
+            font-size;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+
+    auto* custom_def_node = dynamic_cast<CHTL::CustomDefinitionNode*>(program->children[0].get());
+    REQUIRE(custom_def_node != nullptr);
+    REQUIRE(custom_def_node->type == "@Style");
+    REQUIRE(custom_def_node->name == "ValuelessText");
+    REQUIRE(custom_def_node->children.size() == 2);
+
+    // Check first property (color)
+    auto* prop1 = dynamic_cast<CHTL::StyleProperty*>(custom_def_node->children[0].get());
+    REQUIRE(prop1 != nullptr);
+    REQUIRE(prop1->name == "color");
+    REQUIRE(prop1->value == nullptr);
+
+    // Check second property (font-size)
+    auto* prop2 = dynamic_cast<CHTL::StyleProperty*>(custom_def_node->children[1].get());
+    REQUIRE(prop2 != nullptr);
+    REQUIRE(prop2->name == "font-size");
+    REQUIRE(prop2->value == nullptr);
+}
+
 TEST_CASE("Test parsing a style property using a variable", "[parser][expression]")
 {
     std::string input = R"(

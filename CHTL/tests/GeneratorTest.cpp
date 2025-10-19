@@ -227,6 +227,50 @@ TEST_CASE("Generator handles instantiation of valueless custom styles", "[genera
     REQUIRE(style_content.find("font-size:16px") != std::string::npos);
 }
 
+TEST_CASE("Generator handles composite template inheritance", "[generator][template][inheritance]")
+{
+    std::string input = R"(
+        [Template] @Style BaseTheme {
+            color: "blue";
+            font-family: "Arial";
+        }
+
+        [Template] @Style ExtendedTheme {
+            @Style BaseTheme;
+            color: "red"; // Override base theme
+            font-size: 20px; // Add new property
+        }
+
+        div {
+            style {
+                @Style ExtendedTheme;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    CHTL::Generator generator;
+    std::string html_output = generator.Generate(program.get());
+
+    INFO("Generated Output:\n" << html_output);
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    // 1. It should have the inherited property from BaseTheme.
+    REQUIRE(style_content.find("font-family:Arial") != std::string::npos);
+
+    // 2. It should have the new property from ExtendedTheme.
+    REQUIRE(style_content.find("font-size:20px") != std::string::npos);
+
+    // 3. The overridden property should have the new value, not the old one.
+    REQUIRE(style_content.find("color:red") != std::string::npos);
+    REQUIRE(style_content.find("color:blue") == std::string::npos);
+}
+
 TEST_CASE("Generator correctly handles style group templates", "[generator]")
 {
     std::string input = R"(

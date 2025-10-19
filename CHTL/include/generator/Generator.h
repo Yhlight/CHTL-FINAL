@@ -33,6 +33,8 @@ namespace CHTL
         void visit(CustomUsageNode* node, EvalContext& context);
         void visit(CustomDefinitionNode* node, EvalContext& context);
         void visit(ImportNode* node, EvalContext& context);
+
+        void applyStyleTemplate(const TemplateDefinitionNode* tmpl, EvalContext& context, std::map<std::string, std::string>& property_map);
         void visit(StyleNode* node, EvalContext& context, ElementNode* parent);
         void visit(StyleRuleNode* node, EvalContext& context, ElementNode* parent);
         void visit(StyleProperty* node, EvalContext& context, std::stringstream& style_stream);

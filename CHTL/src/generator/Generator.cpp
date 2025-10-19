@@ -381,6 +381,35 @@ namespace CHTL
     }
 
     // Helper function to evaluate a style property and store it in a map, handling overrides.
+    static void evaluateAndStoreProperty(StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map);
+
+    void Generator::applyStyleTemplate(const TemplateDefinitionNode* tmpl, EvalContext& context, std::map<std::string, std::string>& property_map)
+    {
+        if (!tmpl) return;
+
+        for (const auto& node : tmpl->properties)
+        {
+            if (auto* prop = dynamic_cast<StyleProperty*>(node.get()))
+            {
+                evaluateAndStoreProperty(prop, context, property_map);
+            }
+            else if (auto* usage = dynamic_cast<TemplateUsageNode*>(node.get()))
+            {
+                // Find the nested template definition
+                const TemplateDefinitionNode* nested_tmpl = nullptr;
+                if (m_programNode->templates.count(context.current_namespace) && m_programNode->templates.at(context.current_namespace).count(usage->name)) {
+                    nested_tmpl = m_programNode->templates.at(context.current_namespace).at(usage->name);
+                }
+                else if (context.current_namespace != GLOBAL_NAMESPACE && m_programNode->templates.count(GLOBAL_NAMESPACE) && m_programNode->templates.at(GLOBAL_NAMESPACE).count(usage->name)) {
+                    nested_tmpl = m_programNode->templates.at(GLOBAL_NAMESPACE).at(usage->name);
+                }
+
+                // Recursive call
+                applyStyleTemplate(nested_tmpl, context, property_map);
+            }
+        }
+    }
+
     static void evaluateAndStoreProperty(StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map) {
         Evaluator evaluator;
         Value result = evaluator.Eval(prop->value.get(), context);
@@ -436,11 +465,7 @@ namespace CHTL
                 }
 
                 if (tmpl) {
-                    for (const auto& prop_ptr : tmpl->properties) {
-                        if (auto* prop = dynamic_cast<StyleProperty*>(prop_ptr.get())) {
-                            evaluateAndStoreProperty(prop, local_context, inline_properties);
-                        }
-                    }
+                    applyStyleTemplate(tmpl, local_context, inline_properties);
                 }
             }
             else if (child->GetType() == NodeType::CustomUsage)

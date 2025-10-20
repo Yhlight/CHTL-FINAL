@@ -1,0 +1,5 @@
+[Import] @Chtl from "./integration_B.chtl";
+
+[Template] @Style StyleA {
+    color: "red";
+}

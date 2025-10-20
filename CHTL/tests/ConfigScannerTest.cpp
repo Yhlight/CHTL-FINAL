@@ -12,13 +12,14 @@ TEST_CASE("ConfigScanner correctly parses configuration blocks", "[ConfigScanner
     SECTION("Basic configuration parsing")
     {
         std::string source = R"(
-            [Configuration]
-            [Name: spanish]
-            inherit = "heredar";
-            style = "estilo";
+            [Configuration] {
+                [Name: spanish]
+                inherit = "heredar";
+                style = "estilo";
 
-            [Name: french]
-            style = "style_francais";
+                [Name: french]
+                style = "style_francais";
+            }
         )";
 
         ConfigScanner scanner(source);
@@ -56,7 +57,7 @@ TEST_CASE("ConfigScanner correctly parses configuration blocks", "[ConfigScanner
 
     SECTION("Empty configuration block")
     {
-        std::string source = "[Configuration]";
+        std::string source = "[Configuration] {}";
 
         ConfigScanner scanner(source);
         scanner.Scan();
@@ -68,13 +69,13 @@ TEST_CASE("ConfigScanner correctly parses configuration blocks", "[ConfigScanner
     SECTION("Configuration with extra whitespace")
     {
         std::string source = R"(
-            [Configuration]
+            [Configuration] {
 
-            [Name:   whitespace_test  ]
+                [Name:   whitespace_test  ]
 
-            key1   =   "value1"   ;
-              key2 = "value2";
-
+                key1   =   "value1"   ;
+                  key2 = "value2";
+            }
         )";
 
         ConfigScanner scanner(source);

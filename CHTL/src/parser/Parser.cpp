@@ -39,6 +39,29 @@ namespace CHTL
         m_peekToken = m_lexer.NextToken();
     }
 
+    void Parser::skipBlock()
+    {
+        if (m_peekToken.type != TokenType::LBRACE) {
+            // If there's no block, there's nothing to skip.
+            // We might want to advance until the next semicolon or something,
+            // but for [Configuration] it's always a block.
+            return;
+        }
+        nextToken(); // consume the token before '{', current is now '{'
+
+        int brace_level = 1;
+        while (brace_level > 0 && m_peekToken.type != TokenType::END_OF_FILE)
+        {
+            nextToken();
+            if (m_currentToken.type == TokenType::LBRACE) {
+                brace_level++;
+            } else if (m_currentToken.type == TokenType::RBRACE) {
+                brace_level--;
+            }
+        }
+        // At the end, currentToken is the final '}'
+    }
+
     std::unique_ptr<ProgramNode> Parser::ParseProgram()
     {
         auto program = std::make_unique<ProgramNode>();
@@ -77,11 +100,18 @@ namespace CHTL
             }
             else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION)
             {
-                stmt = parseConfigurationStatement();
+                skipBlock();
+                stmt = nullptr;
+                // The loop's main nextToken() will advance past the '}'
             }
             else if (m_currentToken.type == TokenType::KEYWORD_USE)
             {
-                stmt = parseUseStatement();
+                // Skip 'use' statements as they are handled in the first pass conceptually
+                while (m_peekToken.type != TokenType::SEMICOLON && m_peekToken.type != TokenType::END_OF_FILE) {
+                    nextToken();
+                }
+                stmt = nullptr;
+                // The loop's main nextToken() will advance past the ';'
             }
             else
             {
@@ -491,144 +521,6 @@ namespace CHTL
             return nullptr;
         }
         m_current_namespace = prev_namespace;
-        return node;
-    }
-
-    std::unique_ptr<ConfigurationNode> Parser::parseConfigurationStatement()
-    {
-        auto node = std::make_unique<ConfigurationNode>();
-        if (m_peekToken.type == TokenType::AT) {
-            nextToken();
-            if (!expectPeek(TokenType::IDENT)) {
-                m_errors.push_back("Expected configuration name after '@'.");
-                return nullptr;
-            }
-            node->name = m_currentToken.literal;
-        }
-        if (!expectPeek(TokenType::LBRACE)) {
-            m_errors.push_back("Expected '{' for configuration block.");
-            return nullptr;
-        }
-        nextToken();
-
-        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
-        {
-            if (m_currentToken.type == TokenType::KEYWORD_NAME)
-            {
-                node->name_config = parseNameConfigNode();
-            }
-            else if (m_currentToken.type == TokenType::IDENT)
-            {
-                std::string key = m_currentToken.literal;
-                if (!expectPeek(TokenType::COLON)) {
-                     m_errors.push_back("Expected '=' or ':' after configuration key.");
-                     return nullptr;
-                }
-                nextToken();
-                std::string value;
-                if (m_currentToken.type == TokenType::IDENT || m_currentToken.type == TokenType::NUMBER || m_currentToken.type == TokenType::STRING) {
-                    value = m_currentToken.literal;
-                } else {
-                    m_errors.push_back("Invalid value for configuration key " + key);
-                    return nullptr;
-                }
-                node->settings[key] = value;
-                if (m_peekToken.type == TokenType::SEMICOLON) {
-                    nextToken();
-                }
-            }
-            else
-            {
-                m_errors.push_back("Invalid token in configuration block: " + m_currentToken.ToString());
-            }
-            nextToken();
-        }
-        if (m_currentToken.type != TokenType::RBRACE) {
-            m_errors.push_back("Expected '}' to close configuration block.");
-            return nullptr;
-        }
-        return node;
-    }
-
-    std::unique_ptr<NameConfigNode> Parser::parseNameConfigNode()
-    {
-        auto node = std::make_unique<NameConfigNode>();
-        if (!expectPeek(TokenType::LBRACE)) {
-            m_errors.push_back("Expected '{' for [Name] block.");
-            return nullptr;
-        }
-        nextToken();
-
-        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
-        {
-            if (m_currentToken.type == TokenType::IDENT)
-            {
-                std::string key = m_currentToken.literal;
-                if (!expectPeek(TokenType::COLON)) {
-                     m_errors.push_back("Expected '=' or ':' after name config key.");
-                     return nullptr;
-                }
-                nextToken();
-                std::string value;
-                if (m_currentToken.type == TokenType::IDENT) {
-                    value = m_currentToken.literal;
-                } else {
-                    m_errors.push_back("Invalid value for name config key " + key + ". Must be an identifier.");
-                    return nullptr;
-                }
-                node->settings[key] = value;
-                if (m_peekToken.type == TokenType::SEMICOLON) {
-                    nextToken();
-                }
-            }
-            else
-            {
-                m_errors.push_back("Invalid token in [Name] block: " + m_currentToken.ToString());
-            }
-            nextToken();
-        }
-        if (m_currentToken.type != TokenType::RBRACE) {
-            m_errors.push_back("Expected '}' to close [Name] block.");
-            return nullptr;
-        }
-        return node;
-    }
-
-    std::unique_ptr<UseNode> Parser::parseUseStatement()
-    {
-        auto node = std::make_unique<UseNode>();
-        nextToken();
-
-        while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::END_OF_FILE)
-        {
-            std::string path_part;
-            if (m_currentToken.type == TokenType::AT)
-            {
-                path_part = "@";
-                nextToken();
-                 if (m_currentToken.type != TokenType::IDENT) {
-                     m_errors.push_back("Expected identifier after '@' in use statement.");
-                     return nullptr;
-                }
-                 path_part += m_currentToken.literal;
-                 node->path.push_back(path_part);
-            }
-            else if (m_currentToken.type == TokenType::IDENT || m_currentToken.type == TokenType::KEYWORD_HTML5)
-            {
-                node->path.push_back(m_currentToken.literal);
-            }
-            else
-            {
-                m_errors.push_back("Invalid token in use statement: " + m_currentToken.ToString());
-                return nullptr;
-            }
-            nextToken();
-        }
-        if (m_currentToken.type != TokenType::SEMICOLON)
-        {
-            m_errors.push_back("Expected ';' after use statement.");
-            return nullptr;
-        }
         return node;
     }
 

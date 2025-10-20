@@ -53,11 +53,16 @@ namespace CHTL
         }
     }
 
-    std::unique_ptr<ProgramNode> Compiler::Compile(const std::string& filepath)
+    void Compiler::Reset()
     {
-        // Reset state for a fresh compilation
         ConfigurationManager::Reset();
         Parser::ResetParsedFiles();
+        m_errors.clear();
+    }
+
+    std::unique_ptr<ProgramNode> Compiler::Compile(const std::string& filepath)
+    {
+        m_errors.clear();
 
         // Load source file
         std::string source;
@@ -89,8 +94,9 @@ namespace CHTL
 
         auto program = parser.ParseProgram();
 
-        // You might want to collect and return errors from the parser here
-        // For now, we just return the program.
+        if (!parser.GetErrors().empty()) {
+            m_errors = parser.GetErrors();
+        }
 
         return program;
     }

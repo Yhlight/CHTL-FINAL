@@ -31,7 +31,14 @@ namespace CHTL
     void ConfigScanner::ParseConfigurationBlock()
     {
         SkipWhitespace();
-        while (m_cursor < m_source.length() && m_source[m_cursor] == '[')
+        if (m_cursor >= m_source.length() || m_source[m_cursor] != '{') {
+            // No block to parse, or malformed.
+            return;
+        }
+        m_cursor++; // Consume '{'
+        SkipWhitespace();
+
+        while (m_cursor < m_source.length() && m_source[m_cursor] != '}')
         {
             if (Match("[Name:"))
             {
@@ -39,10 +46,13 @@ namespace CHTL
             }
             else
             {
-                // Malformed block or end of configuration blocks
-                break;
+                m_cursor++;
             }
             SkipWhitespace();
+        }
+
+        if (m_cursor < m_source.length() && m_source[m_cursor] == '}') {
+            m_cursor++; // Consume '}'
         }
     }
 
@@ -58,10 +68,10 @@ namespace CHTL
         }
 
         SkipWhitespace();
-        while (m_cursor < m_source.length() && m_source[m_cursor] != '[')
+        while (m_cursor < m_source.length() && m_source[m_cursor] != '[' && m_source[m_cursor] != '}')
         {
             SkipWhitespace();
-            if (m_cursor >= m_source.length() || m_source[m_cursor] == '[') break;
+            if (m_cursor >= m_source.length() || m_source[m_cursor] == '[' || m_source[m_cursor] == '}') break;
 
             std::string internalName = ParseIdentifier();
             SkipWhitespace();

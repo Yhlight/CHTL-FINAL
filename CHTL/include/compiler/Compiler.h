@@ -4,6 +4,7 @@
 #include "AstNode.h"
 #include <string>
 #include <memory>
+#include <vector>
 
 namespace CHTL
 {
@@ -13,10 +14,12 @@ namespace CHTL
     public:
         Compiler() = default;
 
+        void Reset();
         std::unique_ptr<ProgramNode> Compile(const std::string& filepath);
+        const std::vector<std::string>& GetErrors() const { return m_errors; }
 
     private:
-        // Future private members can go here, e.g., for managing state or errors.
+        std::vector<std::string> m_errors;
     };
 
 }

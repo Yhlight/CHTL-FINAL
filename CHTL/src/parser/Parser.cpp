@@ -270,10 +270,11 @@ namespace CHTL
                 nextToken(); // consume 'else', current is 'if'
                 if_node->alternative = parseIfChain(); // Recurse. The recursive call will consume until its own '}'
             } else { // plain else
-                if (m_peekToken.type == TokenType::LBRACE) {
-                    nextToken(); // consume 'else', current is '{'
-                    if_node->alternative = parseElseBlock(); // This will consume until its '}'
+                if (!expectPeek(TokenType::LBRACE)) {
+                    m_errors.push_back("Expected '{' for else block.");
+                    return nullptr;
                 }
+                if_node->alternative = parseElseBlock(); // This will consume until its '}'
             }
         }
 

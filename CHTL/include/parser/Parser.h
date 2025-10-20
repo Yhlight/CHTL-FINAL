@@ -8,13 +8,14 @@
 #include <unordered_set>
 #include <vector>
 #include <string>
+#include <unordered_map>
 
 namespace CHTL
 {
     class Parser
     {
     public:
-        Parser(Lexer& lexer, std::string file_path = "");
+        Parser(Lexer& lexer, const std::unordered_map<std::string, Token>& keywords, std::string file_path = "");
 
         std::unique_ptr<ProgramNode> ParseProgram();
         const std::vector<std::string>& GetErrors() const { return m_errors; }
@@ -84,6 +85,8 @@ namespace CHTL
         std::vector<std::string> m_errors;
         std::string m_current_file_path;
         std::string m_current_namespace;
+        const std::unordered_map<std::string, Token>& m_keywords;
+
 
         // Static member to track parsed files across all parser instances
         // to prevent circular dependencies.

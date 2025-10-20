@@ -26,8 +26,8 @@ namespace CHTL
         {TokenType::QUESTION, Parser::Precedence::CONDITIONAL},
     };
 
-    Parser::Parser(Lexer& lexer, std::string file_path)
-        : m_lexer(lexer), m_current_file_path(std::move(file_path)), m_current_namespace(GLOBAL_NAMESPACE)
+    Parser::Parser(Lexer& lexer, const std::unordered_map<std::string, Token>& keywords, std::string file_path)
+        : m_lexer(lexer), m_keywords(keywords), m_current_file_path(std::move(file_path)), m_current_namespace(GLOBAL_NAMESPACE)
     {
         nextToken();
         nextToken();
@@ -713,8 +713,8 @@ namespace CHTL
             else
             {
                 std::string file_content = Loader::ReadFile(m_current_file_path, node->path);
-                Lexer imported_lexer(file_content);
-                Parser imported_parser(imported_lexer, full_path.string());
+                Lexer imported_lexer(file_content, m_keywords);
+                Parser imported_parser(imported_lexer, m_keywords, full_path.string());
                 auto imported_program = imported_parser.ParseProgram();
 
                 if (!imported_parser.GetErrors().empty())

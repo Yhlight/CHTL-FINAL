@@ -2,13 +2,14 @@
 
 #include "lexer/Token.h"
 #include <string>
+#include <unordered_map>
 
 namespace CHTL
 {
     class Lexer
     {
     public:
-        Lexer(const std::string& input);
+        Lexer(const std::string& input, const std::unordered_map<std::string, Token>& keywords);
 
         Token NextToken();
         std::string readRawBlockContent();
@@ -37,6 +38,7 @@ namespace CHTL
         char m_char = 0;             // 当前正在查看的字符
         int m_line = 1;              // 当前行号
         int m_column = 0;            // 当前列号
+        const std::unordered_map<std::string, Token>& m_keywords;
     };
 
 } // namespace CHTL

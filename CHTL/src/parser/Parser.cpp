@@ -75,13 +75,25 @@ namespace CHTL
             {
                 stmt = parseNamespaceNode(*program);
             }
-            else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION)
+            // Config and Use statements are handled by the ConfigScanner in phase 1.
+            // The main parser should now skip them.
+            else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION ||
+                     m_currentToken.type == TokenType::KEYWORD_USE)
             {
-                stmt = parseConfigurationStatement();
-            }
-            else if (m_currentToken.type == TokenType::KEYWORD_USE)
-            {
-                stmt = parseUseStatement();
+                // Skip the entire block/statement
+                // A simple heuristic: skip until the next semicolon or closing brace
+                int brace_level = 0;
+                while (m_currentToken.type != TokenType::END_OF_FILE) {
+                    if (m_currentToken.type == TokenType::LBRACE) brace_level++;
+                    else if (m_currentToken.type == TokenType::RBRACE) brace_level--;
+
+                    if (brace_level <= 0 && (m_currentToken.type == TokenType::SEMICOLON || m_currentToken.type == TokenType::RBRACE)) {
+                        break;
+                    }
+                    nextToken();
+                }
+                // Don't create a statement, just loop again
+                continue;
             }
             else
             {
@@ -494,148 +506,19 @@ namespace CHTL
         return node;
     }
 
-    std::unique_ptr<ConfigurationNode> Parser::parseConfigurationStatement()
-    {
-        auto node = std::make_unique<ConfigurationNode>();
-        if (m_peekToken.type == TokenType::AT) {
-            nextToken();
-            if (!expectPeek(TokenType::IDENT)) {
-                m_errors.push_back("Expected configuration name after '@'.");
-                return nullptr;
-            }
-            node->name = m_currentToken.literal;
-        }
-        if (!expectPeek(TokenType::LBRACE)) {
-            m_errors.push_back("Expected '{' for configuration block.");
-            return nullptr;
-        }
-        nextToken();
-
-        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
-        {
-            if (m_currentToken.type == TokenType::KEYWORD_NAME)
-            {
-                node->name_config = parseNameConfigNode();
-            }
-            else if (m_currentToken.type == TokenType::IDENT)
-            {
-                std::string key = m_currentToken.literal;
-                if (!expectPeek(TokenType::COLON)) {
-                     m_errors.push_back("Expected '=' or ':' after configuration key.");
-                     return nullptr;
-                }
-                nextToken();
-                std::string value;
-                if (m_currentToken.type == TokenType::IDENT || m_currentToken.type == TokenType::NUMBER || m_currentToken.type == TokenType::STRING) {
-                    value = m_currentToken.literal;
-                } else {
-                    m_errors.push_back("Invalid value for configuration key " + key);
-                    return nullptr;
-                }
-                node->settings[key] = value;
-                if (m_peekToken.type == TokenType::SEMICOLON) {
-                    nextToken();
-                }
-            }
-            else
-            {
-                m_errors.push_back("Invalid token in configuration block: " + m_currentToken.ToString());
-            }
-            nextToken();
-        }
-        if (m_currentToken.type != TokenType::RBRACE) {
-            m_errors.push_back("Expected '}' to close configuration block.");
-            return nullptr;
-        }
-        return node;
-    }
-
-    std::unique_ptr<NameConfigNode> Parser::parseNameConfigNode()
-    {
-        auto node = std::make_unique<NameConfigNode>();
-        if (!expectPeek(TokenType::LBRACE)) {
-            m_errors.push_back("Expected '{' for [Name] block.");
-            return nullptr;
-        }
-        nextToken();
-
-        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE)
-        {
-            if (m_currentToken.type == TokenType::IDENT)
-            {
-                std::string key = m_currentToken.literal;
-                if (!expectPeek(TokenType::COLON)) {
-                     m_errors.push_back("Expected '=' or ':' after name config key.");
-                     return nullptr;
-                }
-                nextToken();
-                std::string value;
-                if (m_currentToken.type == TokenType::IDENT) {
-                    value = m_currentToken.literal;
-                } else {
-                    m_errors.push_back("Invalid value for name config key " + key + ". Must be an identifier.");
-                    return nullptr;
-                }
-                node->settings[key] = value;
-                if (m_peekToken.type == TokenType::SEMICOLON) {
-                    nextToken();
-                }
-            }
-            else
-            {
-                m_errors.push_back("Invalid token in [Name] block: " + m_currentToken.ToString());
-            }
-            nextToken();
-        }
-        if (m_currentToken.type != TokenType::RBRACE) {
-            m_errors.push_back("Expected '}' to close [Name] block.");
-            return nullptr;
-        }
-        return node;
-    }
-
-    std::unique_ptr<UseNode> Parser::parseUseStatement()
-    {
-        auto node = std::make_unique<UseNode>();
-        nextToken();
-
-        while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::END_OF_FILE)
-        {
-            std::string path_part;
-            if (m_currentToken.type == TokenType::AT)
-            {
-                path_part = "@";
-                nextToken();
-                 if (m_currentToken.type != TokenType::IDENT) {
-                     m_errors.push_back("Expected identifier after '@' in use statement.");
-                     return nullptr;
-                }
-                 path_part += m_currentToken.literal;
-                 node->path.push_back(path_part);
-            }
-            else if (m_currentToken.type == TokenType::IDENT || m_currentToken.type == TokenType::KEYWORD_HTML5)
-            {
-                node->path.push_back(m_currentToken.literal);
-            }
-            else
-            {
-                m_errors.push_back("Invalid token in use statement: " + m_currentToken.ToString());
-                return nullptr;
-            }
-            nextToken();
-        }
-        if (m_currentToken.type != TokenType::SEMICOLON)
-        {
-            m_errors.push_back("Expected ';' after use statement.");
-            return nullptr;
-        }
-        return node;
-    }
-
     std::unique_ptr<ImportNode> Parser::parseImportNode(ProgramNode& program)
     {
         auto node = std::make_unique<ImportNode>();
         nextToken(); // consume [Import]
+
+        // Config imports are handled in phase 1. Skip them here.
+        if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION || (m_currentToken.type == TokenType::AT && m_peekToken.literal == "Config")) {
+            // Skip until semicolon
+            while(m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::END_OF_FILE) {
+                nextToken();
+            }
+            return nullptr; // Return null so no node is added to the AST
+        }
 
         // Check for precise/type import syntax: [Template], [Custom], [Origin]
         if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE ||

@@ -87,4 +87,7 @@ namespace CHTL
     // 将TokenType转换为字符串以便打印
     std::string TokenTypeToString(TokenType type);
 
+    // 获取默认的关键字映射
+    std::unordered_map<std::string, Token> GetDefaultKeywords();
+
 } // namespace CHTL

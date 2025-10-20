@@ -26,7 +26,7 @@ TEST_CASE("Lexer correctly skips comments and whitespace", "[lexer]")
             // This is a comment.
             // Another comment.
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         auto tokens = collectTokens(l);
 
         REQUIRE(tokens.size() == 1);
@@ -40,7 +40,7 @@ TEST_CASE("Lexer correctly skips comments and whitespace", "[lexer]")
                multi-line comment. */
             /* Another one */
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         auto tokens = collectTokens(l);
 
         REQUIRE(tokens.size() == 1);
@@ -56,7 +56,7 @@ TEST_CASE("Lexer correctly skips comments and whitespace", "[lexer]")
 
             // Another single line
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         auto tokens = collectTokens(l);
 
         REQUIRE(tokens.size() == 1);
@@ -66,7 +66,7 @@ TEST_CASE("Lexer correctly skips comments and whitespace", "[lexer]")
     SECTION("Handles unterminated multi-line comment")
     {
         std::string input = "/* This comment is not closed";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         auto tokens = collectTokens(l);
 
         // The lexer should just reach EOF

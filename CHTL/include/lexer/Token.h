@@ -2,6 +2,7 @@
 
 #include <string>
 #include <unordered_map>
+#include <map>
 
 namespace CHTL
 {
@@ -67,6 +68,7 @@ namespace CHTL
         LBRACKET,   // [
         RBRACKET,   // ]
         AT,         // @
+        TEMPLATE_CONFIG,    // @Config
         DOT,        // .
         AMPERSAND,  // &
         QUESTION,   // ?
@@ -86,5 +88,8 @@ namespace CHTL
 
     // 将TokenType转换为字符串以便打印
     std::string TokenTypeToString(TokenType type);
+
+    // Helper function to get the default keyword map
+    std::map<std::string, Token> GetDefaultKeywords();
 
 } // namespace CHTL

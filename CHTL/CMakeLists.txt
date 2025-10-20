@@ -11,6 +11,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # 使用 glob 自动查找所有源文件
 file(GLOB_RECURSE CHTL_SOURCES
     "src/*.cpp"
+    "src/compiler/*.cpp"
+    "src/config/*.cpp"
     "src/eval/*.cpp"
     "src/generator/*.cpp"
     "src/lexer/*.cpp"
@@ -33,6 +35,8 @@ add_library(CHTL STATIC ${CHTL_SOURCES})
 target_include_directories(CHTL PUBLIC
     .
     include
+    include/compiler
+    include/config
     include/eval
     include/generator
     include/lexer

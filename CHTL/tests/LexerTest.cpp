@@ -7,7 +7,7 @@
 
 // Helper function to run tests on a sequence of tokens
 void runLexerTest(const std::string& input, const std::vector<CHTL::Token>& expected_tokens) {
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     for (size_t i = 0; i < expected_tokens.size(); ++i) {
         CHTL::Token tok = l.NextToken();
         const auto& expected = expected_tokens[i];

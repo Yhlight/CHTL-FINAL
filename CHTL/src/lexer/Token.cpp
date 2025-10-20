@@ -69,4 +69,29 @@ namespace CHTL
                ", Column: " + std::to_string(column) + "]";
     }
 
+    std::map<std::string, Token> GetDefaultKeywords()
+    {
+        return {
+            {"text", {TokenType::KEYWORD_TEXT, "text"}},
+            {"style", {TokenType::KEYWORD_STYLE, "style"}},
+            {"script", {TokenType::KEYWORD_SCRIPT, "script"}},
+            {"inherit", {TokenType::KEYWORD_INHERIT, "inherit"}},
+            {"delete", {TokenType::KEYWORD_DELETE, "delete"}},
+            {"insert", {TokenType::KEYWORD_INSERT, "insert"}},
+            {"after", {TokenType::KEYWORD_AFTER, "after"}},
+            {"before", {TokenType::KEYWORD_BEFORE, "before"}},
+            {"replace", {TokenType::KEYWORD_REPLACE, "replace"}},
+            {"at", {TokenType::KEYWORD_AT, "at"}},
+            {"top", {TokenType::KEYWORD_TOP, "top"}},
+            {"bottom", {TokenType::KEYWORD_BOTTOM, "bottom"}},
+            {"from", {TokenType::KEYWORD_FROM, "from"}},
+            {"as", {TokenType::KEYWORD_AS, "as"}},
+            {"except", {TokenType::KEYWORD_EXCEPT, "except"}},
+            {"use", {TokenType::KEYWORD_USE, "use"}},
+            {"html5", {TokenType::KEYWORD_HTML5, "html5"}},
+            {"if", {TokenType::KEYWORD_IF, "if"}},
+            {"else", {TokenType::KEYWORD_ELSE, "else"}},
+        };
+    }
+
 } // namespace CHTL

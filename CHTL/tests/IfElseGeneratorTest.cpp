@@ -33,7 +33,7 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -54,7 +54,7 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -77,7 +77,7 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -103,7 +103,7 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -128,7 +128,7 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -151,7 +151,7 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);

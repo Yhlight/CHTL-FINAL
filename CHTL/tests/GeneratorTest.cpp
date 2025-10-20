@@ -29,7 +29,7 @@ TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]"
     SECTION("Generates an empty element")
     {
         std::string input = "div {}";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -43,7 +43,7 @@ TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]"
     SECTION("Generates nested elements")
     {
         std::string input = "body { div {} }";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -90,7 +90,7 @@ TEST_CASE("Generator correctly handles type imports", "[generator][import]")
 
     std::ofstream("style_library.chtl") << imported_content;
 
-    CHTL::Lexer l(main_content);
+    CHTL::Lexer l(main_content, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l, "main.chtl");
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -138,7 +138,7 @@ TEST_CASE("Generator handles except constraints", "[generator][except]")
             a { text: "allowed"; }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -161,7 +161,7 @@ TEST_CASE("Generator correctly handles element template usage", "[generator][tem
             @Element MyComponent;
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -185,7 +185,7 @@ TEST_CASE("Generator correctly generates HTML for complex structures", "[generat
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -207,7 +207,7 @@ TEST_CASE("Generator correctly handles automatic class naming", "[generator]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -228,7 +228,7 @@ TEST_CASE("Generator correctly handles contextual '&' selector", "[generator]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -249,7 +249,7 @@ TEST_CASE("Generator correctly handles conditional expressions", "[generator]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -285,7 +285,7 @@ TEST_CASE("Generator handles instantiation of valueless custom styles", "[genera
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -322,7 +322,7 @@ TEST_CASE("Generator handles composite template inheritance", "[generator][templ
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -365,7 +365,7 @@ TEST_CASE("Generator handles explicit template inheritance with 'inherit' keywor
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -406,7 +406,7 @@ TEST_CASE("Generator correctly handles style group templates", "[generator]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -436,7 +436,7 @@ TEST_CASE("Generator correctly handles variable group templates", "[generator]")
         "        background-color: ThemeColor(tableColor);\n"
         "    }\n"
         "}\n";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -461,7 +461,7 @@ TEST_CASE("Generator correctly handles element templates", "[generator]")
             @Element Box;
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -495,7 +495,7 @@ TEST_CASE("Generator correctly handles custom style definitions with specializat
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -535,7 +535,7 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -560,7 +560,7 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -585,7 +585,7 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -612,7 +612,7 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -635,7 +635,7 @@ TEST_CASE("Generator correctly handles imported templates", "[generator]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -667,7 +667,7 @@ TEST_CASE("Generator correctly handles namespaced template usage", "[generator]"
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -692,7 +692,7 @@ TEST_CASE("Generator correctly handles namespaced template usage", "[generator]"
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -706,7 +706,7 @@ TEST_CASE("Generator correctly handles namespaced template usage", "[generator]"
 TEST_CASE("Generator correctly renders comments", "[generator]")
 {
     std::string input = R"(# My Comment)";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -744,7 +744,7 @@ TEST_CASE("Generator correctly handles precisely imported templates", "[generato
     // Create a dummy file for the loader to find
     std::ofstream("imported_templates.chtl") << imported_content;
 
-    CHTL::Lexer l(main_content);
+    CHTL::Lexer l(main_content, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l, "main.chtl");
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -811,7 +811,7 @@ TEST_CASE("Generator correctly handles Origin blocks", "[generator]")
         std::string input = R"(
             [Origin] @Html {<script>alert("raw");</script>}
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -828,7 +828,7 @@ TEST_CASE("Generator correctly handles Origin blocks", "[generator]")
         // opening brace and the [Origin] block to avoid it being part of the output.
         // We also use a custom delimiter `d` for the raw string to handle the `)` character inside.
         std::string input = R"d(div {[Origin] @Style {.raw-css { color: hotpink; }}})d";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -848,7 +848,7 @@ TEST_CASE("Generator correctly handles chained and optional-else conditional exp
     SECTION("Selects first matching optional-else expression")
     {
         std::string input = "div { style { width: 175px; " + expr_list + " } }";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -865,7 +865,7 @@ TEST_CASE("Generator correctly handles chained and optional-else conditional exp
     SECTION("Selects first matching expression with final else")
     {
         std::string input = "div { style { width: 125px; " + expr_list + " } }";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -882,7 +882,7 @@ TEST_CASE("Generator correctly handles chained and optional-else conditional exp
     SECTION("Falls through to final else")
     {
         std::string input = "div { style { width: 50px; " + expr_list + " } }";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -910,7 +910,7 @@ TEST_CASE("Generator handles variable template usage in styles", "[generator][te
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -942,7 +942,7 @@ TEST_CASE("Generator handles local style blocks correctly after refactoring", "[
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -978,7 +978,7 @@ TEST_CASE("Generator correctly generates script blocks with CHTL JS", "[generato
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
     checkParserErrors(p);
@@ -1003,7 +1003,7 @@ TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -1024,7 +1024,7 @@ TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);

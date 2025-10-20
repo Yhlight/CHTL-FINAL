@@ -32,7 +32,7 @@ TEST_CASE("Parser correctly parses simple element and text nodes", "[parser]")
             }
         )";
 
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
 
@@ -59,7 +59,7 @@ TEST_CASE("Parser correctly parses simple element and text nodes", "[parser]")
             span {}
         )";
 
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
 
@@ -90,7 +90,7 @@ TEST_CASE("Parser correctly parses attributes", "[parser]")
             }
         )";
 
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
 
@@ -132,7 +132,7 @@ TEST_CASE("Parser correctly parses style blocks", "[parser]")
             }
         )";
 
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
 
@@ -172,7 +172,7 @@ TEST_CASE("Parser correctly parses infix expressions", "[parser]")
     {
         std::string input = "style { width: 100 + 50; }";
 
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
 

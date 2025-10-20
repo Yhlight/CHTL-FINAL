@@ -25,7 +25,7 @@ void checkParserErrors(const CHTL::Parser& p) {
 TEST_CASE("Test parsing a simple empty element", "[parser]")
 {
     std::string input = "div {}";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -44,7 +44,7 @@ TEST_CASE("Test parsing a simple empty element", "[parser]")
 TEST_CASE("Test parsing style block with identifier property", "[parser]")
 {
     std::string input = R"(style { color: red; })";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -68,7 +68,7 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
 TEST_CASE("Test parsing a type import statement", "[parser][import]")
 {
     std::string input = R"([Import] [Template] @Style from "my-styles.chtl";)";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -96,7 +96,7 @@ TEST_CASE("Test parsing a Style Template with inherit keyword", "[parser][templa
             font-size: 16px;
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -128,7 +128,7 @@ TEST_CASE("Test parsing a Var Template definition", "[parser][template]")
             secondary: blue;
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -168,7 +168,7 @@ TEST_CASE("Test parsing an Element Template definition", "[parser][template]")
             span {}
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -208,7 +208,7 @@ TEST_CASE("Test parsing a Custom Style with valueless properties", "[parser][cus
             font-size;
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -243,7 +243,7 @@ TEST_CASE("Test parsing a style property using a variable", "[parser][expression
             color: ThemeColors(primary);
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -273,7 +273,7 @@ TEST_CASE("Test parsing attribute access expression in a style property", "[pars
             width: .box.width + 10;
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -312,7 +312,7 @@ TEST_CASE("Test parsing a script block", "[parser][script]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -357,7 +357,7 @@ TEST_CASE("Test parsing an if block", "[parser][if]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -402,7 +402,7 @@ TEST_CASE("Test parsing an if-else if-else chain", "[parser][if]")
             else { color: "blue"; }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -445,12 +445,12 @@ TEST_CASE("Test parsing a CustomUsage with insert specialization", "[parser]")
                 }
             }
         )";
-        CHTL::Lexer l(input);
+        CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         // We need to parse this within a context that allows @Element usage, like a style block or element body
         // Let's wrap it in a dummy element
         std::string wrapped_input = "body { " + input + " }";
-        CHTL::Lexer l_wrapped(wrapped_input);
+        CHTL::Lexer l_wrapped(wrapped_input, CHTL::GetDefaultKeywords());
         CHTL::Parser p_wrapped(l_wrapped);
         auto program = p_wrapped.ParseProgram();
 
@@ -485,7 +485,7 @@ TEST_CASE("Test parsing a CustomUsage with insert specialization", "[parser]")
             }
         )";
         std::string wrapped_input = "body { " + input + " }";
-        CHTL::Lexer l(wrapped_input);
+        CHTL::Lexer l(wrapped_input, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l);
         auto program = p.ParseProgram();
         checkParserErrors(p);
@@ -507,7 +507,7 @@ TEST_CASE("Test parsing a CustomUsage with insert specialization", "[parser]")
 TEST_CASE("Test parsing an except statement", "[parser][except]")
 {
     std::string input = "div { except span, a; }";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -554,7 +554,7 @@ TEST_CASE("Parser handles [Import] statements", "[parser][import]")
         // Clear the static set of parsed files before this test section
         CHTL::Parser::ResetParsedFiles();
 
-        CHTL::Lexer l(main_file_content);
+        CHTL::Lexer l(main_file_content, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l, main_file_path);
         auto program = p.ParseProgram();
 
@@ -576,7 +576,7 @@ TEST_CASE("Parser handles [Import] statements", "[parser][import]")
         // Clear the static set of parsed files before this test section
         CHTL::Parser::ResetParsedFiles();
 
-        CHTL::Lexer l(main_file_content);
+        CHTL::Lexer l(main_file_content, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l, main_file_path);
         auto program = p.ParseProgram();
 
@@ -597,7 +597,7 @@ TEST_CASE("Parser handles [Import] statements", "[parser][import]")
         // Clear the static set of parsed files before this test section
         CHTL::Parser::ResetParsedFiles();
 
-        CHTL::Lexer l(main_file_content);
+        CHTL::Lexer l(main_file_content, CHTL::GetDefaultKeywords());
         CHTL::Parser p(l, main_file_path);
         auto program = p.ParseProgram();
 
@@ -616,7 +616,7 @@ TEST_CASE("Test parsing a simple Configuration block", "[parser]")
             INDEX_INITIAL_COUNT = 1;
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -644,7 +644,7 @@ TEST_CASE("Test parsing Configuration with a Name block", "[parser]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -667,7 +667,7 @@ TEST_CASE("Test parsing Configuration with a Name block", "[parser]")
 TEST_CASE("Test parsing a simple use statement", "[parser]")
 {
     std::string input = "use html5;";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -685,7 +685,7 @@ TEST_CASE("Test parsing a simple use statement", "[parser]")
 TEST_CASE("Test parsing a complex use statement for config", "[parser]")
 {
     std::string input = "use @Config Basic;";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -708,7 +708,7 @@ TEST_CASE("Test parsing a simple Origin block", "[parser]")
             <div class="raw-html"></div>
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -729,7 +729,7 @@ TEST_CASE("Test parsing a simple Origin block", "[parser]")
 TEST_CASE("Test parsing a named Origin block", "[parser]")
 {
     std::string input = R"([Origin] @JavaScript myScript { let x = 1; })";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -752,7 +752,7 @@ TEST_CASE("Test parsing a conditional expression in a style property", "[parser]
             background-color: width > 50 ? "red" : "blue";
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -797,7 +797,7 @@ TEST_CASE("Test parsing a conditional expression in a style property", "[parser]
 TEST_CASE("Test parsing attribute with equals sign (CE Equality)", "[parser]")
 {
     std::string input = R"(div { id = "my-id"; })";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -821,7 +821,7 @@ TEST_CASE("Test parsing a top-level text block with quotes", "[parser]")
             "Hello Block"
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -842,7 +842,7 @@ TEST_CASE("Test parsing a top-level text block with unquoted literal", "[parser]
             This is an unquoted literal.
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -863,7 +863,7 @@ TEST_CASE("Test parsing text as an attribute-like property", "[parser]")
             text: "Hello World";
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -895,7 +895,7 @@ TEST_CASE("Test parsing a simple TemplateUsage in a style block", "[parser]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -929,7 +929,7 @@ TEST_CASE("Test parsing a CustomUsage with delete specialization", "[parser]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -960,7 +960,7 @@ TEST_CASE("Test parsing a CustomUsage with delete specialization", "[parser]")
 TEST_CASE("Test parsing an import statement", "[parser]")
 {
     std::string input = R"([Import] @Chtl from "../tests/resources/imported_template.chtl";)";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -985,7 +985,7 @@ TEST_CASE("Test parsing a precise import statement", "[parser][import]")
     // The actual file loading is mocked out or handled by the Loader, but the parser
     // needs to correctly interpret the import statement itself.
     std::string input = R"([Import] [Template] @Style ImportedStyle from "../tests/resources/imported_template.chtl" as MyStyle;)";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
 
     // We call parseStatement instead of ParseProgram because import is a statement.
@@ -1018,7 +1018,7 @@ TEST_CASE("Test parsing a namespace block", "[parser]")
             }
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -1044,7 +1044,7 @@ TEST_CASE("Test parsing a namespace block", "[parser]")
 TEST_CASE("Test parsing style block with arithmetic expressions", "[parser]")
 {
     std::string input = R"(style { width: 100 + 50 * 2; })";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -1086,7 +1086,7 @@ TEST_CASE("Test parsing style block with arithmetic expressions", "[parser]")
 TEST_CASE("Test parsing a generator comment", "[parser]")
 {
     std::string input = R"(# this is a comment)";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 
@@ -1107,7 +1107,7 @@ TEST_CASE("Test parsing a simple Custom Style definition", "[parser]")
             color: red;
         }
     )";
-    CHTL::Lexer l(input);
+    CHTL::Lexer l(input, CHTL::GetDefaultKeywords());
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
 

@@ -2,13 +2,15 @@
 
 #include "lexer/Token.h"
 #include <string>
+#include <map>
 
 namespace CHTL
 {
     class Lexer
     {
     public:
-        Lexer(const std::string& input);
+        // The constructor now accepts a map of keywords to support dynamic keywords.
+        Lexer(const std::string& input, std::map<std::string, Token> keywords);
 
         Token NextToken();
         std::string readRawBlockContent();
@@ -16,7 +18,7 @@ namespace CHTL
         // Getters for parser to query state
         size_t GetPosition() const { return m_position; }
         size_t GetReadPosition() const { return m_readPosition; }
-        const std::string& GetInput() const { return m_input; } // Needed for raw content parsing
+        const std::string& GetInput() const { return m_input; }
 
     private:
         void readChar();
@@ -31,12 +33,15 @@ namespace CHTL
         Token readBlockKeyword();
         static bool isLetter(char ch);
 
-        std::string m_input;         // 输入的源代码
-        size_t m_position = 0;       // 当前读取的位置
-        size_t m_readPosition = 0;   // 下一个要读取的位置
-        char m_char = 0;             // 当前正在查看的字符
-        int m_line = 1;              // 当前行号
-        int m_column = 0;            // 当前列号
+        std::string m_input;
+        size_t m_position = 0;
+        size_t m_readPosition = 0;
+        char m_char = 0;
+        int m_line = 1;
+        int m_column = 0;
+
+        // The lexer now holds its own copy of the keyword map.
+        std::map<std::string, Token> m_keywords;
     };
 
 } // namespace CHTL

@@ -713,7 +713,7 @@ namespace CHTL
             else
             {
                 std::string file_content = Loader::ReadFile(m_current_file_path, node->path);
-                Lexer imported_lexer(file_content);
+                Lexer imported_lexer(file_content, GetDefaultKeywords());
                 Parser imported_parser(imported_lexer, full_path.string());
                 auto imported_program = imported_parser.ParseProgram();
 

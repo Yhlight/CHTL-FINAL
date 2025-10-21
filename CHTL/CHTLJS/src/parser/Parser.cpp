@@ -181,7 +181,7 @@ namespace CHTLJS
                 if (m_currentToken.type == TokenType::LBRACKET) {
                     nextToken();
                     while (m_currentToken.type != TokenType::RBRACKET) {
-                        node->targets.push_back(m_currentToken.literal);
+                        node->child_targets.push_back(m_currentToken.literal);
                         nextToken();
                         if (m_currentToken.type == TokenType::COMMA) {
                             nextToken();
@@ -189,7 +189,7 @@ namespace CHTLJS
                     }
                     nextToken();
                 } else {
-                    node->targets.push_back(m_currentToken.literal);
+                    node->child_targets.push_back(m_currentToken.literal);
                     nextToken();
                 }
             } else {
@@ -233,7 +233,9 @@ namespace CHTLJS
                 return nullptr;
             }
             nextToken();
-            if (key == "target") node->target = m_currentToken.literal;
+            if (key == "target") {
+                node->target = std::make_unique<EnhancedSelectorNode>(m_currentToken.literal);
+            }
             else if (key == "duration") node->duration = std::stoi(m_currentToken.literal);
             else if (key == "easing") node->easing = m_currentToken.literal;
             else if (key == "loop") node->loop = std::stoi(m_currentToken.literal);
@@ -287,7 +289,12 @@ namespace CHTLJS
                         nextToken();
                         if (m_currentToken.type == TokenType::COMMA) nextToken();
                     }
-                    node->when_states.push_back(state);
+                    double at = 0.0;
+                    if (state.count("at")) {
+                        at = std::stod(state["at"]);
+                        state.erase("at");
+                    }
+                    node->when_states.push_back({at, state});
                     nextToken();
                     if (m_currentToken.type == TokenType::COMMA) nextToken();
                 }

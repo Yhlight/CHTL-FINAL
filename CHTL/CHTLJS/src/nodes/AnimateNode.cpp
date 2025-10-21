@@ -5,7 +5,10 @@ namespace CHTLJS
     std::unique_ptr<AstNode> AnimateNode::clone() const
     {
         auto node = std::make_unique<AnimateNode>();
-        node->target = target;
+        if (target)
+        {
+            node->target = target->clone();
+        }
         node->duration = duration;
         node->easing = easing;
         node->begin_state = begin_state;

@@ -2,6 +2,11 @@
 
 namespace CHTLJS
 {
+    EnhancedSelectorNode::EnhancedSelectorNode(const std::string& selector)
+        : selector(selector)
+    {
+    }
+
     std::string EnhancedSelectorNode::ToString() const
     {
         return "EnhancedSelectorNode(selector: \"" + selector + "\")";

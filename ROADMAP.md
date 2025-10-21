@@ -45,15 +45,16 @@
     - 解决了 `LexerTest`, `ParserTest`, 和 `GeneratorTest` 中出现的所有失败用例。
     - 确保了 `build.py` 脚本能够成功构建整个项目并通过所有测试，保证了代码库的稳定性。
 
+### 7. CHTL JS 生成器 (已完成)
+- **目标:** 为 CHTL JS 开发一个代码生成器，将 CHTL JS 的 AST 转换成可执行的 JavaScript 代码。
+- **成果:**
+    - **生成器扩展:** 为 `ScriptLoader`, `Listen`, `Delegate`, `Animate`, 和 `Vir` 等 AST 节点实现了对应的 JavaScript 代码生成逻辑。
+    - **测试覆盖:** 编写了全面的单元测试，确保生成的 JavaScript 代码符合预期。
+    - **“盐桥”集成:** 在生成器中成功利用了“盐桥”机制，实现了 CHTL 和 CHTL JS 之间的上下文通信。
+
 ## 下一步计划
 
-### 1. CHTL JS 生成器
-- **目标:** 为 CHTL JS 开发一个代码生成器，将 CHTL JS 的 AST 转换成可执行的 JavaScript 代码。
-- **任务:**
-    - 为 `ScriptLoader`, `Listen`, `Delegate`, `Animate`, 和 `Vir` 等 AST 节点实现对应的 JavaScript 代码生成逻辑。
-    - 将生成的 JavaScript 代码嵌入到最终的 HTML 文件中。
-
-### 2. CMOD/CJMOD 模块系统
+### 1. CMOD/CJMOD 模块系统
 - **目标:** 完整实现 CMOD 和 CJMOD 二进制模块系统，包括打包、加载和解析。
 - **任务:**
     - **序列化:** 创建一个将 CHTL AST 序列化为 `.cmod` 文件的工具或脚本。

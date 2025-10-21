@@ -14,6 +14,7 @@ namespace CHTL
         Style,
         Comment,
         Script,
+        ScriptMain,
         Origin,
         Import,
         Namespace,
@@ -81,3 +82,4 @@ namespace CHTL
 #include "StylePropertyNode.h"
 #include "StyleRuleNode.h"
 #include "ExpressionNode.h"
+#include "nodes/ScriptMainNode.h"

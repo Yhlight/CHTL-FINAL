@@ -10,6 +10,7 @@ static const std::unordered_map<std::string, TokenType> keywords = {
     {"text", TokenType::KEYWORD_TEXT},
     {"style", TokenType::KEYWORD_STYLE},
     {"script", TokenType::KEYWORD_SCRIPT},
+    {"ScriptMain", TokenType::KEYWORD_SCRIPTMAIN},
     {"inherit", TokenType::KEYWORD_INHERIT},
     {"delete", TokenType::KEYWORD_DELETE},
     {"insert", TokenType::KEYWORD_INSERT},

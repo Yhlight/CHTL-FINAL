@@ -22,6 +22,7 @@ namespace CHTL
         KEYWORD_TEXT,       // text
         KEYWORD_STYLE,      // style
         KEYWORD_SCRIPT,     // script
+        KEYWORD_SCRIPTMAIN, // ScriptMain
         KEYWORD_TEMPLATE,   // [Template]
         KEYWORD_CUSTOM,     // [Custom]
         KEYWORD_ORIGIN,     // [Origin]

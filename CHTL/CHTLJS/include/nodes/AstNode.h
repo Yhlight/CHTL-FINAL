@@ -29,14 +29,4 @@ namespace CHTLJS
         virtual std::unique_ptr<AstNode> clone() const = 0;
     };
 
-    // CHTL JS 程序根节点
-    struct ProgramNode : public AstNode
-    {
-        std::vector<std::unique_ptr<AstNode>> children;
-
-        NodeType GetType() const override { return NodeType::Program; }
-        std::string ToString() const override { return "ProgramNode"; }
-        std::unique_ptr<AstNode> clone() const override;
-    };
-
 } // namespace CHTLJS

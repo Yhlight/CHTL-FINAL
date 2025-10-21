@@ -2,6 +2,7 @@
 
 #include "AstNode.h"
 #include "CHTLJS/include/nodes/AstNode.h"
+#include "CHTLJS/include/nodes/ProgramNode.h"
 #include <string>
 #include <memory>
 

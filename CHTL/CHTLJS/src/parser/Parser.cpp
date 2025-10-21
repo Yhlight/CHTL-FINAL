@@ -1,4 +1,5 @@
 #include "CHTLJS/include/parser/Parser.h"
+#include "CHTLJS/include/nodes/ProgramNode.h"
 #include "CHTLJS/include/nodes/AstNode.h"
 #include "CHTLJS/include/nodes/RawJSNode.h"
 #include "CHTLJS/include/nodes/ScriptLoaderNode.h"

@@ -2,6 +2,7 @@
 
 #include "CHTLJS/include/lexer/Lexer.h"
 #include "CHTLJS/include/nodes/AstNode.h"
+#include "CHTLJS/include/nodes/ProgramNode.h"
 #include "CHTLJS/include/nodes/EnhancedSelectorNode.h"
 #include "bridge/SaltBridge.h"
 #include <memory>

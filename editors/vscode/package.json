@@ -1,0 +1,24 @@
+{
+  "name": "chtl",
+  "displayName": "CHTL Language Support",
+  "description": "Syntax highlighting for the CHTL language.",
+  "version": "0.1.0",
+  "engines": {
+    "vscode": "^1.0.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [{
+      "id": "chtl",
+      "aliases": ["CHTL", "chtl"],
+      "extensions": [".chtl"]
+    }],
+    "grammars": [{
+      "language": "chtl",
+      "scopeName": "source.chtl",
+      "path": "./syntaxes/chtl.tmLanguage.json"
+    }]
+  }
+}

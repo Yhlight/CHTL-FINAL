@@ -47,11 +47,11 @@
 
 ## 下一步计划
 
-### 1. CHTL JS 生成器
+### 1. CHTL JS 生成器 (已完成)
 - **目标:** 为 CHTL JS 开发一个代码生成器，将 CHTL JS 的 AST 转换成可执行的 JavaScript 代码。
-- **任务:**
-    - 为 `ScriptLoader`, `Listen`, `Delegate`, `Animate`, 和 `Vir` 等 AST 节点实现对应的 JavaScript 代码生成逻辑。
-    - 将生成的 JavaScript 代码嵌入到最终的 HTML 文件中。
+- **成果:**
+    - 为 `ScriptLoader`, `Listen`, `Delegate`, `Animate`, 和 `Vir` 等 AST 节点实现了 JavaScript 代码生成逻辑。
+    - 将生成的 JavaScript 代码成功嵌入到最终的 HTML 文件中。
 
 ### 2. CMOD/CJMOD 模块系统
 - **目标:** 完整实现 CMOD 和 CJMOD 二进制模块系统，包括打包、加载和解析。

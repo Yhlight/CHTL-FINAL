@@ -11,7 +11,7 @@
 namespace CHTLJS
 {
     Parser::Parser(Lexer& lexer)
-        : m_lexer(lexer)
+        : m_lexer(lexer), m_bridge(nullptr)
     {
         nextToken();
         nextToken();

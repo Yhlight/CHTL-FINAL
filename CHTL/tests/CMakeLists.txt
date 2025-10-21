@@ -36,3 +36,7 @@ target_include_directories(CHTLJSParserTest PRIVATE ../../third-party)
 add_executable(IfElseGeneratorTest IfElseGeneratorTest.cpp)
 target_link_libraries(IfElseGeneratorTest PRIVATE CHTL)
 target_include_directories(IfElseGeneratorTest PRIVATE ../../third-party)
+
+add_executable(BridgeTest BridgeTest.cpp)
+target_link_libraries(BridgeTest PRIVATE CHTL)
+target_include_directories(BridgeTest PRIVATE ../../third-party)

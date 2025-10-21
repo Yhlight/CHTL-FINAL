@@ -4,6 +4,8 @@
 #include "AstNode.h"
 #include "lexer/Token.h"
 #include "loader/Loader.h"
+#include "bridge/SaltBridge.h"
+#include "bridge/ConcreteSaltBridge.h"
 #include <memory>
 #include <unordered_set>
 #include <vector>
@@ -15,7 +17,7 @@ namespace CHTL
     {
     public:
         Parser(Lexer& lexer, std::string file_path = "");
-
+        void SetBridge(std::shared_ptr<SaltBridge> bridge) { m_bridge = bridge; }
         std::unique_ptr<ProgramNode> ParseProgram();
         const std::vector<std::string>& GetErrors() const { return m_errors; }
 
@@ -84,6 +86,7 @@ namespace CHTL
         std::vector<std::string> m_errors;
         std::string m_current_file_path;
         std::string m_current_namespace;
+        std::shared_ptr<SaltBridge> m_bridge;
 
         // Static member to track parsed files across all parser instances
         // to prevent circular dependencies.

@@ -3,6 +3,7 @@
 #include "CHTLJS/include/lexer/Lexer.h"
 #include "CHTLJS/include/nodes/AstNode.h"
 #include "CHTLJS/include/nodes/EnhancedSelectorNode.h"
+#include "bridge/SaltBridge.h"
 #include <memory>
 #include <vector>
 #include <string>
@@ -14,6 +15,7 @@ namespace CHTLJS
     public:
         Parser(Lexer& lexer);
 
+        void SetBridge(std::shared_ptr<CHTL::SaltBridge> bridge) { m_bridge = bridge; }
         std::unique_ptr<ProgramNode> ParseProgram();
         const std::vector<std::string>& GetErrors() const { return m_errors; }
 
@@ -33,6 +35,7 @@ namespace CHTLJS
         Token m_currentToken;
         Token m_peekToken;
         std::vector<std::string> m_errors;
+        std::shared_ptr<CHTL::SaltBridge> m_bridge;
     };
 
 } // namespace CHTLJS

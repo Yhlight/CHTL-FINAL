@@ -27,7 +27,7 @@ namespace CHTL
     };
 
     Parser::Parser(Lexer& lexer, std::string file_path)
-        : m_lexer(lexer), m_current_file_path(std::move(file_path)), m_current_namespace(GLOBAL_NAMESPACE)
+        : m_lexer(lexer), m_current_file_path(std::move(file_path)), m_current_namespace(GLOBAL_NAMESPACE), m_bridge(std::make_shared<ConcreteSaltBridge>())
     {
         nextToken();
         nextToken();
@@ -1502,6 +1502,7 @@ namespace CHTL
         // Now, parse the collected script content with the CHTLJS parser
         CHTLJS::Lexer js_lexer(script_content);
         CHTLJS::Parser js_parser(js_lexer);
+        js_parser.SetBridge(m_bridge);
         node->js_ast = js_parser.ParseProgram();
 
         // Transfer any errors from the JS parser to the main parser

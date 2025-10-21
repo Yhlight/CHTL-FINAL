@@ -7,6 +7,9 @@
       "include": "#comments"
     },
     {
+      "include": "#script-block"
+    },
+    {
       "include": "#keywords"
     },
     {
@@ -26,6 +29,40 @@
     }
   ],
   "repository": {
+    "script-block": {
+      "begin": "(script)\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "keyword.other.chtl" },
+        "2": { "name": "meta.brace.curly.chtl" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "meta.brace.curly.chtl" }
+      },
+      "patterns": [
+        {
+          "include": "#enhanced-selector"
+        },
+        {
+          "include": "#responsive-value"
+        },
+        {
+          "include": "#chtl-js-keywords"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#strings"
+        },
+        {
+          "include": "#operators"
+        },
+        {
+          "include": "#punctuation"
+        }
+      ]
+    },
     "comments": {
       "patterns": [
         {
@@ -165,6 +202,34 @@
           "match": "(\\()|(\\))"
         }
       ]
+    },
+    "enhanced-selector": {
+      "name": "variable.other.selector.enhanced.chtl-js",
+      "begin": "\\{\\{",
+      "end": "\\}\\}",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.variable.begin.chtl-js" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.variable.end.chtl-js" }
+      }
+    },
+    "responsive-value": {
+      "name": "variable.other.responsive.chtl-js",
+      "begin": "\\$",
+      "end": "\\$",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.variable.begin.chtl-js" }
+      },
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.variable.end.chtl-js" }
+      }
+    },
+    "chtl-js-keywords": {
+      "patterns": [{
+        "name": "keyword.other.chtl-js",
+        "match": "\\b(ScriptMain|ScriptLoader|Listen|Delegate|Animate|Vir|Router|PrintMylove|INeverAway|util|change|end)\\b"
+      }]
     }
   }
 }

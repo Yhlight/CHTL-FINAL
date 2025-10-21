@@ -16,8 +16,17 @@ namespace CHTL
 {
     extern const std::string GLOBAL_NAMESPACE;
 
+    /**
+     * @brief Constructs a new Generator object.
+     * @param bridge The salt bridge for communication with other compilers.
+     */
     Generator::Generator(std::shared_ptr<SaltBridge> bridge) : m_bridge(bridge) {}
 
+    /**
+     * @brief Generates the final HTML output from a CHTL AST.
+     * @param program The root ProgramNode of the AST to generate from.
+     * @return The generated HTML as a string.
+     */
     std::string Generator::Generate(ProgramNode* program)
     {
         m_programNode = program;
@@ -44,6 +53,11 @@ namespace CHTL
         return content;
     }
 
+    /**
+     * @brief Generic visitor function that dispatches to the correct typed visitor.
+     * @param node The AST node to visit.
+     * @param context The current evaluation context.
+     */
     void Generator::visit(AstNode* node, EvalContext& context)
     {
         if (!node) return;

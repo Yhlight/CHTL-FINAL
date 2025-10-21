@@ -25,6 +25,11 @@ std::unordered_map<TokenType, Parser::Precedence> Parser::precedences = {
     {TokenType::QUESTION, Parser::Precedence::CONDITIONAL},
 };
 
+/**
+ * @brief Constructs a new Parser object.
+ * @param lexer The lexer to use for tokenizing the input.
+ * @param file_path The path to the file being parsed.
+ */
 Parser::Parser(Lexer &lexer, std::string file_path)
     : m_lexer(lexer), m_current_file_path(std::move(file_path)),
       m_current_namespace(GLOBAL_NAMESPACE),
@@ -33,11 +38,18 @@ Parser::Parser(Lexer &lexer, std::string file_path)
   nextToken();
 }
 
+/**
+ * @brief Advances the parser to the next token.
+ */
 void Parser::nextToken() {
   m_currentToken = m_peekToken;
   m_peekToken = m_lexer.NextToken();
 }
 
+/**
+ * @brief Parses the entire CHTL program.
+ * @return A unique pointer to the root ProgramNode of the AST.
+ */
 std::unique_ptr<ProgramNode> Parser::ParseProgram() {
   auto program = std::make_unique<ProgramNode>();
 
@@ -81,6 +93,11 @@ std::unique_ptr<ProgramNode> Parser::ParseProgram() {
   return program;
 }
 
+/**
+ * @brief Checks if the next token is of the expected type and advances if it is.
+ * @param t The expected token type.
+ * @return True if the token matches, false otherwise.
+ */
 bool Parser::expectPeek(TokenType t) {
   if (m_peekToken.type == t) {
     nextToken();
@@ -93,6 +110,10 @@ bool Parser::expectPeek(TokenType t) {
   }
 }
 
+/**
+ * @brief Parses a single statement.
+ * @return A unique pointer to the parsed AstNode.
+ */
 std::unique_ptr<AstNode> Parser::parseStatement() {
   if (m_currentToken.type == TokenType::IDENT) {
     if (m_peekToken.type == TokenType::COLON) {
@@ -115,6 +136,10 @@ std::unique_ptr<AstNode> Parser::parseStatement() {
   return nullptr;
 }
 
+/**
+ * @brief Parses an element node.
+ * @return A unique pointer to the parsed ElementNode.
+ */
 std::unique_ptr<ElementNode> Parser::parseElementNode() {
   auto node = std::make_unique<ElementNode>();
   node->tag_name = m_currentToken.literal;

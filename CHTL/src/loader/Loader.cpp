@@ -19,6 +19,12 @@
 namespace CHTL
 {
 
+/**
+ * @brief Reads the content of a file given a base path and an import path.
+ * @param base_file_path The path of the file that contains the import statement.
+ * @param import_path The relative path specified in the import statement.
+ * @return The content of the imported file as a string.
+ */
 std::string Loader::ReadFile(const std::string& base_file_path, const std::string& import_path)
 {
     std::filesystem::path base_dir = base_file_path.empty()
@@ -39,6 +45,19 @@ std::string Loader::ReadFile(const std::string& base_file_path, const std::strin
     return buffer.str();
 }
 
+/**
+ * @brief Loads a CHTL module from a given path.
+ *
+ * This function can handle different types of modules based on their file extension:
+ * - `.chtl`: Parses the file content and returns a CHTL AST.
+ * - `.cmod`: Deserializes a binary CHTL module into a CHTL AST.
+ * - `.cjmod`: Loads a CHTL JS dynamic library.
+ *
+ * @param base_file_path The path of the file containing the import statement.
+ * @param import_path The relative path to the module to be loaded.
+ * @return A pair containing unique pointers to the loaded CHTL and CHTLJS ProgramNodes.
+ *         If a module type is not applicable, the corresponding pointer will be null.
+ */
 std::pair<std::unique_ptr<ProgramNode>, std::unique_ptr<CHTLJS::ProgramNode>>
 Loader::LoadModule(const std::string& base_file_path, const std::string& import_path)
 {

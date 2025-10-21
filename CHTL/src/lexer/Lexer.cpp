@@ -323,21 +323,18 @@ Token Lexer::NextToken()
             // readString 更新了行列号，所以不需要额外处理
             return tok;
         case '#':
-            if (peekChar() == ' ')
-            {
-                readChar(); // 消耗 '#'
-                readChar(); // 消耗 ' '
+            if (peekChar() == ' ') {
+                readChar(); // consume '#'
+                readChar(); // consume ' '
                 tok.type = TokenType::COMMENT;
                 tok.literal = readComment();
-                return tok;
+            } else if (isLetter(peekChar())) {
+                 tok = {TokenType::ILLEGAL, std::string(1, m_char), tok.line, tok.column};
             }
-            else
-            {
-                // '#` 后面没有空格，这是一个非法的Token
-                tok = {TokenType::ILLEGAL, std::string(1, m_char), tok.line, tok.column};
-                readChar(); // 消耗 '#'
-                return tok;
+            else {
+                tok = {TokenType::HASH, "#", tok.line, tok.column};
             }
+            break;
         case 0:
             tok.type = TokenType::END_OF_FILE;
             tok.literal = "";

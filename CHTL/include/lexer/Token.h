@@ -71,6 +71,7 @@ namespace CHTL
         AMPERSAND,  // &
         QUESTION,   // ?
         COMMA,      // ,
+        HASH,       // #
     };
 
     // Token结构体

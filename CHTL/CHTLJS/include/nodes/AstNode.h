@@ -12,6 +12,11 @@ namespace CHTLJS
         Program,
         EnhancedSelector,
         RawJS,
+        ScriptLoader,
+        Listen,
+        Delegate,
+        Animate,
+        Vir,
         // ... 其他 CHTL JS 节点类型
     };
 

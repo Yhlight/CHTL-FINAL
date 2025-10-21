@@ -57,6 +57,7 @@ namespace CHTL
             case TokenType::AMPERSAND:           return "AMPERSAND";
             case TokenType::QUESTION:            return "QUESTION";
             case TokenType::COMMA:               return "COMMA";
+            case TokenType::HASH:                return "HASH";
             default:                             return "UNKNOWN";
         }
     }

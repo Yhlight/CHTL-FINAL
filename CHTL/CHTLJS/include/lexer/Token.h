@@ -15,6 +15,19 @@ namespace CHTLJS
         LBRACE_BRACE,   // {{
         RBRACE_BRACE,   // }}
 
+        // 符号
+        LBRACE,
+        RBRACE,
+        LPAREN,
+        RPAREN,
+        LBRACKET,
+        RBRACKET,
+        COMMA,
+        COLON,
+        SEMICOLON,
+        ASSIGN,
+        IDENT,
+
         // ... 其他 CHTL JS 的 token 将在这里添加
     };
 

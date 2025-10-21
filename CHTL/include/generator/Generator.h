@@ -2,8 +2,10 @@
 
 #include "AstNode.h"
 #include "eval/Evaluator.h" // For EvalContext
+#include "bridge/SaltBridge.h"
 #include <string>
 #include <sstream>
+#include <memory>
 
 // Forward declarations for CHTLJS nodes to avoid including the headers here
 namespace CHTLJS {
@@ -18,6 +20,7 @@ namespace CHTL
     class Generator
     {
     public:
+        Generator(std::shared_ptr<SaltBridge> bridge);
         std::string Generate(ProgramNode* program);
 
     private:
@@ -51,5 +54,6 @@ namespace CHTL
         std::stringstream m_output;
         std::stringstream m_global_styles;
         const ProgramNode* m_programNode = nullptr;
+        std::shared_ptr<SaltBridge> m_bridge;
     };
 }

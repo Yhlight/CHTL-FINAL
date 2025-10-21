@@ -38,7 +38,9 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
-            CHTL::Generator generator;
+            auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+            parser.SetBridge(bridge);
+            CHTL::Generator generator(bridge);
             std::string html = generator.Generate(program.get());
             std::cout << html << std::endl;
 

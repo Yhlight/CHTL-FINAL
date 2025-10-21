@@ -19,6 +19,7 @@ file(GLOB_RECURSE CHTL_SOURCES
     "src/nodes/*.cpp"
     "src/parser/*.cpp"
     "CHTLJS/src/*.cpp"
+    "CHTLJS/src/generator/*.cpp"
     "CHTLJS/src/lexer/*.cpp"
     "CHTLJS/src/nodes/*.cpp"
     "CHTLJS/src/parser/*.cpp"
@@ -37,6 +38,7 @@ target_include_directories(CHTL PUBLIC
     include/bridge
     include/eval
     include/generator
+    CHTLJS/include/generator
     include/lexer
     include/loader
     include/nodes

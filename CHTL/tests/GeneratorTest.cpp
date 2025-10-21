@@ -34,7 +34,8 @@ TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]"
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<div></div>";
         REQUIRE(html_output == expected_html);
@@ -48,7 +49,8 @@ TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]"
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<body><div></div></body>";
         REQUIRE(html_output == expected_html);
@@ -101,7 +103,8 @@ TEST_CASE("Generator correctly handles type imports", "[generator][import]")
     const auto& global_templates = program->templates.at(CHTL::GLOBAL_NAMESPACE);
     REQUIRE(global_templates.count("Irrelevant") == 0);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string result = generator.Generate(program.get());
 
     INFO("Generated HTML: " << result);
@@ -143,7 +146,8 @@ TEST_CASE("Generator handles except constraints", "[generator][except]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
     std::string expected_html = "<div><p>allowed</p><a>allowed</a></div>";
     REQUIRE(html_output == expected_html);
@@ -166,7 +170,8 @@ TEST_CASE("Generator correctly handles element template usage", "[generator][tem
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator g;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator g(bridge);
     std::string output = g.Generate(program.get());
 
     INFO("Generated Output:\n" << output);
@@ -190,7 +195,8 @@ TEST_CASE("Generator correctly generates HTML for complex structures", "[generat
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
     std::string expected_html = "<div id=\"box\"><!-- this is a comment --><p>hello</p></div>";
     REQUIRE(html_output == expected_html);
@@ -212,7 +218,8 @@ TEST_CASE("Generator correctly handles automatic class naming", "[generator]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
     std::string expected_html = "<head><style>.box{width:300px;}</style></head><div class=\"box\"></div>";
     REQUIRE(html_output == expected_html);
@@ -233,7 +240,8 @@ TEST_CASE("Generator correctly handles contextual '&' selector", "[generator]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
     std::string expected_html = "<head><style>.box{color:blue;}.box:hover{color:red;}</style></head><div class=\"box\"></div>";
     REQUIRE(html_output == expected_html);
@@ -254,7 +262,8 @@ TEST_CASE("Generator correctly handles conditional expressions", "[generator]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
     std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
@@ -290,7 +299,8 @@ TEST_CASE("Generator handles instantiation of valueless custom styles", "[genera
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
     INFO("Generated Output:\n" << html_output);
@@ -327,7 +337,8 @@ TEST_CASE("Generator handles composite template inheritance", "[generator][templ
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
     INFO("Generated Output:\n" << html_output);
@@ -370,7 +381,8 @@ TEST_CASE("Generator handles explicit template inheritance with 'inherit' keywor
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
     INFO("Generated Output:\n" << html_output);
@@ -411,7 +423,8 @@ TEST_CASE("Generator correctly handles style group templates", "[generator]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
     std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
@@ -441,7 +454,8 @@ TEST_CASE("Generator correctly handles variable group templates", "[generator]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
     std::string expected_html = "<div style=\"background-color:rgb(255, 192, 203);\"></div>";
     REQUIRE(html_output == expected_html);
@@ -466,7 +480,8 @@ TEST_CASE("Generator correctly handles element templates", "[generator]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
     std::string expected_html = R"(<body><div style="background-color:red;"></div><span>A box</span></body>)";
     REQUIRE(html_output == expected_html);
@@ -500,7 +515,8 @@ TEST_CASE("Generator correctly handles custom style definitions with specializat
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
     // Note: The order of properties is not guaranteed due to unordered_map lookups.
     // A robust test would parse the style attribute and check for properties.
@@ -540,7 +556,8 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<body><p>first</p><div>inserted</div><p>second</p></body>";
         REQUIRE(html_output == expected_html);
@@ -565,7 +582,8 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<body><div>inserted at top</div><p>first</p></body>";
         REQUIRE(html_output == expected_html);
@@ -590,7 +608,8 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<body><p>first</p><span>third</span></body>";
         REQUIRE(html_output == expected_html);
@@ -617,7 +636,8 @@ TEST_CASE("Generator handles element templates with insert specialization", "[ge
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<body><p>first</p><i>replaced</i><span>third</span></body>";
         REQUIRE(html_output == expected_html);
@@ -640,7 +660,8 @@ TEST_CASE("Generator correctly handles imported templates", "[generator]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
     std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
@@ -672,7 +693,8 @@ TEST_CASE("Generator correctly handles namespaced template usage", "[generator]"
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         REQUIRE(html_output.find("color:purple") != std::string::npos);
     }
@@ -697,7 +719,8 @@ TEST_CASE("Generator correctly handles namespaced template usage", "[generator]"
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         REQUIRE(html_output.find("font-weight:bold") != std::string::npos);
     }
@@ -711,7 +734,8 @@ TEST_CASE("Generator correctly renders comments", "[generator]")
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string output = generator.Generate(program.get());
     REQUIRE(output.find("<!-- My Comment -->") != std::string::npos);
 }
@@ -749,7 +773,8 @@ TEST_CASE("Generator correctly handles precisely imported templates", "[generato
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string result = generator.Generate(program.get());
 
     INFO("Generated HTML: " << result);
@@ -778,7 +803,8 @@ TEST_CASE("Test generating a simple text node", "[generator]")
     auto program = std::make_unique<CHTL::ProgramNode>();
     program->children.push_back(std::move(text_node));
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string output = generator.Generate(program.get());
 
     REQUIRE(output == "Just some simple text.");
@@ -796,7 +822,8 @@ TEST_CASE("Test generating text inside an element", "[generator]")
     auto program = std::make_unique<CHTL::ProgramNode>();
     program->children.push_back(std::move(element_node));
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string output = generator.Generate(program.get());
 
     REQUIRE(output.find("<p>") != std::string::npos);
@@ -816,7 +843,8 @@ TEST_CASE("Generator correctly handles Origin blocks", "[generator]")
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string output = generator.Generate(program.get());
         std::string expected_output = R"(<script>alert("raw");</script>)";
         REQUIRE(output == expected_output);
@@ -833,7 +861,8 @@ TEST_CASE("Generator correctly handles Origin blocks", "[generator]")
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string output = generator.Generate(program.get());
         std::string expected_output = "<div>.raw-css { color: hotpink; }</div>";
         REQUIRE(output == expected_output);
@@ -853,7 +882,8 @@ TEST_CASE("Generator correctly handles chained and optional-else conditional exp
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
 
         REQUIRE(html_output.find("background-color:grey") != std::string::npos);
@@ -870,7 +900,8 @@ TEST_CASE("Generator correctly handles chained and optional-else conditional exp
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
 
         REQUIRE(html_output.find("background-color:white") != std::string::npos);
@@ -887,7 +918,8 @@ TEST_CASE("Generator correctly handles chained and optional-else conditional exp
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
 
         REQUIRE(html_output.find("background-color:blue") != std::string::npos);
@@ -915,7 +947,8 @@ TEST_CASE("Generator handles variable template usage in styles", "[generator][te
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator g;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator g(bridge);
     std::string output = g.Generate(program.get());
 
     INFO("Generated Output:\n" << output);
@@ -947,7 +980,8 @@ TEST_CASE("Generator handles local style blocks correctly after refactoring", "[
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
     // 1. Check for the global style block in <head>
@@ -983,7 +1017,8 @@ TEST_CASE("Generator correctly generates script blocks with CHTL JS", "[generato
     auto program = p.ParseProgram();
     checkParserErrors(p);
 
-    CHTL::Generator generator;
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
     // The CHTLJSParser should now correctly interleave RawJS and EnhancedSelector nodes.
@@ -1008,7 +1043,8 @@ TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = R"(<div style="display:none;"></div>)";
         REQUIRE(html_output == expected_html);
@@ -1029,7 +1065,8 @@ TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<div></div>";
         REQUIRE(html_output == expected_html);

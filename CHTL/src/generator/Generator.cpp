@@ -5,6 +5,7 @@
 #include "CHTLJS/include/nodes/AstNode.h"
 #include "CHTLJS/include/nodes/EnhancedSelectorNode.h"
 #include "CHTLJS/include/nodes/RawJSNode.h"
+#include "CHTLJS/include/generator/Generator.h"
 #include <stdexcept>
 #include <vector>
 #include <unordered_set>
@@ -14,6 +15,8 @@
 namespace CHTL
 {
     extern const std::string GLOBAL_NAMESPACE;
+
+    Generator::Generator(std::shared_ptr<SaltBridge> bridge) : m_bridge(bridge) {}
 
     std::string Generator::Generate(ProgramNode* program)
     {
@@ -635,7 +638,8 @@ namespace CHTL
         m_output << "<script>";
         if (node->js_ast)
         {
-            visit(node->js_ast.get(), context);
+            CHTLJS::Generator js_generator(m_bridge);
+            m_output << js_generator.Generate(*node->js_ast);
         }
         m_output << "</script>";
     }

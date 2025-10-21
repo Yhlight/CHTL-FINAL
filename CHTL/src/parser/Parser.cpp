@@ -199,6 +199,32 @@ namespace CHTL
             }
             else
             {
+                if (m_currentToken.type == TokenType::KEYWORD_SCRIPT)
+                {
+                    std::string parent_selector;
+                    // Prefer ID
+                    for (const auto& attr : node->attributes) {
+                        if (attr.name == "id") {
+                            parent_selector = "#" + attr.value;
+                            break;
+                        }
+                    }
+                    // Fallback to class if no ID
+                    if (parent_selector.empty()) {
+                        for (const auto& attr : node->attributes) {
+                            if (attr.name == "class") {
+                                // Just use the first class for now
+                                std::string first_class = attr.value.substr(0, attr.value.find(' '));
+                                parent_selector = "." + first_class;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!parent_selector.empty()) {
+                        m_bridge->sendData("parent_selector", parent_selector);
+                    }
+                }
                 auto stmt = parseStatement();
                 if (stmt)
                 {

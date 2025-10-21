@@ -38,7 +38,8 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = R"(<div><p>Success!</p></div>)";
         REQUIRE(html_output == expected_html);
@@ -59,7 +60,8 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = "<div></div>";
         REQUIRE(html_output == expected_html);
@@ -82,7 +84,8 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = R"(<div><p>ELSE</p></div>)";
         REQUIRE(html_output == expected_html);
@@ -108,7 +111,8 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = R"(<div><p>ELSE IF</p></div>)";
         REQUIRE(html_output == expected_html);
@@ -133,7 +137,8 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = R"(<div><p>Outer IF</p><span>Inner IF</span></div>)";
         REQUIRE(html_output == expected_html);
@@ -156,7 +161,8 @@ TEST_CASE("Generator handles conditional rendering with if/else blocks", "[gener
         auto program = p.ParseProgram();
         checkParserErrors(p);
 
-        CHTL::Generator generator;
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
         std::string expected_html = R"(<div style="width:100px;"></div>)";
         REQUIRE(html_output == expected_html);

@@ -4,11 +4,13 @@
 #include "loader/Loader.h"
 #include "parser/Parser.h"
 #include "generator/Generator.h"
+#include "CMOD/packer.h"
 
 void show_usage() {
     std::cout << "Usage: chtl <command> [options]" << std::endl;
     std::cout << "Commands:" << std::endl;
     std::cout << "  compile <file>   Compile a CHTL file" << std::endl;
+    std::cout << "  package <input> <output>  Package a CHTL file into a .cmod file" << std::endl;
     std::cout << "  help             Show this help message" << std::endl;
 }
 
@@ -48,7 +50,31 @@ int main(int argc, char* argv[]) {
             std::cerr << "Error: " << e.what() << std::endl;
             return 1;
         }
-    } else {
+    } else if (command == "package" && args.size() > 2) {
+        std::string input_path = args[1];
+        std::string output_path = args[2];
+        try {
+            std::string content = CHTL::Loader::ReadFile("", input_path);
+            CHTL::Lexer lexer(content);
+            CHTL::Parser parser(lexer, input_path);
+            auto program = parser.ParseProgram();
+
+            if (!parser.GetErrors().empty()) {
+                for (const auto& error : parser.GetErrors()) {
+                    std::cerr << "Parser Error: " << error << std::endl;
+                }
+                return 1;
+            }
+
+            CHTL::CMOD::Packer::Pack(*program, output_path);
+            std::cout << "Successfully packaged " << input_path << " to " << output_path << std::endl;
+
+        } catch (const std::runtime_error& e) {
+            std::cerr << "Error: " << e.what() << std::endl;
+            return 1;
+        }
+    }
+    else {
         show_usage();
         return 1;
     }

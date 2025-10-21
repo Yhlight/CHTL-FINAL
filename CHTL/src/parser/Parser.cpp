@@ -667,125 +667,92 @@ std::unique_ptr<ImportNode> Parser::parseImportNode(ProgramNode &program) {
     if (s_parsed_files.count(full_path.string())) {
       // skip if already parsed
     } else {
-      std::string file_content =
-          Loader::ReadFile(m_current_file_path, node->path);
-      Lexer imported_lexer(file_content);
-      Parser imported_parser(imported_lexer, full_path.string());
-      auto imported_program = imported_parser.ParseProgram();
+      auto [imported_program, imported_js_program] =
+          Loader::LoadModule(m_current_file_path, node->path);
 
-      if (!imported_parser.GetErrors().empty()) {
-        for (const auto &err : imported_parser.GetErrors()) {
-          m_errors.push_back("Error in imported file '" + node->path +
-                             "': " + err);
-        }
-        return node; // Return early if imported file has errors
+      if (imported_js_program) {
+        program.cjs_nodes.push_back(std::move(imported_js_program));
       }
 
-      if (!node->imported_name.empty()) {
-        // Precise import
-        const AstNode *found_node = nullptr;
-        if (node->import_scope == "[Template]") {
-          for (const auto &[ns, def_map] : imported_program->templates) {
-            if (def_map.count(node->imported_name)) {
-              found_node = def_map.at(node->imported_name);
-              break;
-            }
-          }
-        } else if (node->import_scope == "[Custom]") {
-          for (const auto &[ns, def_map] : imported_program->customs) {
-            if (def_map.count(node->imported_name)) {
-              found_node = def_map.at(node->imported_name);
-              break;
-            }
-          }
-        }
+      if (imported_program) {
+        std::unordered_set<const AstNode *> nodes_to_move;
 
-        if (found_node) {
-          std::unique_ptr<AstNode> cloned_node = found_node->clone();
-          std::string final_name =
-              node->alias.empty() ? node->imported_name : node->alias;
-
+        if (!node->imported_name.empty()) {
+          // Precise import
+          const AstNode *found_node = nullptr;
           if (node->import_scope == "[Template]") {
-            program.templates[m_current_namespace][final_name] =
-                static_cast<const TemplateDefinitionNode *>(cloned_node.get());
+            for (const auto &[ns, def_map] : imported_program->templates) {
+              if (def_map.count(node->imported_name)) {
+                found_node = def_map.at(node->imported_name);
+                break;
+              }
+            }
           } else if (node->import_scope == "[Custom]") {
-            program.customs[m_current_namespace][final_name] =
-                static_cast<const CustomDefinitionNode *>(cloned_node.get());
+            for (const auto &[ns, def_map] : imported_program->customs) {
+              if (def_map.count(node->imported_name)) {
+                found_node = def_map.at(node->imported_name);
+                break;
+              }
+            }
           }
 
-          program.children.push_back(std::move(cloned_node));
-        } else {
-          m_errors.push_back("Could not find definition '" +
-                             node->imported_name + "' in file '" + node->path +
-                             "'.");
-        }
-      } else {
-        // This handles both wildcard imports (e.g., [Import] @Chtl) and type
-        // imports (e.g., [Import] [Template] @Style).
-        std::unordered_map<const AstNode *, AstNode *> already_cloned;
-
-        if (node->import_scope == "[Template]") {
-          for (auto const &[ns, def_map] : imported_program->templates) {
-            for (auto const &[name, def_ptr] : def_map) {
-              // If specific_type is empty, it's a wildcard for the scope, so
-              // import all. Otherwise, only import if the type matches.
-              if (node->specific_type.empty() ||
-                  def_ptr->type == node->specific_type) {
-                if (already_cloned.find(def_ptr) == already_cloned.end()) {
-                  std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-                  already_cloned[def_ptr] = cloned_def.get();
-                  program.children.push_back(std::move(cloned_def));
-                }
-                program.templates[ns][name] =
-                    static_cast<const TemplateDefinitionNode *>(
-                        already_cloned[def_ptr]);
-              }
+          if (found_node) {
+            std::string final_name =
+                node->alias.empty() ? node->imported_name : node->alias;
+            if (node->import_scope == "[Template]") {
+              program.templates[m_current_namespace][final_name] =
+                  static_cast<const TemplateDefinitionNode *>(found_node);
+            } else if (node->import_scope == "[Custom]") {
+              program.customs[m_current_namespace][final_name] =
+                  static_cast<const CustomDefinitionNode *>(found_node);
             }
-          }
-        } else if (node->import_scope == "[Custom]") {
-          for (auto const &[ns, def_map] : imported_program->customs) {
-            for (auto const &[name, def_ptr] : def_map) {
-              if (node->specific_type.empty() ||
-                  def_ptr->type == node->specific_type) {
-                if (already_cloned.find(def_ptr) == already_cloned.end()) {
-                  std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-                  already_cloned[def_ptr] = cloned_def.get();
-                  program.children.push_back(std::move(cloned_def));
-                }
-                program.customs[ns][name] =
-                    static_cast<const CustomDefinitionNode *>(
-                        already_cloned[def_ptr]);
-              }
-            }
+            nodes_to_move.insert(found_node);
+          } else {
+            m_errors.push_back("Could not find definition '" +
+                               node->imported_name + "' in file '" +
+                               node->path + "'.");
           }
         } else {
-          // Fallback for general wildcard import ([Import] @Chtl), import
-          // everything.
-          for (auto const &[ns, def_map] : imported_program->templates) {
-            for (auto const &[name, def_ptr] : def_map) {
-              if (already_cloned.find(def_ptr) == already_cloned.end()) {
-                std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-                already_cloned[def_ptr] = cloned_def.get();
-                program.children.push_back(std::move(cloned_def));
+          // Wildcard or Type import
+          if (node->import_scope == "[Template]" ||
+              node->import_scope.empty() || node->type == "@Chtl") {
+            for (const auto &[ns, def_map] : imported_program->templates) {
+              for (const auto &[name, def_ptr] : def_map) {
+                if (node->specific_type.empty() ||
+                    def_ptr->type == node->specific_type) {
+                  program.templates[ns][name] = def_ptr;
+                  nodes_to_move.insert(def_ptr);
+                }
               }
-              program.templates[ns][name] =
-                  static_cast<const TemplateDefinitionNode *>(
-                      already_cloned[def_ptr]);
             }
           }
-          for (auto const &[ns, def_map] : imported_program->customs) {
-            for (auto const &[name, def_ptr] : def_map) {
-              if (already_cloned.find(def_ptr) == already_cloned.end()) {
-                std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-                already_cloned[def_ptr] = cloned_def.get();
-                program.children.push_back(std::move(cloned_def));
+          if (node->import_scope == "[Custom]" || node->import_scope.empty() ||
+              node->type == "@Chtl") {
+            for (const auto &[ns, def_map] : imported_program->customs) {
+              for (const auto &[name, def_ptr] : def_map) {
+                if (node->specific_type.empty() ||
+                    def_ptr->type == node->specific_type) {
+                  program.customs[ns][name] = def_ptr;
+                  nodes_to_move.insert(def_ptr);
+                }
               }
-              program.customs[ns][name] =
-                  static_cast<const CustomDefinitionNode *>(
-                      already_cloned[def_ptr]);
             }
           }
         }
+
+        // Move the selected children over to the main program to transfer
+        // ownership
+        auto it = imported_program->children.begin();
+        while (it != imported_program->children.end()) {
+          if (nodes_to_move.count(it->get())) {
+            program.children.push_back(std::move(*it));
+            it = imported_program->children.erase(it);
+          } else {
+            ++it;
+          }
+        }
+      } else if (!imported_js_program) {
+        m_errors.push_back("Failed to load module from path: " + node->path);
       }
     }
   } catch (const std::runtime_error &e) {

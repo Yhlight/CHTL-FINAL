@@ -4,6 +4,8 @@
 #include <vector>
 #include <memory>
 #include <unordered_map>
+#include "CHTLJS/include/nodes/ProgramNode.h"
+
 
 namespace CHTL
 {
@@ -17,9 +19,9 @@ namespace CHTL
     struct ProgramNode : public AstNode
     {
         std::vector<std::unique_ptr<AstNode>> children;
+        std::vector<std::unique_ptr<CHTLJS::ProgramNode>> cjs_nodes;
         TemplateMap templates;
         CustomMap customs;
-        std::vector<std::unique_ptr<ProgramNode>> imported_programs; // To hold ownership
 
         NodeType GetType() const override { return NodeType::Program; }
         std::string ToString() const override;

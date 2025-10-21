@@ -1,0 +1,8 @@
+div {
+    style {
+        color: red;
+    }
+    text {
+        "Hello, CHTL!"
+    }
+}

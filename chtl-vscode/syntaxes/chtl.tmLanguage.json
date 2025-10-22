@@ -1,0 +1,129 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "CHTL",
+  "scopeName": "source.chtl",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#keywords" },
+    { "include": "#strings" },
+    { "include": "#properties" },
+    { "include": "#chtl-js" },
+    { "include": "#tags" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.double-slash.chtl",
+          "match": "//.*"
+        },
+        {
+          "name": "comment.block.chtl",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "captures": {
+            "0": { "name": "punctuation.definition.comment.chtl" }
+          }
+        },
+        {
+          "name": "comment.line.number-sign.chtl",
+          "match": "#\\s.*"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.chtl",
+          "match": "\\b(text|style|script|inherit|delete|insert|after|before|replace|at top|at bottom|from|as|except|use|html5)\\b"
+        },
+        {
+          "name": "storage.type.chtl",
+          "match": "(\\[(Template|Custom|Origin|Import|Namespace|Configuration)\\])"
+        },
+        {
+          "name": "storage.modifier.chtl",
+          "match": "@(Style|Element|Var|Html|JavaScript|Chtl|CJmod|Config)"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.chtl",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.chtl",
+              "match": "\\\\."
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.chtl",
+          "begin": "'",
+          "end": "'",
+          "patterns": [
+            {
+              "name": "constant.character.escape.chtl",
+              "match": "\\\\."
+            }
+          ]
+        }
+      ]
+    },
+    "properties": {
+      "patterns": [
+        {
+          "name": "entity.name.property.chtl",
+          "match": "\\b([a-zA-Z-]+)\\b(?=\\s*(:|\\=))"
+        },
+        {
+          "name": "constant.numeric.chtl",
+          "match": "\\b(\\d+(\\.\\d+)?(px|em|rem|%|s)?)\\b"
+        },
+        {
+          "name": "constant.other.color.chtl",
+          "match": "#[0-9a-fA-F]{3,6}"
+        },
+        {
+          "name": "string.unquoted.literal.chtl",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_-]*)\\b"
+        }
+      ]
+    },
+    "chtl-js": {
+      "patterns": [
+        {
+          "name": "meta.embedded.expression.chtl-js",
+          "begin": "\\{\\{",
+          "end": "\\}\\}",
+          "patterns": [
+            { "include": "#strings" },
+            {
+              "name": "entity.name.tag.chtl-js",
+              "match": "\\b([a-zA-Z0-9_#\\.:\\s\\[\\]]+)\\b"
+            }
+          ]
+        },
+        {
+          "name": "keyword.operator.arrow.chtl-js",
+          "match": "->|&->"
+        },
+        {
+          "name": "keyword.control.chtl-js",
+          "match": "\\b(ScriptLoader|Listen|Delegate|Animate|Vir|Router)\\b"
+        }
+      ]
+    },
+    "tags": {
+      "patterns": [
+        {
+          "name": "entity.name.tag.chtl",
+          "match": "\\b([a-zA-Z_][a-zA-Z0-9_:-]*)\\b(?=\\s*\\{)"
+        }
+      ]
+    }
+  }
+}

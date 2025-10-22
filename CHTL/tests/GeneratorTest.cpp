@@ -1276,4 +1276,27 @@ TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[
         std::string expected_html = "<div></div>";
         REQUIRE(html_output == expected_html);
     }
+
+    SECTION("Handles mixed content in if block")
+    {
+        std::string input = R"(
+            div {
+                if {
+                    condition: 1 > 0;
+                    color: "red";
+                    p { text: "This should be rendered"; }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = R"(<div style="color:red;"><p>This should be rendered</p></div>)";
+        REQUIRE(html_output == expected_html);
+    }
 }

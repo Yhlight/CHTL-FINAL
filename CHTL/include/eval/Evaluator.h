@@ -9,12 +9,14 @@
 namespace CHTL
 {
     struct ProgramNode; // Forward declaration
+    struct ElementNode; // Forward declaration
 
     struct EvalContext
     {
         std::unordered_map<std::string, Value> values;
         const ProgramNode* program = nullptr;
         std::string current_namespace;
+        ElementNode* parent_element = nullptr;
     };
 
     class Evaluator

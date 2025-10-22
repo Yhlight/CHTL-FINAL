@@ -16,6 +16,9 @@ namespace CHTL
 {
     extern const std::string GLOBAL_NAMESPACE;
 
+    // Forward declaration for the helper function
+    static void appendStyles(ElementNode* element, const std::string& new_styles);
+
     /**
      * @brief Constructs a new Generator object.
      * @param bridge The salt bridge for communication with other compilers.
@@ -29,11 +32,6 @@ namespace CHTL
      */
     std::string Generator::Generate(ProgramNode* program)
     {
-        if (program && program->config)
-        {
-            m_config = *program->config;
-        }
-
         m_programNode = program;
         m_output.str("");
         m_output.clear();
@@ -41,6 +39,29 @@ namespace CHTL
         m_global_styles.clear();
 
         m_use_html5_doctype = false; // Reset for each generation
+
+        // Find and process 'use' and 'Configuration' nodes first.
+        // This ensures the correct configuration is loaded before generating content.
+        for (const auto& child : program->children)
+        {
+            if (child->GetType() == NodeType::Use)
+            {
+                EvalContext temp_context;
+                temp_context.program = program;
+                visit(static_cast<UseNode*>(child.get()), temp_context);
+            }
+            else if (child->GetType() == NodeType::Configuration)
+            {
+                // Load default (unnamed) configuration if no named one has been loaded via 'use'
+                if (!m_config.IsLoaded())
+                {
+                     auto* config_node = static_cast<ConfigurationNode*>(child.get());
+                     if (config_node->name.empty()) {
+                        m_config.Load(config_node);
+                     }
+                }
+            }
+        }
 
         EvalContext context;
         context.program = program;
@@ -51,11 +72,6 @@ namespace CHTL
         std::string content = m_output.str();
         std::string final_styles = m_global_styles.str();
         std::string final_output;
-
-        if (m_config.IsDebugMode())
-        {
-            final_output += "<!-- CHTL DEBUG MODE ENABLED -->\n";
-        }
 
         if (m_use_html5_doctype)
         {
@@ -143,16 +159,23 @@ namespace CHTL
 
     void Generator::visit(IfNode* node, EvalContext& context)
     {
-        // This visitor is now only for content generation.
-        // Style application is handled in the ElementNode visitor's first pass.
         Evaluator evaluator;
         Value result = evaluator.Eval(node->condition.get(), context);
         if (result.IsTruthy())
         {
             for (const auto& child : node->consequence)
             {
-                // We only visit content-generating nodes here.
-                if (child->GetType() != NodeType::StyleProperty) {
+                if (child->GetType() == NodeType::StyleProperty)
+                {
+                    if (context.parent_element)
+                    {
+                        std::stringstream temp_style_stream;
+                        visit(static_cast<StyleProperty*>(child.get()), context, temp_style_stream);
+                        appendStyles(context.parent_element, temp_style_stream.str());
+                    }
+                }
+                else
+                {
                     visit(child.get(), context);
                 }
             }
@@ -372,9 +395,8 @@ namespace CHTL
 
     void Generator::visit(ElementNode* node, EvalContext& context)
     {
-        // First pass: process style, if, and except nodes
+        // First pass: process style and except nodes
         std::vector<const ExceptNode*> except_nodes;
-        Evaluator evaluator;
         for (const auto& child : node->children)
         {
             if (child->GetType() == NodeType::Style)
@@ -384,47 +406,6 @@ namespace CHTL
             else if (child->GetType() == NodeType::Except)
             {
                 except_nodes.push_back(static_cast<const ExceptNode*>(child.get()));
-            }
-            else if (child->GetType() == NodeType::If)
-            {
-                // Find the first 'if' or 'else if' that is true in the chain.
-                AstNode* current_in_chain = child.get();
-                bool condition_met = false;
-                while(current_in_chain && !condition_met) {
-                    if (current_in_chain->GetType() == NodeType::If) {
-                        auto* if_node = static_cast<IfNode*>(current_in_chain);
-                        Value condition_result = evaluator.Eval(if_node->condition.get(), context);
-                        if (condition_result.IsTruthy()) {
-                            // Apply styles from this block
-                            std::stringstream temp_style_stream;
-                            for (const auto& prop_node : if_node->consequence) {
-                                if (prop_node->GetType() == NodeType::StyleProperty) {
-                                    visit(static_cast<StyleProperty*>(prop_node.get()), context, temp_style_stream);
-                                }
-                            }
-                            std::string new_styles = temp_style_stream.str();
-                            appendStyles(node, new_styles);
-                            condition_met = true;
-                        }
-                        current_in_chain = if_node->alternative.get();
-                    } else if (current_in_chain->GetType() == NodeType::Else) {
-                        // This is the final 'else', it has no condition.
-                        // Apply its styles.
-                        auto* else_node = static_cast<ElseNode*>(current_in_chain);
-                        std::stringstream temp_style_stream;
-                        for (const auto& prop_node : else_node->consequence) {
-                           if (prop_node->GetType() == NodeType::StyleProperty) {
-                                visit(static_cast<StyleProperty*>(prop_node.get()), context, temp_style_stream);
-                            }
-                        }
-                        std::string new_styles = temp_style_stream.str();
-                        appendStyles(node, new_styles);
-                        condition_met = true; // Stop searching
-                    } else {
-                        // Not an if or else, break the chain search.
-                        break;
-                    }
-                }
             }
         }
 
@@ -436,6 +417,8 @@ namespace CHTL
         m_output << ">";
 
         // Second pass: process and generate content children, checking constraints
+        EvalContext child_context = context;
+        child_context.parent_element = node;
         for (const auto& child : node->children)
         {
             // Skip style and except nodes, but now PROCESS if nodes
@@ -447,7 +430,7 @@ namespace CHTL
                 continue;
             }
 
-            visit(child.get(), context);
+            visit(child.get(), child_context);
         }
 
         m_output << "</" << node->tag_name << ">";

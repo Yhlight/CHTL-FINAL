@@ -57,6 +57,78 @@ TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]"
     }
 }
 
+TEST_CASE("Generator correctly handles Configuration blocks", "[generator][config]")
+{
+    std::string input = R"(
+        [Configuration] {
+            DEBUG_MODE = true;
+        }
+
+        div {}
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    // This is a white-box test. We don't have a way to inspect the generator's config directly.
+    // For now, we'll just check that it doesn't crash and generates the output.
+    // A more advanced test would require modifying the generator to expose its config for testing.
+    std::string expected_html = "<div></div>";
+    REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles use statements", "[generator][use]")
+{
+    SECTION("Generates HTML5 doctype with 'use html5;'")
+    {
+        std::string input = R"(
+            use html5;
+            div {}
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<!DOCTYPE html><div></div>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Loads a named configuration with 'use @Config'")
+    {
+        std::string input = R"(
+            [Configuration] @Config MyConfig {
+                // In a real scenario, this would change behavior.
+                // For this test, we're just checking that it doesn't crash.
+                // A white-box test would inspect the generator's internal config.
+                DEBUG_MODE = true;
+            }
+
+            use @Config MyConfig;
+
+            p { text: "hello"; }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<p>hello</p>";
+        REQUIRE(html_output == expected_html);
+    }
+}
+
 TEST_CASE("Generator correctly handles type imports", "[generator][import]")
 {
     std::string main_content = R"CHTL(
@@ -133,24 +205,95 @@ TEST_CASE("Generator correctly handles type imports", "[generator][import]")
 
 TEST_CASE("Generator handles except constraints", "[generator][except]")
 {
-    std::string input = R"(
-        div {
-            except span;
-            p { text: "allowed"; }
-            span { text: "forbidden"; }
-            a { text: "allowed"; }
-        }
-    )";
-    CHTL::Lexer l(input);
-    CHTL::Parser p(l);
-    auto program = p.ParseProgram();
-    checkParserErrors(p);
+    SECTION("Forbids a single element type")
+    {
+        std::string input = R"(
+            div {
+                except span;
+                p { text: "allowed"; }
+                span { text: "forbidden"; }
+                a { text: "allowed"; }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
 
-    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
-    CHTL::Generator generator(bridge);
-    std::string html_output = generator.Generate(program.get());
-    std::string expected_html = "<div><p>allowed</p><a>allowed</a></div>";
-    REQUIRE(html_output == expected_html);
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<div><p>allowed</p><a>allowed</a></div>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Forbids multiple element types")
+    {
+        std::string input = R"(
+            div {
+                except span, a;
+                p { text: "allowed"; }
+                span { text: "forbidden"; }
+                a { text: "also forbidden"; }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<div><p>allowed</p></div>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Forbids all HTML elements")
+    {
+        std::string input = R"(
+            div {
+                except @Html;
+                p { text: "forbidden"; }
+                span { text: "also forbidden"; }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<div></div>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Forbids a specific custom element")
+    {
+        std::string input = R"(
+            [Custom] @Element MyComponent {
+                p { text: "I am a component"; }
+            }
+
+            div {
+                except [Custom] @Element MyComponent;
+                p { text: "allowed"; }
+                @Element MyComponent;
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<div><p>allowed</p></div>";
+        REQUIRE(html_output == expected_html);
+    }
 }
 
 TEST_CASE("Generator correctly handles element template usage", "[generator][template]")
@@ -1024,6 +1167,72 @@ TEST_CASE("Generator correctly generates script blocks with CHTL JS", "[generato
     // The CHTLJSParser should now correctly interleave RawJS and EnhancedSelector nodes.
     std::string expected_html = "<div><script>\n                let my_element = document.querySelector('.my-div');\n            </script></div>";
     REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles conditional rendering", "[generator][if]")
+{
+    SECTION("Renders content when if condition is true")
+    {
+        std::string input = R"(
+            if {
+                condition: 1 > 0;
+                p { text: "This should be rendered"; }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<p>This should be rendered</p>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Does not render content when if condition is false")
+    {
+        std::string input = R"(
+            if {
+                condition: 1 < 0;
+                p { text: "This should NOT be rendered"; }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Renders else content when if condition is false")
+    {
+        std::string input = R"(
+            if {
+                condition: 1 < 0;
+                p { text: "This should NOT be rendered"; }
+            }
+            else {
+                span { text: "This should be rendered instead"; }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<span>This should be rendered instead</span>";
+        REQUIRE(html_output == expected_html);
+    }
 }
 
 TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[generator][if]")

@@ -1,6 +1,8 @@
 #pragma once
 
 #include "AstNode.h"
+#include "nodes/UseNode.h"
+#include "Config.h"
 #include "eval/Evaluator.h" // For EvalContext
 #include "bridge/SaltBridge.h"
 #include <string>
@@ -43,6 +45,9 @@ namespace CHTL
         void visit(StyleProperty* node, EvalContext& context, std::stringstream& style_stream);
         void visit(IfNode* node, EvalContext& context);
         void visit(ElseNode* node, EvalContext& context);
+        void visit(ExceptNode* node, EvalContext& context);
+        void visit(ConfigurationNode* node, EvalContext& context);
+        void visit(UseNode* node, EvalContext& context);
 
         // CHTL JS AST visitors
         void visit(CHTLJS::AstNode* node, EvalContext& context);
@@ -55,5 +60,7 @@ namespace CHTL
         std::stringstream m_global_styles;
         const ProgramNode* m_programNode = nullptr;
         std::shared_ptr<SaltBridge> m_bridge;
+        Config m_config;
+        bool m_use_html5_doctype = false;
     };
 }

@@ -35,6 +35,31 @@ namespace CHTL
         m_global_styles.str("");
         m_global_styles.clear();
 
+        m_use_html5_doctype = false; // Reset for each generation
+
+        // Find and process 'use' and 'Configuration' nodes first.
+        // This ensures the correct configuration is loaded before generating content.
+        for (const auto& child : program->children)
+        {
+            if (child->GetType() == NodeType::Use)
+            {
+                EvalContext temp_context;
+                temp_context.program = program;
+                visit(static_cast<UseNode*>(child.get()), temp_context);
+            }
+            else if (child->GetType() == NodeType::Configuration)
+            {
+                // Load default (unnamed) configuration if no named one has been loaded via 'use'
+                if (!m_config.IsLoaded())
+                {
+                     auto* config_node = static_cast<ConfigurationNode*>(child.get());
+                     if (config_node->name.empty()) {
+                        m_config.Load(config_node);
+                     }
+                }
+            }
+        }
+
         EvalContext context;
         context.program = program;
         context.current_namespace = GLOBAL_NAMESPACE;
@@ -43,14 +68,22 @@ namespace CHTL
 
         std::string content = m_output.str();
         std::string final_styles = m_global_styles.str();
+        std::string final_output;
+
+        if (m_use_html5_doctype)
+        {
+            final_output += "<!DOCTYPE html>";
+        }
+
         if (!final_styles.empty())
         {
             std::stringstream head_ss;
             head_ss << "<head><style>" << final_styles << "</style></head>";
-            return head_ss.str() + content;
+            final_output += head_ss.str();
         }
 
-        return content;
+        final_output += content;
+        return final_output;
     }
 
     /**
@@ -107,6 +140,15 @@ namespace CHTL
             case NodeType::Else:
                 visit(static_cast<ElseNode*>(node), context);
                 break;
+            case NodeType::Except:
+                // This node is handled by its parent ElementNode, so we do nothing here.
+                break;
+            case NodeType::Configuration:
+                visit(static_cast<ConfigurationNode*>(node), context);
+                break;
+            case NodeType::Use:
+                visit(static_cast<UseNode*>(node), context);
+                break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
         }
@@ -140,6 +182,11 @@ namespace CHTL
         {
             visit(child.get(), context);
         }
+    }
+
+    void Generator::visit(ConfigurationNode* node, EvalContext& context)
+    {
+        // Configuration is handled at a higher level, so we do nothing here.
     }
 
     // Helper to find the index of a target node based on a simple selector like "tag[index]"
@@ -302,14 +349,35 @@ namespace CHTL
 
         for (const auto* except_node : except_nodes) {
             for (const auto& constraint : except_node->constraints) {
-                if (node->GetType() == NodeType::Element) {
-                    auto* el = static_cast<const ElementNode*>(node);
-                    // Simple tag name check, e.g., "except span;"
-                    if (constraint.path.size() == 1 && constraint.path[0] == el->tag_name) {
-                        return true;
+                // Type constraints
+                if (constraint.is_type_constraint) {
+                    if (constraint.path.size() == 1) {
+                        if (constraint.path[0] == "@Html" && node->GetType() == NodeType::Element) {
+                            return true;
+                        }
                     }
                 }
-                // More complex checks for [Custom] @Element Box etc. can be added here
+                // Specific element constraints
+                else {
+                    if (node->GetType() == NodeType::Element) {
+                        auto* el = static_cast<const ElementNode*>(node);
+                        if (constraint.path.size() == 1 && constraint.path[0] == el->tag_name) {
+                            return true;
+                        }
+                    }
+                    else if (node->GetType() == NodeType::CustomUsage) {
+                        auto* usage = static_cast<const CustomUsageNode*>(node);
+                        if (constraint.path.size() == 3 && constraint.path[0] == "[Custom]" && constraint.path[1] == usage->type && constraint.path[2] == usage->name) {
+                            return true;
+                        }
+                    }
+                     else if (node->GetType() == NodeType::TemplateUsage) {
+                        auto* usage = static_cast<const TemplateUsageNode*>(node);
+                        if (constraint.path.size() == 3 && constraint.path[0] == "[Template]" && constraint.path[1] == usage->type && constraint.path[2] == usage->name) {
+                            return true;
+                        }
+                    }
+                }
             }
         }
         return false;
@@ -737,5 +805,33 @@ namespace CHTL
     {
         // Intentionally empty. The import logic is handled by the parser.
         // The generator's job is just to not crash on this node.
+    }
+
+    void Generator::visit(UseNode* node, EvalContext& context)
+    {
+        if (node->path.size() == 1 && node->path[0] == "html5")
+        {
+            m_use_html5_doctype = true;
+        }
+        else if (node->path.size() >= 2 && (node->path[0] == "@Config" || node->path[0] == "[Configuration]"))
+        {
+            // For now, we only support one level of config name, e.g., use @Config MyConfig;
+            // The path might be ["[Configuration]", "@Config", "MyConfig"] or ["@Config", "MyConfig"]
+            const std::string& config_name = node->path.back();
+
+            // Find the named configuration node in the program
+            for (const auto& child : context.program->children)
+            {
+                if (child->GetType() == NodeType::Configuration)
+                {
+                    auto* config_node = static_cast<ConfigurationNode*>(child.get());
+                    if (config_node->name == config_name)
+                    {
+                        m_config.Load(config_node);
+                        return; // Stop after finding the first matching config
+                    }
+                }
+            }
+        }
     }
 }

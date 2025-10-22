@@ -489,20 +489,33 @@ Parser::parseNamespaceNode(ProgramNode &program) {
 }
 
 std::unique_ptr<ConfigurationNode> Parser::parseConfigurationStatement() {
-  auto node = std::make_unique<ConfigurationNode>();
-  if (m_peekToken.type == TokenType::AT) {
-    nextToken();
-    if (!expectPeek(TokenType::IDENT)) {
-      m_errors.push_back("Expected configuration name after '@'.");
-      return nullptr;
-    }
-    node->name = m_currentToken.literal;
-  }
-  if (!expectPeek(TokenType::LBRACE)) {
-    m_errors.push_back("Expected '{' for configuration block.");
-    return nullptr;
-  }
-  nextToken();
+      auto node = std::make_unique<ConfigurationNode>();
+
+      // When this is called, m_currentToken is KEYWORD_CONFIGURATION
+      if (m_peekToken.type == TokenType::AT) {
+        nextToken(); // consume KEYWORD_CONFIGURATION, m_currentToken is now AT
+
+        if (m_peekToken.type == TokenType::IDENT) {
+            nextToken(); // consume AT, m_currentToken is now first IDENT
+
+            // Check if it's the @Config <name> form
+            if (m_currentToken.literal == "Config" && m_peekToken.type == TokenType::IDENT) {
+                nextToken(); // consume "Config", m_currentToken is now the actual name
+                node->name = m_currentToken.literal;
+            } else { // It's the @<name> form
+                node->name = m_currentToken.literal;
+            }
+        } else {
+             m_errors.push_back("Expected identifier after '@' for configuration name.");
+             return nullptr;
+        }
+      }
+
+      if (!expectPeek(TokenType::LBRACE)) {
+        m_errors.push_back("Expected '{' for configuration block.");
+        return nullptr;
+      }
+      nextToken(); // consume {
 
   while (m_currentToken.type != TokenType::RBRACE &&
          m_currentToken.type != TokenType::END_OF_FILE) {

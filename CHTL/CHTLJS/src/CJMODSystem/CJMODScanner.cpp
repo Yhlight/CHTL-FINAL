@@ -2,12 +2,11 @@
 #include <iostream>
 #include <regex>
 
-Arg CJMODScanner::scan(const Arg& args, const std::string& keyword) {
+Arg CJMODScanner::scan(const Arg& args, const std::string& keyword, const std::string& source_code) {
     // This is a more realistic, yet still simplified, implementation of the scanner.
     // It simulates scanning a `console.log` statement and extracting its arguments.
     std::cout << "Scanning for keyword: " << keyword << std::endl;
 
-    std::string source_code = "console.log(3 ** 4);"; // Example source code to scan
     Arg result;
 
     if (keyword == "**") {

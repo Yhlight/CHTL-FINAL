@@ -13,15 +13,46 @@
 
 namespace CHTL
 {
+    /**
+     * @class Parser
+     * @brief The Parser class is responsible for transforming a stream of tokens from the Lexer
+     *        into an Abstract Syntax Tree (AST).
+     *
+     * It uses a Pratt (top-down operator precedence) parser for expressions,
+     * which makes it easy to handle operator precedence and associativity.
+     */
     class Parser
     {
     public:
+        /**
+         * @brief Constructs a Parser.
+         * @param lexer A reference to the Lexer that provides the tokens.
+         * @param file_path The path to the file being parsed, used for error reporting.
+         */
         Parser(Lexer& lexer, std::string file_path = "");
+
+        /**
+         * @brief Sets the SaltBridge for communication with the CHTL JS compiler.
+         * @param bridge A shared pointer to the SaltBridge instance.
+         */
         void SetBridge(std::shared_ptr<SaltBridge> bridge) { m_bridge = bridge; }
+
+        /**
+         * @brief Parses the entire input from the lexer and returns the root of the AST.
+         * @return A unique pointer to the ProgramNode, which is the root of the AST.
+         */
         std::unique_ptr<ProgramNode> ParseProgram();
+
+        /**
+         * @brief Returns a list of parsing errors.
+         * @return A const reference to a vector of error message strings.
+         */
         const std::vector<std::string>& GetErrors() const { return m_errors; }
 
-        // For testing purposes
+        /**
+         * @brief Resets the set of parsed files. This is primarily for testing purposes
+         *        to ensure a clean state between test runs.
+         */
         static void ResetParsedFiles() { s_parsed_files.clear(); }
 
     private:
@@ -45,7 +76,7 @@ namespace CHTL
         void nextToken();
         bool expectPeek(TokenType t);
 
-        // Statement parsing
+        // Statement parsing methods
         std::unique_ptr<AstNode> parseStatement();
         std::unique_ptr<ElementNode> parseElementNode();
         std::unique_ptr<TextNode> parseTextNode();
@@ -70,7 +101,7 @@ namespace CHTL
         std::unique_ptr<ElseNode> parseElseBlock();
         Attribute parseAttribute();
 
-        // Expression parsing
+        // Expression parsing methods
         std::unique_ptr<Expression> parseExpression(Precedence precedence);
         std::unique_ptr<Expression> parseIdentifier();
         std::unique_ptr<Expression> parseNumberLiteral();

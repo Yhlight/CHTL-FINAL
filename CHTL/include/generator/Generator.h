@@ -17,13 +17,32 @@ namespace CHTLJS {
 
 namespace CHTL
 {
+    /**
+     * @class Generator
+     * @brief The Generator class is responsible for traversing the AST and generating the final HTML output.
+     *
+     * It uses a visitor pattern to walk the AST, and for each node type, it generates
+     * the corresponding HTML, CSS, and JavaScript. It also manages global styles and
+     * communicates with the CHTL JS generator via the SaltBridge.
+     */
     class Generator
     {
     public:
+        /**
+         * @brief Constructs a Generator.
+         * @param bridge A shared pointer to the SaltBridge for communication with the CHTL JS compiler.
+         */
         Generator(std::shared_ptr<SaltBridge> bridge);
+
+        /**
+         * @brief Generates the final HTML from the given AST.
+         * @param program The root of the AST (a ProgramNode).
+         * @return A string containing the generated HTML, including inlined styles and scripts.
+         */
         std::string Generate(ProgramNode* program);
 
     private:
+        // CHTL AST visitors
         void visit(AstNode* node, EvalContext& context);
         void visit(ProgramNode* node, EvalContext& context);
         void visit(ElementNode* node, EvalContext& context);
@@ -36,7 +55,6 @@ namespace CHTL
         void visit(CustomUsageNode* node, EvalContext& context);
         void visit(CustomDefinitionNode* node, EvalContext& context);
         void visit(ImportNode* node, EvalContext& context);
-
         void applyStyleTemplate(const TemplateDefinitionNode* tmpl, EvalContext& context, std::map<std::string, std::string>& property_map);
         void visit(StyleNode* node, EvalContext& context, ElementNode* parent);
         void visit(StyleRuleNode* node, EvalContext& context, ElementNode* parent);

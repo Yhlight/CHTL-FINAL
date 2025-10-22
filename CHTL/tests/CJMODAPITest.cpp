@@ -20,7 +20,8 @@ TEST(CJMODAPITest, FullWorkflow) {
     args.bind("$", [](const std::string& value) { return value; });
     args.bind("**", [](const std::string& value) { return value; });
 
-    Arg result = CJMODScanner::scan(args, "**");
+    std::string source_code = "console.log(3 ** 4);";
+    Arg result = CJMODScanner::scan(args, "**", source_code);
     args.fillValue(result);
 
     ASSERT_EQ(args.args[0].value, "3");

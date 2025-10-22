@@ -1,6 +1,10 @@
 #include "Arg.h"
 #include <stdexcept>
 
+void Arg::add(const AtomArg& arg) {
+    args.push_back(arg);
+}
+
 void Arg::bind(const std::string& placeholder, std::function<std::string(const std::string&)> func) {
     for (auto& arg : args) {
         if (arg.placeholder == placeholder) {

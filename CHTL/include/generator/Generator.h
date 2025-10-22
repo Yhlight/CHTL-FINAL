@@ -22,6 +22,7 @@ namespace CHTL
     // Forward-declare the function that needs to be a friend
     class Generator;
     void evaluateAndStoreProperty(Generator* generator, StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map);
+    void renderContent(Generator* generator, const std::vector<std::unique_ptr<AstNode>>& nodes, EvalContext& context, const std::vector<const ExceptNode*>& except_nodes);
 
     class Generator
     {
@@ -31,6 +32,7 @@ namespace CHTL
 
         // Grant friendship
         friend void evaluateAndStoreProperty(Generator* generator, StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map);
+        friend void renderContent(Generator* generator, const std::vector<std::unique_ptr<AstNode>>& nodes, EvalContext& context, const std::vector<const ExceptNode*>& except_nodes);
 
     private:
         void visit(AstNode* node, EvalContext& context);
@@ -64,6 +66,13 @@ namespace CHTL
         void visit(CHTLJS::RawJSNode* node, EvalContext& context);
 
 
+        struct DynamicCondition {
+            std::string condition;
+            std::string target_id;
+            std::string property_name;
+            std::string property_value;
+        };
+
         std::stringstream m_output;
         std::stringstream m_global_styles;
         const ProgramNode* m_programNode = nullptr;
@@ -71,5 +80,7 @@ namespace CHTL
         Config m_config;
         bool m_use_html5_doctype = false;
         bool m_has_reactive_values = false;
+        std::vector<DynamicCondition> m_dynamic_conditions;
+        int m_dynamic_id_counter = 0;
     };
 }

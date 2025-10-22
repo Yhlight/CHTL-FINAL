@@ -1,0 +1,10 @@
+
+div {
+    if {
+        condition: $show$;
+        span { text: "This text is visible"; }
+    }
+    script {
+        let show = true;
+    }
+}

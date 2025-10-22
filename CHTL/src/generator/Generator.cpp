@@ -16,6 +16,35 @@ namespace CHTL
 {
     extern const std::string GLOBAL_NAMESPACE;
 
+    std::string expressionToString(const Expression* expr) {
+        if (!expr) return "";
+
+        switch (expr->GetType()) {
+            case NodeType::NumberLiteral: {
+                auto* n = static_cast<const NumberLiteral*>(expr);
+                return std::to_string(n->value) + n->unit;
+            }
+            case NodeType::StringLiteral: {
+                auto* s = static_cast<const StringLiteral*>(expr);
+                return "\"" + s->value + "\"";
+            }
+            case NodeType::Identifier: {
+                auto* i = static_cast<const Identifier*>(expr);
+                return i->value;
+            }
+            case NodeType::ReactiveValue: {
+                auto* r = static_cast<const ReactiveValueNode*>(expr);
+                return r->name;
+            }
+            case NodeType::InfixExpression: {
+                auto* i = static_cast<const InfixExpression*>(expr);
+                return "(" + expressionToString(i->left.get()) + " " + i->op + " " + expressionToString(i->right.get()) + ")";
+            }
+            default:
+                return "";
+        }
+    }
+
     // Forward declaration for the helper function
     static void appendStyles(ElementNode* element, const std::string& new_styles);
 
@@ -95,7 +124,7 @@ namespace CHTL
 
         if (m_has_reactive_values)
         {
-            // Add script for initial reactive values
+            // Add script for initial reactive values and dynamic conditions
             final_output += "<script>\n";
             final_output += "document.querySelectorAll('[data-reactive-bindings]').forEach(el => {\n";
             final_output += "    const bindings = el.dataset.reactiveBindings.split(',');\n";
@@ -103,6 +132,24 @@ namespace CHTL
             final_output += "        el.style.setProperty(`--${binding}`, eval(binding));\n";
             final_output += "    });\n";
             final_output += "});\n";
+
+            if (!m_dynamic_conditions.empty()) {
+                final_output += "function updateDynamicConditions() {\n";
+                for (const auto& dc : m_dynamic_conditions) {
+                    final_output += "    const el = document.querySelector('[data-dynamic-id=\"" + dc.target_id + "\"]');\n";
+                    final_output += "    if (el) {\n";
+                    final_output += "        if (" + dc.condition + ") {\n";
+                    final_output += "            el.style." + dc.property_name + " = " + dc.property_value + ";\n";
+                    final_output += "        } else {\n";
+                    final_output += "            el.style." + dc.property_name + " = '';\n";
+                    final_output += "        }\n";
+                    final_output += "    }\n";
+                }
+                final_output += "}\n";
+                final_output += "updateDynamicConditions();\n";
+                // This is a simplified listener. A more robust solution would track dependencies.
+                final_output += "window.addEventListener('resize', updateDynamicConditions);\n";
+            }
             final_output += "</script>";
         }
 
@@ -179,30 +226,61 @@ namespace CHTL
 
     void Generator::visit(IfNode* node, EvalContext& context)
     {
-        Evaluator evaluator;
-        Value result = evaluator.Eval(node->condition.get(), context);
-        if (result.IsTruthy())
-        {
-            for (const auto& child : node->consequence)
-            {
-                if (child->GetType() == NodeType::StyleProperty)
-                {
-                    if (context.parent_element)
-                    {
-                        std::stringstream temp_style_stream;
-                        visit(static_cast<StyleProperty*>(child.get()), context, temp_style_stream);
-                        appendStyles(context.parent_element, temp_style_stream.str());
+        if (node->isDynamic) {
+            m_has_reactive_values = true; // Ensure the script is generated
+            std::string condition_str = expressionToString(node->condition.get());
+            if (context.parent_element) {
+                std::string target_id = "dynamic-" + std::to_string(m_dynamic_id_counter++);
+                context.parent_element->attributes.push_back({"data-dynamic-id", target_id});
+
+                for (const auto& child : node->consequence) {
+                    if (child->GetType() == NodeType::StyleProperty) {
+                        auto* prop = static_cast<StyleProperty*>(child.get());
+                        DynamicCondition dc;
+                        dc.condition = condition_str;
+                        dc.target_id = target_id;
+                        dc.property_name = prop->name;
+                        dc.property_value = expressionToString(prop->value.get());
+                        m_dynamic_conditions.push_back(dc);
                     }
                 }
-                else
+            }
+        } else {
+            // This is the attribute collection phase, only process style properties
+            if (context.parent_element) {
+                Evaluator evaluator;
+                Value result = evaluator.Eval(node->condition.get(), context);
+                if (result.IsTruthy())
                 {
-                    visit(child.get(), context);
+                    for (const auto& child : node->consequence)
+                    {
+                        if (child->GetType() == NodeType::StyleProperty)
+                        {
+                            std::stringstream temp_style_stream;
+                            visit(static_cast<StyleProperty*>(child.get()), context, temp_style_stream);
+                            appendStyles(context.parent_element, temp_style_stream.str());
+                        }
+                        // Ignore content nodes in this pass
+                    }
+                }
+                 // Also check else block for styles
+                else if (node->alternative && node->alternative->GetType() == NodeType::Else)
+                {
+                    auto* else_node = static_cast<ElseNode*>(node->alternative.get());
+                    for (const auto& child : else_node->consequence) {
+                        if (child->GetType() == NodeType::StyleProperty) {
+                             std::stringstream temp_style_stream;
+                            visit(static_cast<StyleProperty*>(child.get()), context, temp_style_stream);
+                            appendStyles(context.parent_element, temp_style_stream.str());
+                        }
+                    }
                 }
             }
-        }
-        else if (node->alternative)
-        {
-            visit(node->alternative.get(), context);
+             else // This is the content rendering phase, let renderContent handle it
+            {
+                // This branch will now be handled by the renderContent function,
+                // so we don't generate content here to avoid duplication.
+            }
         }
     }
 
@@ -355,10 +433,8 @@ namespace CHTL
 
     void Generator::visit(ProgramNode* node, EvalContext& context)
     {
-        for (const auto& child : node->children)
-        {
-            visit(child.get(), context);
-        }
+        // Use renderContent to handle top-level conditional logic correctly
+        renderContent(this, node->children, context, {});
     }
 
     void Generator::visit(NamespaceNode* node, EvalContext& context)
@@ -373,6 +449,11 @@ namespace CHTL
     }
 
     // Helper to check if a node is forbidden by any of the except constraints
+    static bool isNodeForbidden(const AstNode* node, const std::vector<const ExceptNode*>& except_nodes);
+    // Recursive helper to render content, handling conditional logic
+    void renderContent(Generator* generator, const std::vector<std::unique_ptr<AstNode>>& nodes, EvalContext& context, const std::vector<const ExceptNode*>& except_nodes);
+
+
     static bool isNodeForbidden(const AstNode* node, const std::vector<const ExceptNode*>& except_nodes)
     {
         if (!node) return false;
@@ -413,19 +494,72 @@ namespace CHTL
         return false;
     }
 
+    void renderContent(Generator* generator, const std::vector<std::unique_ptr<AstNode>>& nodes, EvalContext& context, const std::vector<const ExceptNode*>& except_nodes)
+    {
+        for (const auto& child : nodes) {
+            if (isNodeForbidden(child.get(), except_nodes)) {
+                continue;
+            }
+
+            if (child->GetType() == NodeType::If) {
+                IfNode* current_if = static_cast<IfNode*>(child.get());
+                bool condition_met = false;
+                Evaluator evaluator;
+
+                while(current_if && !condition_met) {
+                    if (current_if->isDynamic) {
+                        // Skip server-side rendering for the rest of the chain
+                        break;
+                    }
+
+                    Value result = evaluator.Eval(current_if->condition.get(), context);
+                    if (result.IsTruthy()) {
+                        renderContent(generator, current_if->consequence, context, except_nodes);
+                        condition_met = true;
+                    }
+                    else if (current_if->alternative) {
+                        if (current_if->alternative->GetType() == NodeType::If) {
+                            current_if = static_cast<IfNode*>(current_if->alternative.get());
+                        }
+                        else if (current_if->alternative->GetType() == NodeType::Else) {
+                            auto* else_node = static_cast<ElseNode*>(current_if->alternative.get());
+                            renderContent(generator, else_node->consequence, context, except_nodes);
+                            condition_met = true; // or break;
+                        }
+                    } else {
+                        // End of chain
+                        break;
+                    }
+                }
+            } else if (child->GetType() != NodeType::Style && child->GetType() != NodeType::Except) {
+                // Use a generic visit method on the generator instance
+                generator->visit(child.get(), context);
+            }
+        }
+    }
+
+
     void Generator::visit(ElementNode* node, EvalContext& context)
     {
-        // First pass: process style and except nodes
+        // First pass: process style, except, and if nodes to collect attributes
         std::vector<const ExceptNode*> except_nodes;
+        EvalContext child_context = context;
+        child_context.parent_element = node; // Set parent for attribute collection
+
         for (const auto& child : node->children)
         {
             if (child->GetType() == NodeType::Style)
             {
-                visit(static_cast<StyleNode*>(child.get()), context, node);
+                visit(static_cast<StyleNode*>(child.get()), child_context, node);
             }
             else if (child->GetType() == NodeType::Except)
             {
                 except_nodes.push_back(static_cast<const ExceptNode*>(child.get()));
+            }
+            else if (child->GetType() == NodeType::If)
+            {
+                // Visit 'if' to collect potential style/attribute changes
+                visit(child.get(), child_context);
             }
         }
 
@@ -436,22 +570,8 @@ namespace CHTL
         }
         m_output << ">";
 
-        // Second pass: process and generate content children, checking constraints
-        EvalContext child_context = context;
-        child_context.parent_element = node;
-        for (const auto& child : node->children)
-        {
-            // Skip style and except nodes, but now PROCESS if nodes
-            if (child->GetType() == NodeType::Style || child->GetType() == NodeType::Except) {
-                continue;
-            }
-
-            if (isNodeForbidden(child.get(), except_nodes)) {
-                continue;
-            }
-
-            visit(child.get(), child_context);
-        }
+        // Second pass: Render content children using the recursive helper
+        renderContent(this, node->children, child_context, except_nodes);
 
         m_output << "</" << node->tag_name << ">";
     }
@@ -528,6 +648,7 @@ namespace CHTL
     {
         std::map<std::string, std::string> inline_properties;
         EvalContext local_context = context;
+        local_context.parent_element = parent;
 
         // First pass to find the main selector for '&' replacement
         std::string main_selector;

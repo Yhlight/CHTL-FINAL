@@ -46,6 +46,27 @@ void Parser::nextToken() {
   m_peekToken = m_lexer.NextToken();
 }
 
+std::string Parser::readEnhancedSelectorContent() {
+    std::string content;
+    // Consume the opening '{{'
+    nextToken(); // {{
+    nextToken(); // content start
+
+    while (!(m_currentToken.type == TokenType::RBRACE && m_peekToken.type == TokenType::RBRACE)) {
+        if (m_currentToken.type == TokenType::END_OF_FILE) {
+            m_errors.push_back("Unterminated enhanced selector.");
+            return "";
+        }
+        content += m_currentToken.literal;
+        if (m_peekToken.type != TokenType::RBRACE) {
+            content += " ";
+        }
+        nextToken();
+    }
+    // At this point, currentToken is the first '}' and peekToken is the second '}'
+    return content;
+}
+
 /**
  * @brief Parses the entire CHTL program.
  * @return A unique pointer to the root ProgramNode of the AST.
@@ -270,6 +291,10 @@ std::unique_ptr<AstNode> Parser::parseIfChain() {
   if_node->condition = parseExpression(
       LOWEST); // consumes expression, current is last token of it
 
+    if (if_node->condition->isDynamic) {
+        if_node->isDynamic = true;
+    }
+
   if (m_peekToken.type != TokenType::SEMICOLON) { // Check peek
     m_errors.push_back("Expected ';' after if condition.");
     return nullptr;
@@ -279,11 +304,12 @@ std::unique_ptr<AstNode> Parser::parseIfChain() {
 
   while (m_currentToken.type != TokenType::RBRACE &&
          m_currentToken.type != TokenType::END_OF_FILE) {
-    auto stmt = parseStatement(); // Should consume until its own end (e.g. ';')
+    auto stmt = parseStatement();
     if (stmt) {
       if_node->consequence.push_back(std::move(stmt));
     }
-    nextToken(); // Move to the next statement
+     // parseStatement is responsible for advancing tokens.
+     // An extra nextToken() here would skip tokens.
   }
 
   if (m_currentToken.type != TokenType::RBRACE) {
@@ -1248,6 +1274,11 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence) {
     leftExp = parseStringLiteral();
   } else if (m_currentToken.type == TokenType::REACTIVE_VAR) {
     leftExp = parseReactiveValue();
+  } else if (m_currentToken.type == TokenType::LBRACE && m_peekToken.type == TokenType::LBRACE) {
+    auto ident = std::make_unique<Identifier>();
+    ident->value = readEnhancedSelectorContent();
+    ident->isDynamic = true;
+    leftExp = std::move(ident);
   } else if (m_currentToken.type == TokenType::DOT) {
     nextToken();
     leftExp = parseAttributeAccessExpression();
@@ -1304,6 +1335,9 @@ Parser::parseInfixExpression(std::unique_ptr<Expression> left) {
                                  : LOWEST;
   nextToken();
   expr->right = parseExpression(curPrecedence);
+    if (expr->left->isDynamic || (expr->right && expr->right->isDynamic)) {
+        expr->isDynamic = true;
+    }
   return expr;
 }
 
@@ -1364,6 +1398,7 @@ std::unique_ptr<Expression> Parser::parseStringLiteral() {
 std::unique_ptr<Expression> Parser::parseReactiveValue() {
     auto node = std::make_unique<ReactiveValueNode>();
     node->name = m_currentToken.literal;
+    node->isDynamic = true;
     return node;
 }
 

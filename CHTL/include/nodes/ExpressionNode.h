@@ -9,6 +9,7 @@ namespace CHTL
 {
     // Expression 基类
     struct Expression : public AstNode {
+        bool isDynamic = false;
          virtual std::unique_ptr<AstNode> clone() const override = 0;
     };
 

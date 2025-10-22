@@ -1336,7 +1336,38 @@ TEST_CASE("Generator handles reactive values in styles", "[generator][reactive]"
     REQUIRE(html_output.find(expected_bindings) != std::string::npos);
 
     // 3. Check for the injected script that sets the initial values
-    std::string expected_script = "<script>";
-    expected_script += "document.querySelectorAll('[data-reactive-bindings]').forEach(el => {";
-    REQUIRE(html_output.find(expected_script) != std::string::npos);
+    REQUIRE(html_output.find("document.querySelectorAll('[data-reactive-bindings]').forEach(el => {") != std::string::npos);
+}
+
+TEST_CASE("Generator handles dynamic conditional rendering", "[generator][if][dynamic]")
+{
+    std::string input = R"(
+        div {
+            if {
+                condition: $show$;
+                display: "block";
+            }
+            script {
+                let show = true;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    INFO("Generated HTML: " << html_output);
+
+    // 1. Check for the data-dynamic-id attribute
+    REQUIRE(html_output.find("data-dynamic-id=\"dynamic-0\"") != std::string::npos);
+
+    // 2. Check for the injected script
+    REQUIRE(html_output.find("function updateDynamicConditions()") != std::string::npos);
+    REQUIRE(html_output.find("if (show)") != std::string::npos);
+    REQUIRE(html_output.find("el.style.display = \"block\";") != std::string::npos);
 }

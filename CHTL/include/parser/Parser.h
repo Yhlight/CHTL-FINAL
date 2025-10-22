@@ -69,6 +69,7 @@ namespace CHTL
         std::unique_ptr<AstNode> parseIfChain();
         std::unique_ptr<ElseNode> parseElseBlock();
         Attribute parseAttribute();
+        std::string readEnhancedSelectorContent();
 
         // Expression parsing
         std::unique_ptr<Expression> parseExpression(Precedence precedence);

@@ -12,6 +12,7 @@ namespace CHTL
         std::unique_ptr<Expression> condition;
         std::vector<std::unique_ptr<AstNode>> consequence;
         std::unique_ptr<AstNode> alternative; // Can be an IfNode or ElseNode
+        bool isDynamic = false;
 
         NodeType GetType() const override { return NodeType::If; }
         std::string ToString() const override;

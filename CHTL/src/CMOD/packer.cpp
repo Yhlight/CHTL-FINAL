@@ -94,12 +94,48 @@ void serialize_node(std::ofstream& out, const AstNode& node) {
             }
             break;
         }
-        // NOTE: This only serializes the identifier value, not the full expression type.
-        // The deserializer will need to reconstruct the correct Expression subtype.
         case NodeType::Identifier: {
-             const auto& ident_node = static_cast<const Identifier&>(node);
-             write_string(out, ident_node.value);
-             break;
+            const auto& ident_node = static_cast<const Identifier&>(node);
+            write_string(out, ident_node.value);
+            break;
+        }
+        case NodeType::NumberLiteral: {
+            const auto& num_node = static_cast<const NumberLiteral&>(node);
+            out.write(reinterpret_cast<const char*>(&num_node.value), sizeof(num_node.value));
+            write_string(out, num_node.unit);
+            break;
+        }
+        case NodeType::StringLiteral: {
+            const auto& str_node = static_cast<const StringLiteral&>(node);
+            write_string(out, str_node.value);
+            break;
+        }
+        case NodeType::InfixExpression: {
+            const auto& infix_node = static_cast<const InfixExpression&>(node);
+            write_string(out, infix_node.op);
+            serialize_node(out, *infix_node.left);
+            serialize_node(out, *infix_node.right);
+            break;
+        }
+        case NodeType::ConditionalExpression: {
+            const auto& cond_node = static_cast<const ConditionalExpression&>(node);
+            serialize_node(out, *cond_node.condition);
+            serialize_node(out, *cond_node.consequence);
+            bool has_alternative = cond_node.alternative != nullptr;
+            out.write(reinterpret_cast<const char*>(&has_alternative), sizeof(has_alternative));
+            if (has_alternative) {
+                serialize_node(out, *cond_node.alternative);
+            }
+            break;
+        }
+        case NodeType::ExpressionList: {
+            const auto& list_node = static_cast<const ExpressionListNode&>(node);
+            size_t count = list_node.expressions.size();
+            out.write(reinterpret_cast<const char*>(&count), sizeof(count));
+            for (const auto& expr : list_node.expressions) {
+                serialize_node(out, *expr);
+            }
+            break;
         }
         default:
             // For now, we'll just skip unknown nodes. A more robust implementation might error here.

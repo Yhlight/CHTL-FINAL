@@ -166,6 +166,44 @@ Loader::LoadModule(const std::string& base_file_path, const std::string& import_
                     ident_node->value = read_string(in_stream);
                     return ident_node;
                 }
+                case NodeType::NumberLiteral: {
+                    auto num_node = std::make_unique<NumberLiteral>();
+                    in_stream.read(reinterpret_cast<char*>(&num_node->value), sizeof(num_node->value));
+                    num_node->unit = read_string(in_stream);
+                    return num_node;
+                }
+                case NodeType::StringLiteral: {
+                    auto str_node = std::make_unique<StringLiteral>();
+                    str_node->value = read_string(in_stream);
+                    return str_node;
+                }
+                case NodeType::InfixExpression: {
+                    auto infix_node = std::make_unique<InfixExpression>();
+                    infix_node->op = read_string(in_stream);
+                    infix_node->left = std::unique_ptr<Expression>(static_cast<Expression*>(deserialize_node(in_stream).release()));
+                    infix_node->right = std::unique_ptr<Expression>(static_cast<Expression*>(deserialize_node(in_stream).release()));
+                    return infix_node;
+                }
+                case NodeType::ConditionalExpression: {
+                    auto cond_node = std::make_unique<ConditionalExpression>();
+                    cond_node->condition = std::unique_ptr<Expression>(static_cast<Expression*>(deserialize_node(in_stream).release()));
+                    cond_node->consequence = std::unique_ptr<Expression>(static_cast<Expression*>(deserialize_node(in_stream).release()));
+                    bool has_alternative;
+                    in_stream.read(reinterpret_cast<char*>(&has_alternative), sizeof(has_alternative));
+                    if (has_alternative) {
+                        cond_node->alternative = std::unique_ptr<Expression>(static_cast<Expression*>(deserialize_node(in_stream).release()));
+                    }
+                    return cond_node;
+                }
+                case NodeType::ExpressionList: {
+                    auto list_node = std::make_unique<ExpressionListNode>();
+                    size_t count;
+                    in_stream.read(reinterpret_cast<char*>(&count), sizeof(count));
+                    for (size_t i = 0; i < count; ++i) {
+                        list_node->expressions.push_back(std::unique_ptr<Expression>(static_cast<Expression*>(deserialize_node(in_stream).release())));
+                    }
+                    return list_node;
+                }
                 default:
                     return nullptr;
             }

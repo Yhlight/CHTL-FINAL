@@ -7,6 +7,7 @@ import platform
 # CHTL项目根目录
 CHTL_DIR = "CHTL"
 BUILD_DIR = os.path.join(CHTL_DIR, "build")
+VSCODE_DIR = "chtl-vscode"
 
 def run_command(command, cwd):
     """在指定目录中运行命令，并检查错误。"""
@@ -59,6 +60,15 @@ def find_test_executables(directory):
                     executables.append(f"./{relative_path}")
     return executables
 
+def package_vscode_extension():
+    """打包VSCode扩展。"""
+    print("\n--- 开始打包VSCode扩展... ---")
+    if not run_command(["vsce", "package"], cwd=VSCODE_DIR):
+        print("--- 打包VSCode扩展失败。 ---")
+        return False
+    print("--- VSCode扩展打包成功。 ---")
+    return True
+
 def main():
     """构建和测试CHTL项目的主函数。"""
     # 1. 确保构建目录存在
@@ -89,7 +99,11 @@ def main():
             else:
                 print(f"--- 测试通过: {test} ---")
 
-    print("\n--- 构建和测试脚本成功完成。 ---")
+    # 5. 打包VSCode扩展
+    if not package_vscode_extension():
+        sys.exit(1)
+
+    print("\n--- 构建、测试和打包脚本成功完成。 ---")
 
 if __name__ == "__main__":
     main()

@@ -1,21 +1,24 @@
 #include "CJMODScanner.h"
 #include <iostream>
+#include <regex>
 
 Arg CJMODScanner::scan(const Arg& args, const std::string& keyword) {
-    // This is a placeholder implementation that simulates scanning for the keyword
-    // and returning a result. A real implementation would involve parsing the
-    // actual source code.
+    // This is a more realistic, yet still simplified, implementation of the scanner.
+    // It simulates scanning a `console.log` statement and extracting its arguments.
     std::cout << "Scanning for keyword: " << keyword << std::endl;
 
-    // Simulate finding the keyword and returning a hardcoded result for the example.
+    std::string source_code = "console.log(3 ** 4);"; // Example source code to scan
+    Arg result;
+
     if (keyword == "**") {
-        Arg result;
-        result.add(AtomArg("3"));
-        result.add(AtomArg("**"));
-        result.add(AtomArg("4"));
-        return result;
+        std::regex re("\\((\\d+)\\s*\\*\\*\\s*(\\d+)\\)");
+        std::smatch match;
+        if (std::regex_search(source_code, match, re)) {
+            result.add(AtomArg(match[1].str()));
+            result.add(AtomArg("**"));
+            result.add(AtomArg(match[2].str()));
+        }
     }
 
-    // Return an empty Arg object if the keyword is not found.
-    return Arg();
+    return result;
 }

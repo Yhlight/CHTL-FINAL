@@ -434,6 +434,33 @@ TEST_CASE("Test parsing an if-else if-else chain", "[parser][if]")
     REQUIRE(prop_node->name == "color");
 }
 
+TEST_CASE("Test parsing conditional rendering of an element", "[parser][if]")
+{
+    std::string input = R"(
+        body {
+            if {
+                condition: 1 > 0;
+                div {
+                    text: "This should be rendered";
+                }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+    REQUIRE(program != nullptr);
+    auto* body = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(body != nullptr);
+    auto* if_node = dynamic_cast<CHTL::IfNode*>(body->children[0].get());
+    REQUIRE(if_node != nullptr);
+    REQUIRE(if_node->consequence.size() == 1);
+    auto* div_node = dynamic_cast<CHTL::ElementNode*>(if_node->consequence[0].get());
+    REQUIRE(div_node != nullptr);
+    REQUIRE(div_node->tag_name == "div");
+}
+
 TEST_CASE("Test parsing a CustomUsage with insert specialization", "[parser]")
 {
     SECTION("insert after selector")
@@ -510,14 +537,11 @@ TEST_CASE("Test parsing an except statement", "[parser][except]")
     CHTL::Lexer l(input);
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
-
     checkParserErrors(p);
-
     REQUIRE(program != nullptr);
     auto* div = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
     REQUIRE(div != nullptr);
     REQUIRE(div->children.size() == 1);
-
     auto* except_node = dynamic_cast<CHTL::ExceptNode*>(div->children[0].get());
     REQUIRE(except_node != nullptr);
     REQUIRE(except_node->constraints.size() == 2);
@@ -525,6 +549,30 @@ TEST_CASE("Test parsing an except statement", "[parser][except]")
     REQUIRE(except_node->constraints[0].path[0] == "span");
     REQUIRE(except_node->constraints[1].path.size() == 1);
     REQUIRE(except_node->constraints[1].path[0] == "a");
+}
+
+TEST_CASE("Test parsing an except statement with type constraints", "[parser][except]")
+{
+    std::string input = "div { except @Html, [Custom] @Element Box; }";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+    REQUIRE(program != nullptr);
+    auto* div = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+    auto* except_node = dynamic_cast<CHTL::ExceptNode*>(div->children[0].get());
+    REQUIRE(except_node != nullptr);
+    REQUIRE(except_node->constraints.size() == 2);
+    REQUIRE(except_node->constraints[0].is_type_constraint);
+    REQUIRE(except_node->constraints[0].path.size() == 1);
+    REQUIRE(except_node->constraints[0].path[0] == "@Html");
+    REQUIRE(!except_node->constraints[1].is_type_constraint);
+    REQUIRE(except_node->constraints[1].path.size() == 3);
+    REQUIRE(except_node->constraints[1].path[0] == "[Custom]");
+    REQUIRE(except_node->constraints[1].path[1] == "@Element");
+    REQUIRE(except_node->constraints[1].path[2] == "Box");
 }
 
 // Helper to read a file for test setup
@@ -635,6 +683,27 @@ TEST_CASE("Test parsing a simple Configuration block", "[parser]")
     REQUIRE(config_node->settings.at("INDEX_INITIAL_COUNT") == "1");
 }
 
+TEST_CASE("Test parsing a named Configuration block", "[parser][config]")
+{
+    std::string input = R"(
+        [Configuration] @Config Basic {
+            INDEX_INITIAL_COUNT = 0;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+    auto* config_node = dynamic_cast<CHTL::ConfigurationNode*>(program->children[0].get());
+    REQUIRE(config_node != nullptr);
+    REQUIRE(config_node->name == "Basic");
+    REQUIRE(config_node->settings.size() == 1);
+    REQUIRE(config_node->settings.count("INDEX_INITIAL_COUNT") == 1);
+    REQUIRE(config_node->settings.at("INDEX_INITIAL_COUNT") == "0");
+}
+
 TEST_CASE("Test parsing Configuration with a Name block", "[parser]")
 {
     std::string input = R"(
@@ -699,6 +768,23 @@ TEST_CASE("Test parsing a complex use statement for config", "[parser]")
     REQUIRE(use_node->path.size() == 2);
     REQUIRE(use_node->path[0] == "@Config");
     REQUIRE(use_node->path[1] == "Basic");
+}
+
+TEST_CASE("Test parsing a use statement for config with full name", "[parser][use]")
+{
+    std::string input = "use [Configuration] @Config Basic;";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+    auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[0].get());
+    REQUIRE(use_node != nullptr);
+    REQUIRE(use_node->path.size() == 3);
+    REQUIRE(use_node->path[0] == "[Configuration]");
+    REQUIRE(use_node->path[1] == "@Config");
+    REQUIRE(use_node->path[2] == "Basic");
 }
 
 TEST_CASE("Test parsing a simple Origin block", "[parser]")

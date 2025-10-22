@@ -320,7 +320,7 @@ std::unique_ptr<ExceptNode> Parser::parseExceptNode() {
   while (m_currentToken.type != TokenType::SEMICOLON &&
          m_currentToken.type != TokenType::END_OF_FILE) {
     ExceptNode::Constraint constraint;
-    constraint.is_type_constraint = false;
+    constraint.is_type_constraint = true; // Assume type constraint until a specific name is found
 
     if (m_currentToken.type == TokenType::KEYWORD_CUSTOM ||
         m_currentToken.type == TokenType::KEYWORD_TEMPLATE ||
@@ -330,7 +330,6 @@ std::unique_ptr<ExceptNode> Parser::parseExceptNode() {
     }
 
     if (m_currentToken.type == TokenType::AT) {
-      constraint.is_type_constraint = true;
       nextToken();
       if (m_currentToken.type != TokenType::IDENT) {
         m_errors.push_back(
@@ -342,6 +341,7 @@ std::unique_ptr<ExceptNode> Parser::parseExceptNode() {
     }
 
     if (m_currentToken.type == TokenType::IDENT) {
+      constraint.is_type_constraint = false; // It's a specific constraint
       constraint.path.push_back(m_currentToken.literal);
       nextToken();
     }
@@ -613,7 +613,8 @@ std::unique_ptr<UseNode> Parser::parseUseStatement() {
       path_part += m_currentToken.literal;
       node->path.push_back(path_part);
     } else if (m_currentToken.type == TokenType::IDENT ||
-               m_currentToken.type == TokenType::KEYWORD_HTML5) {
+               m_currentToken.type == TokenType::KEYWORD_HTML5 ||
+               m_currentToken.type == TokenType::KEYWORD_CONFIGURATION) {
       node->path.push_back(m_currentToken.literal);
     } else {
       m_errors.push_back("Invalid token in use statement: " +

@@ -19,6 +19,33 @@ void runLexerTest(const std::string& input, const std::vector<CHTL::Token>& expe
     }
 }
 
+TEST_CASE("Test Lexer can tokenize reactive variables", "[lexer]")
+{
+    std::string input = R"(
+        $myVar$
+        $another_var$
+        $not-a-var
+        $1notavar
+    )";
+    CHTL::Lexer l(input);
+
+    std::vector<std::pair<CHTL::TokenType, std::string>> expected_tokens = {
+        {CHTL::TokenType::REACTIVE_VAR, "myVar"},
+        {CHTL::TokenType::REACTIVE_VAR, "another_var"},
+        {CHTL::TokenType::ILLEGAL, "$not-a-var"},
+        {CHTL::TokenType::DOLLAR, "$"},
+        {CHTL::TokenType::NUMBER, "1"},
+        {CHTL::TokenType::IDENT, "notavar"},
+        {CHTL::TokenType::END_OF_FILE, ""},
+    };
+
+    for (const auto& expected : expected_tokens) {
+        CHTL::Token tok = l.NextToken();
+        REQUIRE(tok.type == expected.first);
+        REQUIRE(tok.literal == expected.second);
+    }
+}
+
 TEST_CASE("Test Full Lexer Logic", "[lexer]")
 {
     std::string input = R"~(

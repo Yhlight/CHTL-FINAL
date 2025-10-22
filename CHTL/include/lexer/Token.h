@@ -72,6 +72,8 @@ namespace CHTL
         QUESTION,   // ?
         COMMA,      // ,
         HASH,       // #
+        DOLLAR,     // $
+        REACTIVE_VAR, // $var$
     };
 
     // Token结构体

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "AstNode.h"
+#include "AstNodeBase.h"
 #include <vector>
 #include <memory>
 #include <string>

@@ -1152,6 +1152,30 @@ TEST_CASE("Test parsing a namespace block", "[parser]")
     REQUIRE(tmpl->name == "MyTemplate");
 }
 
+TEST_CASE("Test parsing a reactive value in a style property", "[parser][reactive]")
+{
+    std::string input = R"(
+        style {
+            color: $myColor$;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
+    REQUIRE(style_node != nullptr);
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "color");
+
+    auto* reactive_node = dynamic_cast<CHTL::ReactiveValueNode*>(prop->value.get());
+    REQUIRE(reactive_node != nullptr);
+    REQUIRE(reactive_node->name == "myColor");
+}
+
 TEST_CASE("Test namespace with global constraints", "[parser][namespace][except]")
 {
     std::string input = R"(

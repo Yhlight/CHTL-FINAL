@@ -19,11 +19,18 @@ namespace CHTLJS {
 
 namespace CHTL
 {
+    // Forward-declare the function that needs to be a friend
+    class Generator;
+    void evaluateAndStoreProperty(Generator* generator, StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map);
+
     class Generator
     {
     public:
         Generator(std::shared_ptr<SaltBridge> bridge);
         std::string Generate(ProgramNode* program);
+
+        // Grant friendship
+        friend void evaluateAndStoreProperty(Generator* generator, StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map);
 
     private:
         void visit(AstNode* node, EvalContext& context);
@@ -48,6 +55,7 @@ namespace CHTL
         void visit(ExceptNode* node, EvalContext& context);
         void visit(ConfigurationNode* node, EvalContext& context);
         void visit(UseNode* node, EvalContext& context);
+        void visit(ReactiveValueNode* node, EvalContext& context, std::stringstream& stream);
 
         // CHTL JS AST visitors
         void visit(CHTLJS::AstNode* node, EvalContext& context);
@@ -62,5 +70,6 @@ namespace CHTL
         std::shared_ptr<SaltBridge> m_bridge;
         Config m_config;
         bool m_use_html5_doctype = false;
+        bool m_has_reactive_values = false;
     };
 }

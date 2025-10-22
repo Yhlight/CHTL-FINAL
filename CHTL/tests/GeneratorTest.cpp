@@ -1300,3 +1300,43 @@ TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[
         REQUIRE(html_output == expected_html);
     }
 }
+
+TEST_CASE("Generator handles reactive values in styles", "[generator][reactive]")
+{
+    std::string input = R"(
+        div {
+            id: "myDiv";
+            style {
+                width: $boxWidth$;
+                color: $boxColor$;
+            }
+            script {
+                let boxWidth = 100;
+                let boxColor = "red";
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    INFO("Generated HTML: " << html_output);
+
+    // 1. Check for the CSS variable usage in the style attribute (order-independent)
+    REQUIRE(html_output.find("width:var(--boxWidth)") != std::string::npos);
+    REQUIRE(html_output.find("color:var(--boxColor)") != std::string::npos);
+
+    // 2. Check for the data-reactive-bindings attribute
+    std::string expected_bindings = "data-reactive-bindings=\"boxWidth,boxColor\"";
+    REQUIRE(html_output.find(expected_bindings) != std::string::npos);
+
+    // 3. Check for the injected script that sets the initial values
+    std::string expected_script = "<script>";
+    expected_script += "document.querySelectorAll('[data-reactive-bindings]').forEach(el => {";
+    REQUIRE(html_output.find(expected_script) != std::string::npos);
+}

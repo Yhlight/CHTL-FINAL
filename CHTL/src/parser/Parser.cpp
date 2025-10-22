@@ -1246,6 +1246,8 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence) {
     }
   } else if (m_currentToken.type == TokenType::STRING) {
     leftExp = parseStringLiteral();
+  } else if (m_currentToken.type == TokenType::REACTIVE_VAR) {
+    leftExp = parseReactiveValue();
   } else if (m_currentToken.type == TokenType::DOT) {
     nextToken();
     leftExp = parseAttributeAccessExpression();
@@ -1357,6 +1359,12 @@ std::unique_ptr<Expression> Parser::parseStringLiteral() {
   auto literal = std::make_unique<StringLiteral>();
   literal->value = m_currentToken.literal;
   return literal;
+}
+
+std::unique_ptr<Expression> Parser::parseReactiveValue() {
+    auto node = std::make_unique<ReactiveValueNode>();
+    node->name = m_currentToken.literal;
+    return node;
 }
 
 std::unique_ptr<Expression> Parser::parseVariableAccessExpression() {

@@ -335,6 +335,20 @@ Token Lexer::NextToken()
                 tok = {TokenType::HASH, "#", tok.line, tok.column};
             }
             break;
+        case '$':
+            if (isLetter(peekChar())) {
+                readChar(); // consume '$'
+                tok.literal = readIdentifier();
+                if (m_char != '$') {
+                    return {TokenType::ILLEGAL, "$" + tok.literal, tok.line, tok.column};
+                }
+                tok.type = TokenType::REACTIVE_VAR;
+                readChar(); // consume closing '$'
+                return tok;
+            } else {
+                tok = {TokenType::DOLLAR, "$", tok.line, tok.column};
+            }
+            break;
         case 0:
             tok.type = TokenType::END_OF_FILE;
             tok.literal = "";

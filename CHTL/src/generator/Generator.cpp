@@ -39,6 +39,7 @@ namespace CHTL
         m_global_styles.clear();
 
         m_use_html5_doctype = false; // Reset for each generation
+        m_has_reactive_values = false; // Reset for each generation
 
         // Find and process 'use' and 'Configuration' nodes first.
         // This ensures the correct configuration is loaded before generating content.
@@ -61,6 +62,11 @@ namespace CHTL
                      }
                 }
             }
+        }
+
+        // After loading, check for debug mode.
+        if (m_config.IsLoaded() && m_config.IsDebugMode()) {
+            m_output << "<!-- CHTL DEBUG MODE ENABLED -->\n";
         }
 
         EvalContext context;
@@ -86,6 +92,20 @@ namespace CHTL
         }
 
         final_output += content;
+
+        if (m_has_reactive_values)
+        {
+            // Add script for initial reactive values
+            final_output += "<script>\n";
+            final_output += "document.querySelectorAll('[data-reactive-bindings]').forEach(el => {\n";
+            final_output += "    const bindings = el.dataset.reactiveBindings.split(',');\n";
+            final_output += "    bindings.forEach(binding => {\n";
+            final_output += "        el.style.setProperty(`--${binding}`, eval(binding));\n";
+            final_output += "    });\n";
+            final_output += "});\n";
+            final_output += "</script>";
+        }
+
         return final_output;
     }
 
@@ -437,7 +457,7 @@ namespace CHTL
     }
 
     // Helper function to evaluate a style property and store it in a map, handling overrides.
-    static void evaluateAndStoreProperty(StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map);
+    void evaluateAndStoreProperty(Generator* generator, StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map);
 
     void Generator::applyStyleTemplate(const TemplateDefinitionNode* tmpl, EvalContext& context, std::map<std::string, std::string>& property_map)
     {
@@ -462,7 +482,7 @@ namespace CHTL
         {
             if (auto* prop = dynamic_cast<StyleProperty*>(node.get()))
             {
-                evaluateAndStoreProperty(prop, context, property_map);
+                evaluateAndStoreProperty(this, prop, context, property_map);
             }
             else if (auto* usage = dynamic_cast<TemplateUsageNode*>(node.get()))
             {
@@ -481,17 +501,27 @@ namespace CHTL
         }
     }
 
-    static void evaluateAndStoreProperty(StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map) {
-        Evaluator evaluator;
-        Value result = evaluator.Eval(prop->value.get(), context);
-        context.values[prop->name] = result; // Update context for subsequent properties
-        std::stringstream ss;
-        if (result.type == ValueType::STRING) {
-            ss << result.str;
-        } else {
-            ss << result.num << result.unit;
+    void evaluateAndStoreProperty(Generator* generator, StyleProperty* prop, EvalContext& context, std::map<std::string, std::string>& property_map) {
+        if (prop->value->GetType() == NodeType::ReactiveValue)
+        {
+            generator->m_has_reactive_values = true;
+            std::stringstream temp_stream;
+            generator->visit(static_cast<ReactiveValueNode*>(prop->value.get()), context, temp_stream);
+            property_map[prop->name] = temp_stream.str();
         }
-        property_map[prop->name] = ss.str();
+        else
+        {
+            Evaluator evaluator;
+            Value result = evaluator.Eval(prop->value.get(), context);
+            context.values[prop->name] = result; // Update context for subsequent properties
+            std::stringstream ss;
+            if (result.type == ValueType::STRING) {
+                ss << result.str;
+            } else {
+                ss << result.num << result.unit;
+            }
+            property_map[prop->name] = ss.str();
+        }
     }
 
     void Generator::visit(StyleNode* node, EvalContext& context, ElementNode* parent)
@@ -514,7 +544,7 @@ namespace CHTL
         {
             if (auto* prop = dynamic_cast<StyleProperty*>(child.get()))
             {
-                evaluateAndStoreProperty(prop, local_context, inline_properties);
+                evaluateAndStoreProperty(this, prop, local_context, inline_properties);
             }
             else if (child->GetType() == NodeType::StyleRule)
             {
@@ -574,12 +604,12 @@ namespace CHTL
                             if (it != provided_properties.end()) {
                                 // A value is provided in the usage block, use it.
                                 // This handles both overriding a default value and filling a valueless property.
-                                evaluateAndStoreProperty(it->second, local_context, inline_properties);
+                                evaluateAndStoreProperty(this, it->second, local_context, inline_properties);
                                 provided_properties.erase(it); // Mark as used
                             }
                             else if (base_prop->value) {
                                 // No value provided in usage, but the base has a default value.
-                                evaluateAndStoreProperty(base_prop, local_context, inline_properties);
+                                evaluateAndStoreProperty(this, base_prop, local_context, inline_properties);
                             }
                              // If base_prop has no value and none is provided, it's skipped, which is correct.
                         }
@@ -587,7 +617,7 @@ namespace CHTL
 
                     // Process any remaining properties from the usage block (new properties not in the base)
                     for (const auto& pair : provided_properties) {
-                        evaluateAndStoreProperty(pair.second, local_context, inline_properties);
+                        evaluateAndStoreProperty(this, pair.second, local_context, inline_properties);
                     }
                 }
             }
@@ -659,20 +689,29 @@ namespace CHTL
 
     void Generator::visit(StyleProperty* node, EvalContext& context, std::stringstream& style_stream)
     {
-        Evaluator evaluator;
-        Value result = evaluator.Eval(node->value.get(), context);
-        context.values[node->name] = result; // Update context for subsequent properties
-
-        style_stream << node->name << ":";
-        if (result.type == ValueType::STRING)
+        if (node->value->GetType() == NodeType::ReactiveValue)
         {
-            style_stream << result.str;
+            style_stream << node->name << ":";
+            visit(static_cast<ReactiveValueNode*>(node->value.get()), context, style_stream);
+            style_stream << ";";
         }
         else
         {
-            style_stream << result.num << result.unit;
+            Evaluator evaluator;
+            Value result = evaluator.Eval(node->value.get(), context);
+            context.values[node->name] = result; // Update context for subsequent properties
+
+            style_stream << node->name << ":";
+            if (result.type == ValueType::STRING)
+            {
+                style_stream << result.str;
+            }
+            else
+            {
+                style_stream << result.num << result.unit;
+            }
+            style_stream << ";";
         }
-        style_stream << ";";
     }
 
     void Generator::visit(TextNode* node, EvalContext& context)
@@ -801,6 +840,31 @@ namespace CHTL
                         return; // Stop after finding the first matching config
                     }
                 }
+            }
+        }
+    }
+
+    void Generator::visit(ReactiveValueNode* node, EvalContext& context, std::stringstream& stream)
+    {
+        m_has_reactive_values = true;
+        stream << "var(--" << node->name << ")";
+        if (context.parent_element)
+        {
+            // Track that this element is now bound to this reactive variable
+            // This is a simplified tracking mechanism for now.
+            // A more robust system would handle multiple elements and variables.
+            bool found_attribute = false;
+            for (auto& attr : context.parent_element->attributes) {
+                if (attr.name == "data-reactive-bindings") {
+                    found_attribute = true;
+                    if (attr.value.find(node->name) == std::string::npos) {
+                        attr.value += (attr.value.empty() ? "" : ",") + node->name;
+                    }
+                    break;
+                }
+            }
+            if (!found_attribute) {
+                context.parent_element->attributes.push_back({"data-reactive-bindings", node->name});
             }
         }
     }

@@ -1,0 +1,25 @@
+{
+    "name": "chtl",
+    "displayName": "CHTL",
+    "description": "CHTL language support for Visual Studio Code",
+    "version": "0.0.1",
+    "engines": {
+        "vscode": "^1.60.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "contributes": {
+        "languages": [{
+            "id": "chtl",
+            "aliases": ["CHTL", "chtl"],
+            "extensions": [".chtl"],
+            "configuration": "./language-configuration.json"
+        }],
+        "grammars": [{
+            "language": "chtl",
+            "scopeName": "source.chtl",
+            "path": "./syntaxes/chtl.tmLanguage.json"
+        }]
+    }
+}

@@ -6,9 +6,16 @@
   "engines": {
     "vscode": "^1.0.0"
   },
+  "activationEvents": [
+    "onLanguage:chtl"
+  ],
+  "main": "./extension.js",
   "categories": [
     "Programming Languages"
   ],
+  "dependencies": {
+    "vscode-languageclient": "^7.0.0"
+  },
   "contributes": {
     "languages": [{
       "id": "chtl",

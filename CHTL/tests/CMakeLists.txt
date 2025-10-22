@@ -49,3 +49,8 @@ add_executable(SerializationTest SerializationTest.cpp)
 target_link_libraries(SerializationTest PRIVATE CHTL gtest_main)
 add_test(NAME SerializationTest COMMAND SerializationTest)
 target_include_directories(SerializationTest PRIVATE ../../third-party ../CHTLJS/include)
+
+add_executable(ModuleTest ModuleTest.cpp)
+target_link_libraries(ModuleTest PRIVATE CHTL gtest_main)
+add_test(NAME ModuleTest COMMAND ModuleTest)
+target_include_directories(ModuleTest PRIVATE ../../third-party ../CHTLJS/include)

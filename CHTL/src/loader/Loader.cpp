@@ -2,6 +2,7 @@
 #include "lexer/Lexer.h"
 #include "parser/Parser.h"
 #include "nodes/ProgramNode.h"
+#include "AstNode.h"
 #include <fstream>
 #include <sstream>
 #include <filesystem>
@@ -51,11 +52,12 @@ std::unique_ptr<ProgramNode> Loader::LoadModule(const std::string& base_file_pat
 
     if (extension == ".cmod" || extension == ".cjmod")
     {
-        // Placeholder: In a real implementation, this would involve
-        // reading the binary file and deserializing it into a ProgramNode.
-        auto program = std::make_unique<ProgramNode>();
-        // Populate program with deserialized data...
-        return program;
+        std::ifstream file_stream(target_file_path, std::ios::binary);
+        if (!file_stream.is_open())
+        {
+            throw std::runtime_error("Could not open module file: " + target_file_path.string());
+        }
+        return std::unique_ptr<ProgramNode>(static_cast<ProgramNode*>(AstNode::deserialize(file_stream).release()));
     }
     else
     {

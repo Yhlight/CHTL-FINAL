@@ -486,6 +486,12 @@ Parser::parseNamespaceNode(ProgramNode &program) {
       stmt = parseTemplateDefinition();
     } else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM) {
       stmt = parseCustomDefinitionNode();
+    } else if (m_currentToken.type == TokenType::KEYWORD_EXCEPT) {
+        auto except_node = parseExceptNode();
+        if (except_node) {
+            node->constraints.push_back(std::move(except_node));
+        }
+        // Don't set stmt, as constraints are not regular children
     } else {
       stmt = parseStatement();
     }
@@ -507,6 +513,31 @@ Parser::parseNamespaceNode(ProgramNode &program) {
     m_errors.push_back("Expected '}' to close namespace block.");
     return nullptr;
   }
+
+  // After parsing, perform validation
+  for (const auto& constraint_ptr : node->constraints) {
+      for (const auto& constraint : constraint_ptr->constraints) {
+          // Check for broad type constraints like `except [Template];`
+          if (constraint.is_type_constraint && constraint.path.size() == 1) {
+              const std::string& forbidden_type = constraint.path[0];
+              for (const auto& child : node->children) {
+                  bool violation = false;
+                  if (forbidden_type == "[Template]" && child->GetType() == NodeType::TemplateDefinition) {
+                      violation = true;
+                  } else if (forbidden_type == "[Custom]" && child->GetType() == NodeType::CustomDefinition) {
+                      violation = true;
+                  } else if (forbidden_type == "[Origin]" && child->GetType() == NodeType::Origin) {
+                      violation = true;
+                  }
+
+                  if (violation) {
+                      m_errors.push_back("Constraint violation: " + forbidden_type + " definitions are not allowed in this namespace.");
+                  }
+              }
+          }
+      }
+  }
+
   m_current_namespace = prev_namespace;
   return node;
 }

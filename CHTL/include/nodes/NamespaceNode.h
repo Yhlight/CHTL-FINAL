@@ -7,10 +7,13 @@
 
 namespace CHTL
 {
+    struct ExceptNode; // Forward declaration
+
     struct NamespaceNode : public AstNode
     {
         std::string name;
         std::vector<std::unique_ptr<AstNode>> children;
+        std::vector<std::unique_ptr<ExceptNode>> constraints;
 
         NodeType GetType() const override { return NodeType::Namespace; }
         std::string ToString() const override;

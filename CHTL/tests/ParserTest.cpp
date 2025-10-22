@@ -1152,6 +1152,26 @@ TEST_CASE("Test parsing a namespace block", "[parser]")
     REQUIRE(tmpl->name == "MyTemplate");
 }
 
+TEST_CASE("Test namespace with global constraints", "[parser][namespace][except]")
+{
+    std::string input = R"(
+        [Namespace] MySpace {
+            except [Template];
+
+            [Template] @Style MyTemplate {
+                color: red;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    p.ParseProgram(); // Don't check errors, we expect one
+
+    const auto& errors = p.GetErrors();
+    REQUIRE(errors.size() == 1);
+    REQUIRE(errors[0].find("Constraint violation: [Template] definitions are not allowed in this namespace.") != std::string::npos);
+}
+
 TEST_CASE("Test parsing style block with arithmetic expressions", "[parser]")
 {
     std::string input = R"(style { width: 100 + 50 * 2; })";

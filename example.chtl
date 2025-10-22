@@ -1,0 +1,8 @@
+// This is a comment
+div.container#main-content(style="color: red;")
+  p 'Hello, World!'
+  <script>
+    listen('click', () => {
+      console.log('Clicked!');
+    });
+  </script>

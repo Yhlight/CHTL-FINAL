@@ -1,0 +1,53 @@
+{
+  "name": "chtl-vscode",
+  "displayName": "CHTL",
+  "description": "CHTL language support for VS Code",
+  "version": "0.0.1",
+  "main": "./extension.js",
+  "activationEvents": [
+    "onLanguage:chtl"
+  ],
+  "engines": {
+    "vscode": "^1.0.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "chtl.compile",
+        "title": "Compile CHTL"
+      },
+      {
+        "command": "chtl.preview",
+        "title": "Preview CHTL"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "resourceLangId == chtl",
+          "command": "chtl.compile",
+          "group": "navigation"
+        },
+        {
+          "when": "resourceLangId == chtl",
+          "command": "chtl.preview",
+          "group": "navigation"
+        }
+      ]
+    },
+    "languages": [{
+      "id": "chtl",
+      "aliases": ["CHTL", "chtl"],
+      "extensions": [".chtl"],
+      "configuration": "./language-configuration.json"
+    }],
+    "grammars": [{
+      "language": "chtl",
+      "scopeName": "source.chtl",
+      "path": "./syntaxes/chtl.tmLanguage.json"
+    }]
+  }
+}

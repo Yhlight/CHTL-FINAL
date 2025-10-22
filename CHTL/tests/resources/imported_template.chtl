@@ -1,0 +1,4 @@
+[Template] @Style ImportedStyle {
+    font-size: 16px;
+    color: "imported-green";
+}

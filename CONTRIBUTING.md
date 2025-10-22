@@ -25,12 +25,41 @@ If you've fixed a bug or implemented a new feature, you can submit a pull reques
 
 ## Setting Up Your Development Environment
 
-To get started, you'll need the following:
+To get started, you'll need the following tools installed on your system:
 
-*   A C++ compiler that supports C++20 (e.g., GCC 10+, Clang 12+)
-*   CMake 3.10+
-*   Python 3.6+
-*   Node.js and npm (for the VSCode extension)
+*   **A C++ compiler that supports C++20:** For example, GCC 10+, Clang 12+, or MSVC v142.
+*   **CMake 3.10+:** For managing the C++ build process.
+*   **Python 3.6+:** For running the main build script.
+*   **Node.js and npm:** For building and packaging the VSCode extension.
+
+### Initial Setup
+
+After cloning the repository, you'll need to set up the dependencies for both the C++ and VSCode components.
+
+#### C++ Dependencies (GTest)
+
+The project uses Google Test for C++ unit testing. This is included as a Git submodule. To download it, run the following commands from the root of the repository:
+
+```bash
+git submodule init
+git submodule update
+```
+
+If for some reason the submodule command does not work, you can manually clone the GTest repository into the `third-party/gtest` directory:
+
+```bash
+git clone https://github.com/google/googletest.git third-party/gtest
+```
+
+#### VSCode Extension Dependencies (vsce)
+
+The VSCode extension requires the `@vscode/vsce` package for packaging. We recommend installing it locally within the `chtl-vscode` directory to avoid version conflicts.
+
+```bash
+npm install --prefix ./chtl-vscode @vscode/vsce
+```
+
+The main build script is already configured to use this local installation.
 
 ## Building the Project
 
@@ -47,6 +76,39 @@ This will:
 3.  Run `make` to compile the C++ code.
 4.  Run all of the tests.
 5.  Package the VSCode extension into a `.vsix` file.
+
+## Project Structure and Testing
+
+### Project Structure
+
+The repository is organized into a few key directories:
+
+*   `CHTL/`: Contains the core C++ source code for the CHTL compiler.
+    *   `CHTL/include/`: Header files (`.h`).
+    *   `CHTL/src/`: Source files (`.cpp`).
+    *   `CHTL/tests/`: C++ unit tests.
+*   `chtl-vscode/`: Contains the source code for the VSCode extension.
+    *   `chtl-vscode/syntaxes/`: TextMate grammar for syntax highlighting.
+*   `third-party/`: Contains third-party dependencies like Google Test.
+
+### Running Tests
+
+The easiest way to run all tests is to use the main build script:
+
+```bash
+python3 build.py
+```
+
+This script will compile the project and then automatically discover and run all test executables located in the `CHTL/build/tests/` directory.
+
+### Adding New Tests
+
+When you add a new feature or fix a bug, you should add a corresponding test.
+
+1.  Create a new `.cpp` file in the `CHTL/tests/` directory (e.g., `MyNewFeatureTest.cpp`).
+2.  Write your test using the Google Test framework.
+3.  Add your new test file to the `CHTL/tests/CMakeLists.txt` file. You can follow the pattern of the existing tests in that file.
+4.  Run the build script to ensure your new test compiles and passes.
 
 ## Coding Conventions
 

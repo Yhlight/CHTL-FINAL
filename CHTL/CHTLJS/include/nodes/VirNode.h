@@ -13,6 +13,8 @@ namespace CHTLJS
         NodeType GetType() const override { return NodeType::Vir; }
         std::string ToString() const override { return "VirNode"; }
         std::unique_ptr<AstNode> clone() const override;
+        void serialize(std::ostream& os) const override;
+        static std::unique_ptr<VirNode> deserialize(std::istream& is);
     };
 
 }

@@ -10,6 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # 使用 glob 自动查找所有源文件
 file(GLOB_RECURSE CHTL_SOURCES
+    "src/AstNode.cpp"
     "src/*.cpp"
     "src/bridge/*.cpp"
     "src/eval/*.cpp"
@@ -39,6 +40,7 @@ target_include_directories(CHTL PUBLIC
     include/eval
     include/generator
     CHTLJS/include/generator
+    CHTLJS/include/nodes
     include/lexer
     include/loader
     include/nodes

@@ -29,6 +29,8 @@ namespace CHTLJS
         NodeType GetType() const override { return NodeType::Animate; }
         std::string ToString() const override { return "AnimateNode"; }
         std::unique_ptr<AstNode> clone() const override;
+        void serialize(std::ostream& os) const override;
+        static std::unique_ptr<AnimateNode> deserialize(std::istream& is);
     };
 
 }

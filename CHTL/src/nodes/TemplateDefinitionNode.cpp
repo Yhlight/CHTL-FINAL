@@ -1,6 +1,12 @@
 #include "TemplateDefinitionNode.h"
 #include "StylePropertyNode.h"
 #include <sstream>
+#include <iostream>
+#include <vector>
+#include <map>
+#include "nodes/ExpressionNode.h"
+#include "AstNode.h"
+#include "Serialize.h"
 
 namespace CHTL
 {
@@ -52,6 +58,30 @@ namespace CHTL
         {
             node->body.push_back(child->clone());
         }
+        return node;
+    }
+
+    void TemplateDefinitionNode::serialize(std::ostream& os) const
+    {
+        int node_type = static_cast<int>(GetType());
+        os.write(reinterpret_cast<const char*>(&node_type), sizeof(node_type));
+        Serializer::serialize(type, os);
+        Serializer::serialize(name, os);
+        Serializer::serialize(inherited_templates, os);
+        Serializer::serialize(variables, os);
+        Serializer::serialize(properties, os);
+        Serializer::serialize(body, os);
+    }
+
+    std::unique_ptr<TemplateDefinitionNode> TemplateDefinitionNode::deserialize(std::istream& is)
+    {
+        auto node = std::make_unique<TemplateDefinitionNode>();
+        Serializer::deserialize(node->type, is);
+        Serializer::deserialize(node->name, is);
+        Serializer::deserialize(node->inherited_templates, is);
+        Serializer::deserialize(node->variables, is);
+        Serializer::deserialize(node->properties, is);
+        Serializer::deserialize(node->body, is);
         return node;
     }
 }

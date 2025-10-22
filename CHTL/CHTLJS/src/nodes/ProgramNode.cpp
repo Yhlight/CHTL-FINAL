@@ -1,27 +1,11 @@
-#include "StyleNode.h"
-#include <sstream>
+#include "ProgramNode.h"
+#include "AstNode.h"
 
-namespace CHTL
+namespace CHTLJS
 {
-    std::string StyleNode::ToString() const
+    std::unique_ptr<AstNode> ProgramNode::clone() const
     {
-        std::stringstream ss;
-        ss << "StyleNode(children: [";
-        for (size_t i = 0; i < children.size(); ++i)
-        {
-            ss << children[i]->ToString();
-            if (i < children.size() - 1)
-            {
-                ss << ", ";
-            }
-        }
-        ss << "])";
-        return ss.str();
-    }
-
-    std::unique_ptr<AstNode> StyleNode::clone() const
-    {
-        auto node = std::make_unique<StyleNode>();
+        auto node = std::make_unique<ProgramNode>();
         for (const auto& child : children)
         {
             node->children.push_back(child->clone());
@@ -29,7 +13,7 @@ namespace CHTL
         return node;
     }
 
-    void StyleNode::serialize(std::ostream& os) const
+    void ProgramNode::serialize(std::ostream& os) const
     {
         int type = static_cast<int>(GetType());
         os.write(reinterpret_cast<const char*>(&type), sizeof(type));
@@ -42,9 +26,9 @@ namespace CHTL
         }
     }
 
-    std::unique_ptr<StyleNode> StyleNode::deserialize(std::istream& is)
+    std::unique_ptr<ProgramNode> ProgramNode::deserialize(std::istream& is)
     {
-        auto node = std::make_unique<StyleNode>();
+        auto node = std::make_unique<ProgramNode>();
         size_t child_count;
         is.read(reinterpret_cast<char*>(&child_count), sizeof(child_count));
         for (size_t i = 0; i < child_count; ++i)

@@ -41,4 +41,43 @@ namespace CHTL
         }
         return node;
     }
+
+    void IfNode::serialize(std::ostream& os) const
+    {
+        int type = static_cast<int>(GetType());
+        os.write(reinterpret_cast<const char*>(&type), sizeof(type));
+
+        condition->serialize(os);
+        size_t child_count = consequence.size();
+        os.write(reinterpret_cast<const char*>(&child_count), sizeof(child_count));
+        for (const auto& child : consequence)
+        {
+            child->serialize(os);
+        }
+        bool has_alternative = alternative != nullptr;
+        os.write(reinterpret_cast<const char*>(&has_alternative), sizeof(has_alternative));
+        if (has_alternative)
+        {
+            alternative->serialize(os);
+        }
+    }
+
+    std::unique_ptr<IfNode> IfNode::deserialize(std::istream& is)
+    {
+        auto node = std::make_unique<IfNode>();
+        node->condition = std::unique_ptr<Expression>(static_cast<Expression*>(AstNode::deserialize(is).release()));
+        size_t child_count;
+        is.read(reinterpret_cast<char*>(&child_count), sizeof(child_count));
+        for (size_t i = 0; i < child_count; ++i)
+        {
+            node->consequence.push_back(AstNode::deserialize(is));
+        }
+        bool has_alternative;
+        is.read(reinterpret_cast<char*>(&has_alternative), sizeof(has_alternative));
+        if (has_alternative)
+        {
+            node->alternative = AstNode::deserialize(is);
+        }
+        return node;
+    }
 }

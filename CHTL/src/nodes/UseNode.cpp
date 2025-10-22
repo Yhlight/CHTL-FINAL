@@ -1,5 +1,6 @@
 #include "UseNode.h"
 #include <sstream>
+#include "Serialize.h"
 
 namespace CHTL
 {
@@ -23,6 +24,20 @@ namespace CHTL
     {
         auto node = std::make_unique<UseNode>();
         node->path = this->path;
+        return node;
+    }
+
+    void UseNode::serialize(std::ostream& os) const
+    {
+        int type = static_cast<int>(GetType());
+        os.write(reinterpret_cast<const char*>(&type), sizeof(type));
+        Serializer::serialize(path, os);
+    }
+
+    std::unique_ptr<UseNode> UseNode::deserialize(std::istream& is)
+    {
+        auto node = std::make_unique<UseNode>();
+        Serializer::deserialize(node->path, is);
         return node;
     }
 }

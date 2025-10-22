@@ -2,6 +2,8 @@
 
 #include <memory>
 #include <string>
+#include <vector>
+#include <iostream>
 
 namespace CHTL
 {
@@ -9,6 +11,7 @@ namespace CHTL
     enum class NodeType
     {
         Program,
+        CMOD,
         Element,
         Text,
         Style,
@@ -53,6 +56,9 @@ namespace CHTL
         virtual NodeType GetType() const = 0;
         virtual std::string ToString() const = 0;
         virtual std::unique_ptr<AstNode> clone() const = 0;
+
+        virtual void serialize(std::ostream& os) const = 0;
+        static std::unique_ptr<AstNode> deserialize(std::istream& is);
     };
 }
 

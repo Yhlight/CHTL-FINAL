@@ -65,17 +65,19 @@ TEST(GeneratorTest, Delegate) {
   Generator generator(bridge);
   std::string result = generator.Generate(program);
 
-  std::string expected =
-      "document.querySelector('#container').addEventListener('click', (event) => {\n"
-      "  let target = event.target;\n"
-      "  while (target && target !== document.querySelector('#container') && target !== document) {\n"
-      "    if (target.matches('.child-button')) {\n"
-      "      (function(e) { e.target.style.color = 'red'; }).call(target, event);\n"
-      "      return;\n"
-      "    }\n"
-      "    target = target.parentNode;\n"
-      "  }\n"
-      "});\n";
+  std::string expected = "{\n"
+                       "  const parent = document.querySelector('#container');\n"
+                       "  parent.addEventListener('click', (event) => {\n"
+                       "    let target = event.target;\n"
+                       "    while (target && target !== parent && target !== document) {\n"
+                       "      if (target.matches('.child-button')) {\n"
+                       "        (function(e) { e.target.style.color = 'red'; }).call(target, event);\n"
+                       "        return;\n"
+                       "      }\n"
+                       "      target = target.parentNode;\n"
+                       "    }\n"
+                       "  });\n"
+                       "}\n";
   ASSERT_EQ(result, expected);
 }
 

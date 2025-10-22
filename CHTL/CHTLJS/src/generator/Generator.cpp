@@ -104,25 +104,27 @@ void Generator::visit(const DelegateNode &node) {
   std::string parent_selector_js = output_;
   output_ = current_output;
 
+  output_ += "{\n";
+  output_ += "  const parent = " + parent_selector_js + ";\n";
   for (const auto &pair : node.events) {
     const std::string &event_name = pair.first;
     const std::string &handler = pair.second;
 
-    output_ += parent_selector_js + ".addEventListener('" + event_name +
+    output_ += "  parent.addEventListener('" + event_name +
                "', (event) => {\n";
-    output_ += "  let target = event.target;\n";
-    output_ += "  while (target && target !== " + parent_selector_js +
-               " && target !== document) {\n";
+    output_ += "    let target = event.target;\n";
+    output_ += "    while (target && target !== parent && target !== document) {\n";
     for (const auto &child_selector : node.child_targets) {
-      output_ += "    if (target.matches('" + child_selector + "')) {\n";
-      output_ += "      (" + handler + ").call(target, event);\n";
-      output_ += "      return;\n";
-      output_ += "    }\n";
+      output_ += "      if (target.matches('" + child_selector + "')) {\n";
+      output_ += "        (" + handler + ").call(target, event);\n";
+      output_ += "        return;\n";
+      output_ += "      }\n";
     }
-    output_ += "    target = target.parentNode;\n";
-    output_ += "  }\n";
-    output_ += "});\n";
+    output_ += "      target = target.parentNode;\n";
+    output_ += "    }\n";
+    output_ += "  });\n";
   }
+  output_ += "}\n";
 }
 
 void Generator::visit(const AnimateNode &node) {

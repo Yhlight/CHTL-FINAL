@@ -38,4 +38,42 @@ namespace CHTL
         node->path = this->path;
         return node;
     }
+
+    void ImportNode::serialize(std::ostream& os) const
+    {
+        int node_type = static_cast<int>(GetType());
+        os.write(reinterpret_cast<const char*>(&node_type), sizeof(node_type));
+
+        auto write_string = [&](const std::string& s) {
+            size_t len = s.length();
+            os.write(reinterpret_cast<const char*>(&len), sizeof(len));
+            os.write(s.c_str(), len);
+        };
+
+        write_string(type);
+        write_string(import_scope);
+        write_string(specific_type);
+        write_string(imported_name);
+        write_string(alias);
+        write_string(path);
+    }
+
+    std::unique_ptr<ImportNode> ImportNode::deserialize(std::istream& is)
+    {
+        auto node = std::make_unique<ImportNode>();
+        auto read_string = [&](std::string& s) {
+            size_t len;
+            is.read(reinterpret_cast<char*>(&len), sizeof(len));
+            s.resize(len);
+            is.read(&s[0], len);
+        };
+
+        read_string(node->type);
+        read_string(node->import_scope);
+        read_string(node->specific_type);
+        read_string(node->imported_name);
+        read_string(node->alias);
+        read_string(node->path);
+        return node;
+    }
 }

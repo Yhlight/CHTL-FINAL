@@ -44,3 +44,8 @@ target_include_directories(BridgeTest PRIVATE ../../third-party)
 add_executable(CHTLJSGeneratorTest CHTLJS/GeneratorTest.cpp)
 target_link_libraries(CHTLJSGeneratorTest PRIVATE CHTL gtest_main)
 target_include_directories(CHTLJSGeneratorTest PRIVATE ../../third-party)
+
+add_executable(SerializationTest SerializationTest.cpp)
+target_link_libraries(SerializationTest PRIVATE CHTL gtest_main)
+add_test(NAME SerializationTest COMMAND SerializationTest)
+target_include_directories(SerializationTest PRIVATE ../../third-party ../CHTLJS/include)

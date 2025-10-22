@@ -27,6 +27,8 @@ namespace CHTLJS
         virtual NodeType GetType() const = 0;
         virtual std::string ToString() const = 0;
         virtual std::unique_ptr<AstNode> clone() const = 0;
+        virtual void serialize(std::ostream& os) const = 0;
+        static std::unique_ptr<AstNode> deserialize(std::istream& is);
     };
 
     // CHTL JS 程序根节点
@@ -37,6 +39,8 @@ namespace CHTLJS
         NodeType GetType() const override { return NodeType::Program; }
         std::string ToString() const override { return "ProgramNode"; }
         std::unique_ptr<AstNode> clone() const override;
+        void serialize(std::ostream& os) const override;
+        static std::unique_ptr<ProgramNode> deserialize(std::istream& is);
     };
 
 } // namespace CHTLJS

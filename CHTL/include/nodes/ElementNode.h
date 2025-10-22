@@ -24,5 +24,8 @@ namespace CHTL
         NodeType GetType() const override { return NodeType::Element; }
         std::string ToString() const override;
         std::unique_ptr<AstNode> clone() const override;
+
+        void serialize(std::ostream& os) const override;
+        static std::unique_ptr<ElementNode> deserialize(std::istream& is);
     };
 }

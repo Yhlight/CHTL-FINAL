@@ -16,6 +16,8 @@ namespace CHTLJS
         NodeType GetType() const override { return NodeType::Delegate; }
         std::string ToString() const override { return "DelegateNode"; }
         std::unique_ptr<AstNode> clone() const override;
+        void serialize(std::ostream& os) const override;
+        static std::unique_ptr<DelegateNode> deserialize(std::istream& is);
     };
 
 }

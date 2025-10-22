@@ -24,6 +24,7 @@ file(GLOB_RECURSE CHTL_SOURCES
     "CHTLJS/src/lexer/*.cpp"
     "CHTLJS/src/nodes/*.cpp"
     "CHTLJS/src/parser/*.cpp"
+    "CHTLJS/src/CJMODSystem/*.cpp"
 )
 
 # HEADERS 变量现在是不必要的，因为 target_include_directories 已经处理了路径。
@@ -41,6 +42,7 @@ target_include_directories(CHTL PUBLIC
     include/generator
     CHTLJS/include/generator
     CHTLJS/include/nodes
+    CHTLJS/src
     include/lexer
     include/loader
     include/nodes

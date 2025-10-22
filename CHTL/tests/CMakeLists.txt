@@ -54,3 +54,8 @@ add_executable(ModuleTest ModuleTest.cpp)
 target_link_libraries(ModuleTest PRIVATE CHTL gtest_main)
 add_test(NAME ModuleTest COMMAND ModuleTest)
 target_include_directories(ModuleTest PRIVATE ../../third-party ../CHTLJS/include)
+
+add_executable(CJMODAPITest CJMODAPITest.cpp)
+target_link_libraries(CJMODAPITest PRIVATE CHTL gtest_main)
+add_test(NAME CJMODAPITest COMMAND CJMODAPITest)
+target_include_directories(CJMODAPITest PRIVATE ../../third-party ../CHTLJS/include)

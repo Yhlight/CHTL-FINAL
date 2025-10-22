@@ -1,4 +1,5 @@
 #include "Config.h"
+#include "nodes/ConfigurationNode.h"
 
 namespace CHTL
 {

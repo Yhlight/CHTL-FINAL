@@ -44,3 +44,7 @@ target_include_directories(BridgeTest PRIVATE ../../third-party)
 add_executable(CHTLJSGeneratorTest CHTLJSGeneratorTest.cpp)
 target_link_libraries(CHTLJSGeneratorTest PRIVATE CHTL)
 target_include_directories(CHTLJSGeneratorTest PRIVATE ../../third-party ..)
+
+add_executable(ConfigTest ConfigTest.cpp)
+target_link_libraries(ConfigTest PRIVATE CHTL)
+target_include_directories(ConfigTest PRIVATE ../../third-party)

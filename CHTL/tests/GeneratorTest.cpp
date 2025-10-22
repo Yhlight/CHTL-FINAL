@@ -75,10 +75,9 @@ TEST_CASE("Generator correctly handles Configuration blocks", "[generator][confi
     CHTL::Generator generator(bridge);
     std::string html_output = generator.Generate(program.get());
 
-    // This is a white-box test. We don't have a way to inspect the generator's config directly.
-    // For now, we'll just check that it doesn't crash and generates the output.
-    // A more advanced test would require modifying the generator to expose its config for testing.
-    std::string expected_html = "<div></div>";
+    // The generator should now use the loaded configuration.
+    // We can verify this by checking for the debug comment.
+    std::string expected_html = "<!-- CHTL DEBUG MODE ENABLED -->\n<div></div>";
     REQUIRE(html_output == expected_html);
 }
 
@@ -106,9 +105,6 @@ TEST_CASE("Generator correctly handles use statements", "[generator][use]")
     {
         std::string input = R"(
             [Configuration] @Config MyConfig {
-                // In a real scenario, this would change behavior.
-                // For this test, we're just checking that it doesn't crash.
-                // A white-box test would inspect the generator's internal config.
                 DEBUG_MODE = true;
             }
 
@@ -124,7 +120,7 @@ TEST_CASE("Generator correctly handles use statements", "[generator][use]")
         auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
         CHTL::Generator generator(bridge);
         std::string html_output = generator.Generate(program.get());
-        std::string expected_html = "<p>hello</p>";
+        std::string expected_html = "<!-- CHTL DEBUG MODE ENABLED -->\n<p>hello</p>";
         REQUIRE(html_output == expected_html);
     }
 }

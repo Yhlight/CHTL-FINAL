@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <string>
+#include "Config.h"
 
 namespace CHTL
 {

@@ -29,6 +29,11 @@ namespace CHTL
      */
     std::string Generator::Generate(ProgramNode* program)
     {
+        if (program && program->config)
+        {
+            m_config = *program->config;
+        }
+
         m_programNode = program;
         m_output.str("");
         m_output.clear();
@@ -36,29 +41,6 @@ namespace CHTL
         m_global_styles.clear();
 
         m_use_html5_doctype = false; // Reset for each generation
-
-        // Find and process 'use' and 'Configuration' nodes first.
-        // This ensures the correct configuration is loaded before generating content.
-        for (const auto& child : program->children)
-        {
-            if (child->GetType() == NodeType::Use)
-            {
-                EvalContext temp_context;
-                temp_context.program = program;
-                visit(static_cast<UseNode*>(child.get()), temp_context);
-            }
-            else if (child->GetType() == NodeType::Configuration)
-            {
-                // Load default (unnamed) configuration if no named one has been loaded via 'use'
-                if (!m_config.IsLoaded())
-                {
-                     auto* config_node = static_cast<ConfigurationNode*>(child.get());
-                     if (config_node->name.empty()) {
-                        m_config.Load(config_node);
-                     }
-                }
-            }
-        }
 
         EvalContext context;
         context.program = program;
@@ -69,6 +51,11 @@ namespace CHTL
         std::string content = m_output.str();
         std::string final_styles = m_global_styles.str();
         std::string final_output;
+
+        if (m_config.IsDebugMode())
+        {
+            final_output += "<!-- CHTL DEBUG MODE ENABLED -->\n";
+        }
 
         if (m_use_html5_doctype)
         {

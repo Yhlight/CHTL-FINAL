@@ -1,11 +1,12 @@
 #pragma once
 
-#include "nodes/ConfigurationNode.h"
 #include <string>
 #include <unordered_map>
 
 namespace CHTL
 {
+    struct ConfigurationNode; // Forward declaration to break circular dependency
+
     class Config
     {
     public:

@@ -769,7 +769,10 @@ TEST_CASE("Test parsing a simple use statement", "[parser]")
 
 TEST_CASE("Test parsing a complex use statement for config", "[parser]")
 {
-    std::string input = "use @Config Basic;";
+    std::string input = R"(
+        [Configuration] @Config Basic {}
+        use @Config Basic;
+    )";
     CHTL::Lexer l(input);
     CHTL::Parser p(l);
     auto program = p.ParseProgram();
@@ -777,9 +780,15 @@ TEST_CASE("Test parsing a complex use statement for config", "[parser]")
     checkParserErrors(p);
 
     REQUIRE(program != nullptr);
-    REQUIRE(program->children.size() == 1);
+    REQUIRE(program->children.size() == 2); // Expect both the config and use nodes
 
-    auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[0].get());
+    // The first child should be the ConfigurationNode
+    auto* config_node = dynamic_cast<CHTL::ConfigurationNode*>(program->children[0].get());
+    REQUIRE(config_node != nullptr);
+    REQUIRE(config_node->name == "Basic");
+
+    // The second child should be the UseNode
+    auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[1].get());
     REQUIRE(use_node != nullptr);
     REQUIRE(use_node->path.size() == 2);
     REQUIRE(use_node->path[0] == "@Config");

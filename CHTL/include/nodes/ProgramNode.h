@@ -22,6 +22,8 @@ namespace CHTL
         std::vector<std::unique_ptr<CHTLJS::ProgramNode>> cjs_nodes;
         TemplateMap templates;
         CustomMap customs;
+        std::shared_ptr<Config> config;
+        std::unordered_map<std::string, std::shared_ptr<Config>> named_configs;
 
         NodeType GetType() const override { return NodeType::Program; }
         std::string ToString() const override;

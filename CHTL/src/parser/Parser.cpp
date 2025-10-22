@@ -52,6 +52,7 @@ void Parser::nextToken() {
  */
 std::unique_ptr<ProgramNode> Parser::ParseProgram() {
   auto program = std::make_unique<ProgramNode>();
+  program->config = std::make_shared<Config>();
 
   if (!m_current_file_path.empty()) {
     std::filesystem::path canonical_path =
@@ -79,8 +80,30 @@ std::unique_ptr<ProgramNode> Parser::ParseProgram() {
       stmt = parseNamespaceNode(*program);
     } else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION) {
       stmt = parseConfigurationStatement();
+      if (stmt) {
+          auto* config_node = static_cast<ConfigurationNode*>(stmt.get());
+          if (config_node->name.empty()) {
+              program->config->Load(config_node);
+          } else {
+              auto named_config = std::make_shared<Config>();
+              named_config->Load(config_node);
+              program->named_configs[config_node->name] = named_config;
+          }
+      }
     } else if (m_currentToken.type == TokenType::KEYWORD_USE) {
       stmt = parseUseStatement();
+      if (stmt) {
+          auto* use_node = static_cast<UseNode*>(stmt.get());
+          // Handle `use @Config <name>;`
+          if (use_node->path.size() >= 2 && use_node->path[0] == "@Config") {
+              const std::string& config_name = use_node->path[1];
+              if (program->named_configs.count(config_name)) {
+                  program->config = program->named_configs.at(config_name);
+              } else {
+                  m_errors.push_back("Configuration with name '" + config_name + "' not found.");
+              }
+          }
+      }
     } else {
       stmt = parseStatement();
     }

@@ -9,6 +9,10 @@
     "categories": [
         "Programming Languages"
     ],
+    "activationEvents": [
+        "onLanguage:chtl"
+    ],
+    "main": "./src/extension.js",
     "contributes": {
         "languages": [{
             "id": "chtl",
@@ -21,5 +25,12 @@
             "scopeName": "source.chtl",
             "path": "./syntaxes/chtl.tmLanguage.json"
         }]
+    },
+    "dependencies": {
+        "vscode-languageclient": "^7.0.0"
+    },
+    "devDependencies": {
+        "vscode-languageserver": "^7.0.0",
+        "vscode-languageserver-textdocument": "^1.0.1"
     }
 }

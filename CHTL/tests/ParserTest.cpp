@@ -733,6 +733,22 @@ TEST_CASE("Test parsing Configuration with a Name block", "[parser]")
     REQUIRE(name_config_node->settings.at("KEYWORD_TEXT") == "text_element");
 }
 
+TEST_CASE("Test parsing an empty Configuration block", "[parser][config]")
+{
+    std::string input = R"([Configuration] {})";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 1);
+    auto* config_node = dynamic_cast<CHTL::ConfigurationNode*>(program->children[0].get());
+    REQUIRE(config_node != nullptr);
+    REQUIRE(config_node->name.empty());
+    REQUIRE(config_node->settings.empty());
+    REQUIRE(config_node->name_config == nullptr);
+}
+
 TEST_CASE("Test parsing a simple use statement", "[parser]")
 {
     std::string input = "use html5;";

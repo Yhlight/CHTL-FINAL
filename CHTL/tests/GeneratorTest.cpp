@@ -1,0 +1,1074 @@
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
+#include "parser/Parser.h"
+#include "lexer/Lexer.h"
+#include "generator/Generator.h"
+#include "AstNode.h"
+
+#include <string>
+#include <memory>
+#include <fstream>
+#include <cstdio>
+
+// Helper to check for parsing errors from previous steps
+void checkParserErrors(const CHTL::Parser& p) {
+    const auto& errors = p.GetErrors();
+    if (errors.empty()) {
+        return;
+    }
+    std::string error_messages;
+    for (const auto& msg : errors) {
+        error_messages += msg + "\n";
+    }
+    FAIL("Parser has errors:\n" << error_messages);
+}
+
+
+TEST_CASE("Generator correctly generates HTML for basic elements", "[generator]")
+{
+    SECTION("Generates an empty element")
+    {
+        std::string input = "div {}";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<div></div>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Generates nested elements")
+    {
+        std::string input = "body { div {} }";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><div></div></body>";
+        REQUIRE(html_output == expected_html);
+    }
+}
+
+TEST_CASE("Generator correctly handles type imports", "[generator][import]")
+{
+    std::string main_content = R"CHTL(
+    [Import] [Template] @Style from "style_library.chtl";
+
+    div {
+        style {
+            @Style PrimaryButton;
+        }
+    }
+    p {
+        style {
+            @Style SecondaryText;
+        }
+    }
+)CHTL";
+
+    std::string imported_content = R"CHTL(
+    [Template] @Style PrimaryButton {
+        background-color: "blue";
+        color: "white";
+    }
+
+    [Template] @Style SecondaryText {
+        color: "grey";
+    }
+
+    // This template should not be imported
+    [Template] @Element Irrelevant {
+        span { text: "ignore"; }
+    }
+)CHTL";
+
+    std::ofstream("style_library.chtl") << imported_content;
+
+    CHTL::Lexer l(main_content);
+    CHTL::Parser p(l, "main.chtl");
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    // After parsing, the "Irrelevant" template should NOT be in the program's template map,
+    // because the import was specifically for @Style types.
+    REQUIRE(program->templates.count(CHTL::GLOBAL_NAMESPACE) == 1);
+    const auto& global_templates = program->templates.at(CHTL::GLOBAL_NAMESPACE);
+    REQUIRE(global_templates.count("Irrelevant") == 0);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string result = generator.Generate(program.get());
+
+    INFO("Generated HTML: " << result);
+
+    // Check the div's styles
+    size_t div_pos = result.find("<div");
+    REQUIRE(div_pos != std::string::npos);
+    size_t div_style_pos = result.find("style=\"", div_pos);
+    REQUIRE(div_style_pos != std::string::npos);
+    std::string div_style_content = result.substr(div_style_pos + 7);
+    div_style_content = div_style_content.substr(0, div_style_content.find("\""));
+    REQUIRE(div_style_content.find("background-color:blue") != std::string::npos);
+    REQUIRE(div_style_content.find("color:white") != std::string::npos);
+
+    // Check the p's styles
+    size_t p_pos = result.find("<p");
+    REQUIRE(p_pos != std::string::npos);
+    size_t p_style_pos = result.find("style=\"", p_pos);
+    REQUIRE(p_style_pos != std::string::npos);
+    std::string p_style_content = result.substr(p_style_pos + 7);
+    p_style_content = p_style_content.substr(0, p_style_content.find("\""));
+    REQUIRE(p_style_content.find("color:grey") != std::string::npos);
+
+    std::remove("style_library.chtl");
+}
+
+TEST_CASE("Generator handles except constraints", "[generator][except]")
+{
+    std::string input = R"(
+        div {
+            except span;
+            p { text: "allowed"; }
+            span { text: "forbidden"; }
+            a { text: "allowed"; }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<div><p>allowed</p><a>allowed</a></div>";
+    REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles element template usage", "[generator][template]")
+{
+    std::string input = R"(
+        [Template] @Element MyComponent {
+            h1 { text: "Title"; }
+            p { text: "Paragraph content."; }
+        }
+
+        body {
+            @Element MyComponent;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator g(bridge);
+    std::string output = g.Generate(program.get());
+
+    INFO("Generated Output:\n" << output);
+    std::string expected_html = "<body><h1>Title</h1><p>Paragraph content.</p></body>";
+    REQUIRE(output == expected_html);
+}
+
+TEST_CASE("Generator correctly generates HTML for complex structures", "[generator]")
+{
+    std::string input = R"(
+        div {
+            id: "box";
+            # this is a comment
+            p {
+                text { "hello" }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<div id=\"box\"><!-- this is a comment --><p>hello</p></div>";
+    REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles automatic class naming", "[generator]")
+{
+    std::string input = R"(
+        div {
+            style {
+                .box {
+                    width: 300px;
+                }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<head><style>.box{width:300px;}</style></head><div class=\"box\"></div>";
+    REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles contextual '&' selector", "[generator]")
+{
+    std::string input = R"(
+        div {
+            style {
+                .box { color: blue; }
+                &:hover { color: red; }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<head><style>.box{color:blue;}.box:hover{color:red;}</style></head><div class=\"box\"></div>";
+    REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles conditional expressions", "[generator]")
+{
+    std::string input = R"(
+        div {
+            style {
+                width: 100px;
+                background-color: width > 50px ? "red" : "blue";
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("width:100px") != std::string::npos);
+    REQUIRE(style_content.find("background-color:red") != std::string::npos);
+}
+
+TEST_CASE("Generator handles instantiation of valueless custom styles", "[generator][custom]")
+{
+    std::string input = R"(
+        [Custom] @Style TextSet
+        {
+            color,
+            font-size;
+        }
+
+        div
+        {
+            style
+            {
+                @Style TextSet
+                {
+                    color: red;
+                    font-size: 16px;
+                }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    INFO("Generated Output:\n" << html_output);
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("color:red") != std::string::npos);
+    REQUIRE(style_content.find("font-size:16px") != std::string::npos);
+}
+
+TEST_CASE("Generator handles composite template inheritance", "[generator][template][inheritance]")
+{
+    std::string input = R"(
+        [Template] @Style BaseTheme {
+            color: "blue";
+            font-family: "Arial";
+        }
+
+        [Template] @Style ExtendedTheme {
+            @Style BaseTheme;
+            color: "red"; // Override base theme
+            font-size: 20px; // Add new property
+        }
+
+        div {
+            style {
+                @Style ExtendedTheme;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    INFO("Generated Output:\n" << html_output);
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    // 1. It should have the inherited property from BaseTheme.
+    REQUIRE(style_content.find("font-family:Arial") != std::string::npos);
+
+    // 2. It should have the new property from ExtendedTheme.
+    REQUIRE(style_content.find("font-size:20px") != std::string::npos);
+
+    // 3. The overridden property should have the new value, not the old one.
+    REQUIRE(style_content.find("color:red") != std::string::npos);
+    REQUIRE(style_content.find("color:blue") == std::string::npos);
+}
+
+TEST_CASE("Generator handles explicit template inheritance with 'inherit' keyword", "[generator][template][inheritance]")
+{
+    std::string input = R"(
+        [Template] @Style BaseStyle {
+            font-family: "Arial";
+            color: "blue";
+        }
+
+        [Template] @Style InheritedStyle inherit BaseStyle {
+            font-size: 16px;
+            color: "red"; // Override
+        }
+
+        div {
+            style {
+                @Style InheritedStyle;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    INFO("Generated Output:\n" << html_output);
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    // 1. It should have the inherited property from BaseStyle.
+    REQUIRE(style_content.find("font-family:Arial") != std::string::npos);
+
+    // 2. It should have its own new property.
+    REQUIRE(style_content.find("font-size:16px") != std::string::npos);
+
+    // 3. The overridden property should have the new value from InheritedStyle.
+    REQUIRE(style_content.find("color:red") != std::string::npos);
+    REQUIRE(style_content.find("color:blue") == std::string::npos);
+}
+
+TEST_CASE("Generator correctly handles style group templates", "[generator]")
+{
+    std::string input = R"(
+        [Template] @Style DefaultText
+        {
+            color: "black";
+            line-height: 1.6;
+        }
+
+        div
+        {
+            style
+            {
+                @Style DefaultText;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("color:black") != std::string::npos);
+    REQUIRE(style_content.find("line-height:1.6") != std::string::npos);
+}
+
+TEST_CASE("Generator correctly handles variable group templates", "[generator]")
+{
+    std::string input =
+        "[Template] @Var ThemeColor\n"
+        "{\n"
+        "    tableColor: \"rgb(255, 192, 203)\";\n"
+        "}\n"
+        "\n"
+        "div\n"
+        "{\n"
+        "    style\n"
+        "    {\n"
+        "        background-color: ThemeColor(tableColor);\n"
+        "    }\n"
+        "}\n";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<div style=\"background-color:rgb(255, 192, 203);\"></div>";
+    REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles element templates", "[generator]")
+{
+    std::string input = R"(
+        [Template] @Element Box
+        {
+            div { style { background-color: red; } }
+            span { text { "A box" } }
+        }
+
+        body
+        {
+            @Element Box;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = R"(<body><div style="background-color:red;"></div><span>A box</span></body>)";
+    REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles custom style definitions with specialization", "[generator]")
+{
+    std::string input = R"(
+        [Custom] @Style BaseBox
+        {
+            width: 100px;
+            height: 200px;
+            background-color: "blue";
+            border: "1px solid black";
+        }
+
+        div
+        {
+            style
+            {
+                @Style BaseBox {
+                    delete border;
+                    delete height;
+                    background-color: "red"; // Override
+                }
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+    // Note: The order of properties is not guaranteed due to unordered_map lookups.
+    // A robust test would parse the style attribute and check for properties.
+    // For now, we rely on a stable (though not guaranteed) order.
+    std::string expected_html = R"(<div style="width:100px;background-color:blue;background-color:red;"></div>)";
+    // Let's create a more robust check
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("width:100px") != std::string::npos);
+    REQUIRE(style_content.find("height:200px") == std::string::npos);
+    REQUIRE(style_content.find("border:1px solid black") == std::string::npos);
+    // Later properties should override earlier ones.
+    REQUIRE(style_content.find("background-color:blue") == std::string::npos);
+    REQUIRE(style_content.find("background-color:red") != std::string::npos);
+}
+
+TEST_CASE("Generator handles element templates with insert specialization", "[generator][insert]")
+{
+    SECTION("Inserts a node after a specified element") {
+        std::string input = R"(
+            [Custom] @Element Box {
+                p { text: "first"; }
+                p { text: "second"; }
+            }
+
+            body {
+                @Element Box {
+                    insert after p[0] {
+                        div { text: "inserted"; }
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><p>first</p><div>inserted</div><p>second</p></body>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Inserts a node at the top") {
+        std::string input = R"(
+            [Custom] @Element Box {
+                p { text: "first"; }
+            }
+
+            body {
+                @Element Box {
+                    insert at top {
+                        div { text: "inserted at top"; }
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><div>inserted at top</div><p>first</p></body>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Deletes a specified element") {
+        std::string input = R"(
+            [Custom] @Element Box {
+                p { text: "first"; }
+                div { text: "to be deleted"; }
+                span { text: "third"; }
+            }
+
+            body {
+                @Element Box {
+                    delete div;
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><p>first</p><span>third</span></body>";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Replaces a specified element") {
+        std::string input = R"(
+            [Custom] @Element Box {
+                p { text: "first"; }
+                div { text: "to be replaced"; }
+                span { text: "third"; }
+            }
+
+            body {
+                @Element Box {
+                    insert replace div {
+                        i { text: "replaced"; }
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<body><p>first</p><i>replaced</i><span>third</span></body>";
+        REQUIRE(html_output == expected_html);
+    }
+}
+
+TEST_CASE("Generator correctly handles imported templates", "[generator]")
+{
+    std::string input = R"(
+        [Import] @Chtl from "../tests/resources/imported_template.chtl";
+
+        div {
+            style {
+                @Style ImportedStyle;
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    std::string style_content = html_output.substr(html_output.find("style=\"") + 7);
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("font-size:16px") != std::string::npos);
+    REQUIRE(style_content.find("color:imported-green") != std::string::npos);
+}
+
+TEST_CASE("Generator correctly handles namespaced template usage", "[generator]")
+{
+    SECTION("Template defined and used in the same namespace")
+    {
+        std::string input = R"(
+            [Namespace] MySpace {
+                [Template] @Style MyTemplate {
+                    color: "purple";
+                }
+
+                div {
+                    style {
+                        @Style MyTemplate;
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        REQUIRE(html_output.find("color:purple") != std::string::npos);
+    }
+
+    SECTION("Template in global namespace is accessible from within another namespace")
+    {
+        std::string input = R"(
+            [Template] @Style GlobalTemplate {
+                font-weight: bold;
+            }
+
+            [Namespace] MySpace {
+                div {
+                    style {
+                        @Style GlobalTemplate;
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        REQUIRE(html_output.find("font-weight:bold") != std::string::npos);
+    }
+}
+
+TEST_CASE("Generator correctly renders comments", "[generator]")
+{
+    std::string input = R"(# My Comment)";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string output = generator.Generate(program.get());
+    REQUIRE(output.find("<!-- My Comment -->") != std::string::npos);
+}
+
+TEST_CASE("Generator correctly handles precisely imported templates", "[generator][import]")
+{
+    // This is an end-to-end test for precise imports.
+    // 1. Parser must correctly parse the precise import statement.
+    // 2. Parser's loading logic must only load the specified definition.
+    // 3. Generator must be able to find and use the aliased, imported template.
+    // 4. Test without alias
+    std::string main_content = R"CHTL(
+    [Import] [Template] @Style ImportedStyle from "imported_templates.chtl";
+
+    [Namespace] Test {
+        div {
+            style {
+                @Style ImportedStyle;
+            }
+        }
+    }
+)CHTL";
+    std::string imported_content = R"CHTL(
+    [Template] @Style ImportedStyle {
+        font-size: 16px;
+        color: "#333";
+    }
+)CHTL";
+
+    // Create a dummy file for the loader to find
+    std::ofstream("imported_templates.chtl") << imported_content;
+
+    CHTL::Lexer l(main_content);
+    CHTL::Parser p(l, "main.chtl");
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string result = generator.Generate(program.get());
+
+    INFO("Generated HTML: " << result);
+
+    // The style should be inlined on the div.
+    // We check for the presence of the style attribute and its content.
+    std::string expected_div_start = "<div style=\"";
+    REQUIRE(result.find(expected_div_start) != std::string::npos);
+
+    size_t style_attr_pos = result.find(expected_div_start);
+    std::string style_content = result.substr(style_attr_pos + expected_div_start.length());
+    style_content = style_content.substr(0, style_content.find("\""));
+
+    REQUIRE(style_content.find("font-size:16px") != std::string::npos);
+    REQUIRE(style_content.find("color:#333") != std::string::npos);
+
+    // Clean up the dummy file
+    std::remove("imported_templates.chtl");
+}
+
+TEST_CASE("Test generating a simple text node", "[generator]")
+{
+    auto text_node = std::make_unique<CHTL::TextNode>();
+    text_node->value = "Just some simple text.";
+
+    auto program = std::make_unique<CHTL::ProgramNode>();
+    program->children.push_back(std::move(text_node));
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string output = generator.Generate(program.get());
+
+    REQUIRE(output == "Just some simple text.");
+}
+
+TEST_CASE("Test generating text inside an element", "[generator]")
+{
+    auto element_node = std::make_unique<CHTL::ElementNode>();
+    element_node->tag_name = "p";
+
+    auto text_node = std::make_unique<CHTL::TextNode>();
+    text_node->value = "Hello from inside a paragraph.";
+    element_node->children.push_back(std::move(text_node));
+
+    auto program = std::make_unique<CHTL::ProgramNode>();
+    program->children.push_back(std::move(element_node));
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string output = generator.Generate(program.get());
+
+    REQUIRE(output.find("<p>") != std::string::npos);
+    REQUIRE(output.find("</p>") != std::string::npos);
+    REQUIRE(output.find("Hello from inside a paragraph.") != std::string::npos);
+}
+
+TEST_CASE("Generator correctly handles Origin blocks", "[generator]")
+{
+    SECTION("Generates raw HTML content")
+    {
+        std::string input = R"(
+            [Origin] @Html {<script>alert("raw");</script>}
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string output = generator.Generate(program.get());
+        std::string expected_output = R"(<script>alert("raw");</script>)";
+        REQUIRE(output == expected_output);
+    }
+
+    SECTION("Generates raw content inside an element")
+    {
+        // The key here is to remove the extra whitespace between the parent element's
+        // opening brace and the [Origin] block to avoid it being part of the output.
+        // We also use a custom delimiter `d` for the raw string to handle the `)` character inside.
+        std::string input = R"d(div {[Origin] @Style {.raw-css { color: hotpink; }}})d";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string output = generator.Generate(program.get());
+        std::string expected_output = "<div>.raw-css { color: hotpink; }</div>";
+        REQUIRE(output == expected_output);
+    }
+}
+
+TEST_CASE("Generator correctly handles chained and optional-else conditional expressions", "[generator]")
+{
+    // Common expression list for all sections
+    const std::string expr_list = "background-color: width > 200px ? \"black\", width > 150px ? \"grey\", width > 100px ? \"white\" : \"blue\";";
+
+    SECTION("Selects first matching optional-else expression")
+    {
+        std::string input = "div { style { width: 175px; " + expr_list + " } }";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+
+        REQUIRE(html_output.find("background-color:grey") != std::string::npos);
+        REQUIRE(html_output.find("background-color:black") == std::string::npos);
+        REQUIRE(html_output.find("background-color:white") == std::string::npos);
+        REQUIRE(html_output.find("background-color:blue") == std::string::npos);
+    }
+
+    SECTION("Selects first matching expression with final else")
+    {
+        std::string input = "div { style { width: 125px; " + expr_list + " } }";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+
+        REQUIRE(html_output.find("background-color:white") != std::string::npos);
+        REQUIRE(html_output.find("background-color:black") == std::string::npos);
+        REQUIRE(html_output.find("background-color:grey") == std::string::npos);
+        REQUIRE(html_output.find("background-color:blue") == std::string::npos);
+    }
+
+    SECTION("Falls through to final else")
+    {
+        std::string input = "div { style { width: 50px; " + expr_list + " } }";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+
+        REQUIRE(html_output.find("background-color:blue") != std::string::npos);
+        REQUIRE(html_output.find("background-color:black") == std::string::npos);
+        REQUIRE(html_output.find("background-color:grey") == std::string::npos);
+        REQUIRE(html_output.find("background-color:white") == std::string::npos);
+    }
+}
+
+TEST_CASE("Generator handles variable template usage in styles", "[generator][template]")
+{
+    std::string input = R"(
+        [Template] @Var Theme {
+            brandColor: "#A020F0";
+        }
+
+        div {
+            style {
+                color: Theme(brandColor);
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator g(bridge);
+    std::string output = g.Generate(program.get());
+
+    INFO("Generated Output:\n" << output);
+
+    // The style should be inlined in the div element
+    REQUIRE(output.find(R"(<div style="color:#A020F0;"></div>)") != std::string::npos);
+}
+
+TEST_CASE("Generator handles local style blocks correctly after refactoring", "[generator]")
+{
+    std::string input = R"(
+        div {
+            style {
+                // This should be an inline style
+                color: "blue";
+
+                // This should be a global style rule
+                .box {
+                    font-size: 16px;
+                }
+
+                // This should also be an inline style
+                border: "1px solid black";
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    // 1. Check for the global style block in <head>
+    std::string expected_global_style = "<head><style>.box{font-size:16px;}</style></head>";
+    REQUIRE(html_output.find(expected_global_style) != std::string::npos);
+
+    // 2. Check for the generated element with class and inline styles
+    std::string element_part = html_output.substr(html_output.find("<div"));
+
+    // Check for automatic class attribute
+    REQUIRE(element_part.find("class=\"box\"") != std::string::npos);
+
+    // Check for inline style attribute
+    std::string style_attr_content = element_part.substr(element_part.find("style=\"") + 7);
+    style_attr_content = style_attr_content.substr(0, style_attr_content.find("\""));
+
+    REQUIRE(style_attr_content.find("color:blue;") != std::string::npos);
+    REQUIRE(style_attr_content.find("border:1px solid black;") != std::string::npos);
+    REQUIRE(style_attr_content.find("font-size") == std::string::npos); // font-size should not be inline
+}
+
+TEST_CASE("Generator correctly generates script blocks with CHTL JS", "[generator][script]")
+{
+    std::string input = R"(
+        div {
+            script {
+                let my_element = {{ .my-div }};
+            }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+
+    // The CHTLJSParser should now correctly interleave RawJS and EnhancedSelector nodes.
+    std::string expected_html = "<div><script>\n                let my_element = document.querySelector('.my-div');\n            </script></div>";
+    REQUIRE(html_output == expected_html);
+}
+
+TEST_CASE("Generator correctly handles conditional rendering with if blocks", "[generator][if]")
+{
+    SECTION("Applies styles when condition is true")
+    {
+        std::string input = R"(
+            div {
+                if {
+                    condition: 1 > 0;
+                    display: none;
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = R"(<div style="display:none;"></div>)";
+        REQUIRE(html_output == expected_html);
+    }
+
+    SECTION("Does not apply styles when condition is false")
+    {
+        std::string input = R"(
+            div {
+                if {
+                    condition: 1 < 0;
+                    display: none;
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+        checkParserErrors(p);
+
+        auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+        CHTL::Generator generator(bridge);
+        std::string html_output = generator.Generate(program.get());
+        std::string expected_html = "<div></div>";
+        REQUIRE(html_output == expected_html);
+    }
+}

@@ -1,0 +1,6 @@
+# CHTL build directory
+CHTL/build/
+
+# VSCode extension packages
+*.vsix
+node_modules/

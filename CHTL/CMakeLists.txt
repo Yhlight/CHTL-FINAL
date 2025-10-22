@@ -57,4 +57,4 @@ target_link_libraries(chtl PRIVATE CHTL)
 # 添加语言服务器可执行文件
 add_executable(chtl-ls langserver/src/main.cpp)
 target_link_libraries(chtl-ls PRIVATE CHTL)
-target_include_directories(chtl-ls PRIVATE ../third-party)
+target_include_directories(chtl-ls PRIVATE ../third-party ../)

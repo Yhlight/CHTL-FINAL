@@ -11,8 +11,21 @@ TEST(CJMODAPITest, AnalyzeBasic) {
     Arg args = Syntax::analyze("$ ** $");
     ASSERT_EQ(args.args.size(), 3);
     EXPECT_EQ(args.args[0].placeholder, "$");
+    EXPECT_EQ(args.args[0].type, AtomArgType::PLACEHOLDER);
     EXPECT_EQ(args.args[1].placeholder, "**");
+    EXPECT_EQ(args.args[1].type, AtomArgType::LITERAL);
     EXPECT_EQ(args.args[2].placeholder, "$");
+    EXPECT_EQ(args.args[2].type, AtomArgType::PLACEHOLDER);
+}
+
+TEST(CJMODAPITest, AnalyzePlaceholders) {
+    Arg args = Syntax::analyze("$ $? $! $_ ...");
+    ASSERT_EQ(args.args.size(), 5);
+    EXPECT_EQ(args.args[0].type, AtomArgType::PLACEHOLDER);
+    EXPECT_EQ(args.args[1].type, AtomArgType::OPTIONAL);
+    EXPECT_EQ(args.args[2].type, AtomArgType::REQUIRED);
+    EXPECT_EQ(args.args[3].type, AtomArgType::UNORDERED);
+    EXPECT_EQ(args.args[4].type, AtomArgType::VARIADIC);
 }
 
 TEST(CJMODAPITest, FullWorkflow) {

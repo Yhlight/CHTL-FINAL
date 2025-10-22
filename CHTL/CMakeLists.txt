@@ -47,6 +47,7 @@ target_include_directories(CHTL PUBLIC
     include/loader
     include/nodes
     include/parser
+    CHTLJS/include/CJMODSystem
 )
 
 # 添加 GTest

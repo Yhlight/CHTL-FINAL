@@ -13,13 +13,23 @@
  *
  * It holds the placeholder, the actual value, and a function for binding transformations.
  */
+enum class AtomArgType {
+    LITERAL,
+    REQUIRED,      // $!
+    OPTIONAL,      // $?
+    UNORDERED,     // $_
+    VARIADIC,      // ...
+    PLACEHOLDER,   // $
+};
+
 class AtomArg {
 public:
     std::string placeholder;
     std::string value;
+    AtomArgType type;
     std::function<std::string(const std::string&)> bind_func;
 
-    AtomArg(const std::string& ph) : placeholder(ph) {}
+    AtomArg(const std::string& ph, AtomArgType t = AtomArgType::LITERAL) : placeholder(ph), type(t) {}
 
     /**
      * @brief Binds a transformation function to this argument.

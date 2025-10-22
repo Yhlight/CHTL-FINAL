@@ -63,7 +63,8 @@ def find_test_executables(directory):
 def package_vscode_extension():
     """打包VSCode扩展。"""
     print("\n--- 开始打包VSCode扩展... ---")
-    if not run_command(["vsce", "package"], cwd=VSCODE_DIR):
+    vsce_path = os.path.join(".", "node_modules", ".bin", "vsce")
+    if not run_command([vsce_path, "package"], cwd=VSCODE_DIR):
         print("--- 打包VSCode扩展失败。 ---")
         return False
     print("--- VSCode扩展打包成功。 ---")

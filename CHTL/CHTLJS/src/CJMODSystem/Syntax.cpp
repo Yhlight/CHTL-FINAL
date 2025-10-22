@@ -9,7 +9,19 @@ Arg Syntax::analyze(const std::string& syntax) {
     std::stringstream ss(syntax);
     std::string item;
     while (ss >> item) {
-        arg_list.add(AtomArg(item));
+        AtomArgType type = AtomArgType::LITERAL;
+        if (item == "$") {
+            type = AtomArgType::PLACEHOLDER;
+        } else if (item == "$?") {
+            type = AtomArgType::OPTIONAL;
+        } else if (item == "$!") {
+            type = AtomArgType::REQUIRED;
+        } else if (item == "$_") {
+            type = AtomArgType::UNORDERED;
+        } else if (item == "...") {
+            type = AtomArgType::VARIADIC;
+        }
+        arg_list.add(AtomArg(item, type));
     }
     return arg_list;
 }

@@ -65,3 +65,9 @@ target_include_directories(ValidatorTest PRIVATE ${CMAKE_SOURCE_DIR}/CHTL/includ
 add_test(NAME ValidatorTest COMMAND ValidatorTest)
 target_include_directories(ValidatorTest PRIVATE ../../third-party)
 target_include_directories(CJMODAPITest PRIVATE ../../third-party ../CHTLJS/include)
+
+add_executable(ArithmeticTest ArithmeticTest.cpp)
+target_link_libraries(ArithmeticTest PRIVATE CHTL gtest_main)
+target_include_directories(ArithmeticTest PRIVATE ${CMAKE_SOURCE_DIR}/CHTL/include)
+add_test(NAME ArithmeticTest COMMAND ArithmeticTest)
+target_include_directories(ArithmeticTest PRIVATE ../../third-party)

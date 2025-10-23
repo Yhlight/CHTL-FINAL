@@ -6,15 +6,11 @@ namespace CHTL
     {
         Value val;
         val.type = ValueType::NUMBER;
-        if (unit == other.unit || other.unit.empty())
+        // If units are the same, or one of them is empty, the operation is valid.
+        if (unit == other.unit || unit.empty() || other.unit.empty())
         {
             val.num = num + other.num;
-            val.unit = unit;
-        }
-        else if (unit.empty())
-        {
-            val.num = num + other.num;
-            val.unit = other.unit;
+            val.unit = unit.empty() ? other.unit : unit; // Use the non-empty unit.
         }
         else
         {
@@ -36,15 +32,11 @@ namespace CHTL
     {
         Value val;
         val.type = ValueType::NUMBER;
-        if (unit == other.unit || other.unit.empty())
+        // If units are the same, or one of them is empty, the operation is valid.
+        if (unit == other.unit || unit.empty() || other.unit.empty())
         {
             val.num = num - other.num;
-            val.unit = unit;
-        }
-        else if (unit.empty())
-        {
-            val.num = num - other.num;
-            val.unit = other.unit;
+            val.unit = unit.empty() ? other.unit : unit; // Use the non-empty unit.
         }
         else
         {
@@ -66,13 +58,15 @@ namespace CHTL
     {
         Value val;
         val.type = ValueType::NUMBER;
+        // Multiplication is valid if at least one operand has no unit.
         if (unit.empty() || other.unit.empty())
         {
             val.num = num * other.num;
-            val.unit = unit.empty() ? other.unit : unit;
+            val.unit = unit.empty() ? other.unit : unit; // Use the non-empty unit.
         }
         else
         {
+            // Multiplying two units is not allowed (e.g., 10px * 2px).
             throw std::runtime_error("Invalid operation: cannot multiply unit '" + unit + "' by unit '" + other.unit + "'.");
         }
 

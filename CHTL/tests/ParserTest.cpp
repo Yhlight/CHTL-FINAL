@@ -65,6 +65,69 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test Import Functionality", "[parser][import]")
+{
+    // The test executable runs from `CHTL/build/tests/`.
+    // The test resources are in `CHTL/tests/resources/`.
+    // So, the relative path to the resources directory is `../tests/resources/`.
+    std::string main_file_path = "../tests/main.chtl";
+
+    SECTION("Wildcard import")
+    {
+        std::string main_file_content = R"([Import] @Chtl from "./resources/wildcard*.chtl";)";
+        CHTL::Parser::ResetParsedFiles();
+
+        CHTL::Lexer l(main_file_content);
+        CHTL::Parser p(l, main_file_path);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+
+        REQUIRE(program != nullptr);
+        const auto& global_ns = program->templates.at(CHTL::GLOBAL_NAMESPACE);
+        REQUIRE(global_ns.count("WildcardStyle1") == 1);
+        REQUIRE(global_ns.count("WildcardStyle2") == 1);
+    }
+
+    SECTION("CSS import")
+    {
+        std::string main_file_content = R"([Import] @Style from "./resources/style.css";)";
+        CHTL::Parser::ResetParsedFiles();
+
+        CHTL::Lexer l(main_file_content);
+        CHTL::Parser p(l, main_file_path);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+
+        REQUIRE(program != nullptr);
+        REQUIRE(program->children.size() == 2); // ImportNode and OriginNode
+        auto* origin_node = dynamic_cast<CHTL::OriginNode*>(program->children[0].get());
+        REQUIRE(origin_node != nullptr);
+        REQUIRE(origin_node->type == "@Style");
+        REQUIRE(origin_node->content.find("color: red;") != std::string::npos);
+    }
+
+    SECTION("JS import")
+    {
+        std::string main_file_content = R"([Import] @JavaScript from "./resources/script.js";)";
+        CHTL::Parser::ResetParsedFiles();
+
+        CHTL::Lexer l(main_file_content);
+        CHTL::Parser p(l, main_file_path);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+
+        REQUIRE(program != nullptr);
+        REQUIRE(program->children.size() == 2); // ImportNode and OriginNode
+        auto* origin_node = dynamic_cast<CHTL::OriginNode*>(program->children[0].get());
+        REQUIRE(origin_node != nullptr);
+        REQUIRE(origin_node->type == "@JavaScript");
+        REQUIRE(origin_node->content.find("Hello, CHTL!") != std::string::npos);
+    }
+}
+
 TEST_CASE("Test parsing a chained conditional expression", "[parser][expression]")
 {
     std::string input = R"(

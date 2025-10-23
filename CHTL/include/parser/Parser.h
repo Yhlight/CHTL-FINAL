@@ -102,6 +102,7 @@ namespace CHTL
         std::unique_ptr<AstNode> parseIfChain();
         std::unique_ptr<ElseNode> parseElseBlock();
         Attribute parseAttribute();
+        void processSingleImport(ProgramNode &program, const std::string &path, ImportNode *import_node);
 
         // Expression parsing methods
         std::unique_ptr<Expression> parseExpression(Precedence precedence);

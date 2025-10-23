@@ -134,7 +134,7 @@ TEST_CASE("Test Import Functionality", "[parser][import]")
 
     SECTION("CSS import")
     {
-        std::string main_file_content = R"([Import] @Style from "./resources/style.css";)";
+        std::string main_file_content = R"([Import] @Style from "./resources/style.css" as myStyle;)";
         CHTL::Parser::ResetParsedFiles();
 
         CHTL::Lexer l(main_file_content);
@@ -144,16 +144,17 @@ TEST_CASE("Test Import Functionality", "[parser][import]")
         checkParserErrors(p);
 
         REQUIRE(program != nullptr);
-        REQUIRE(program->children.size() == 2); // ImportNode and OriginNode
+        REQUIRE(program->children.size() == 2); // OriginNode is pushed first, then the ImportNode
         auto* origin_node = dynamic_cast<CHTL::OriginNode*>(program->children[0].get());
         REQUIRE(origin_node != nullptr);
         REQUIRE(origin_node->type == "@Style");
+        REQUIRE(origin_node->name == "myStyle");
         REQUIRE(origin_node->content.find("color: red;") != std::string::npos);
     }
 
     SECTION("JS import")
     {
-        std::string main_file_content = R"([Import] @JavaScript from "./resources/script.js";)";
+        std::string main_file_content = R"([Import] @JavaScript from "./resources/script.js" as myScript;)";
         CHTL::Parser::ResetParsedFiles();
 
         CHTL::Lexer l(main_file_content);
@@ -163,11 +164,32 @@ TEST_CASE("Test Import Functionality", "[parser][import]")
         checkParserErrors(p);
 
         REQUIRE(program != nullptr);
-        REQUIRE(program->children.size() == 2); // ImportNode and OriginNode
+        REQUIRE(program->children.size() == 2); // OriginNode is pushed first, then the ImportNode
         auto* origin_node = dynamic_cast<CHTL::OriginNode*>(program->children[0].get());
         REQUIRE(origin_node != nullptr);
         REQUIRE(origin_node->type == "@JavaScript");
+        REQUIRE(origin_node->name == "myScript");
         REQUIRE(origin_node->content.find("Hello, CHTL!") != std::string::npos);
+    }
+
+    SECTION("HTML import")
+    {
+        std::string main_file_content = R"([Import] @Html from "./resources/test.html" as myHtml;)";
+        CHTL::Parser::ResetParsedFiles();
+
+        CHTL::Lexer l(main_file_content);
+        CHTL::Parser p(l, main_file_path);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+
+        REQUIRE(program != nullptr);
+        REQUIRE(program->children.size() == 2); // OriginNode is pushed first, then the ImportNode
+        auto* origin_node = dynamic_cast<CHTL::OriginNode*>(program->children[0].get());
+        REQUIRE(origin_node != nullptr);
+        REQUIRE(origin_node->type == "@Html");
+        REQUIRE(origin_node->name == "myHtml");
+        REQUIRE(origin_node->content.find("<h1>Hello, World!</h1>") != std::string::npos);
     }
 }
 

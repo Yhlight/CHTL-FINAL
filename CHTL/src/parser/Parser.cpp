@@ -647,9 +647,27 @@ void Parser::processSingleImport(ProgramNode &program, const std::string &path,
 
     std::string extension = full_path.extension().string();
 
-    if (extension == ".css" || extension == ".js") {
+    if (extension == ".css" || extension == ".js" || extension == ".html") {
+      // Per spec, 'as' is required for HTML/CSS.
+      // For JS, no 'as' means skip. With 'as', it creates a named node.
+      if (import_node->alias.empty()) {
+        if (extension == ".html" || extension == ".css") {
+          m_errors.push_back("Import of " + path + " requires an 'as' clause.");
+        }
+        // For .js, we just skip if no 'as'. For others, we've logged an error.
+        return;
+      }
+
       auto origin_node = std::make_unique<OriginNode>();
-      origin_node->type = (extension == ".css") ? "@Style" : "@JavaScript";
+      if (extension == ".html") {
+        origin_node->type = "@Html";
+      } else if (extension == ".css") {
+        origin_node->type = "@Style";
+      } else { // .js
+        origin_node->type = "@JavaScript";
+      }
+
+      origin_node->name = import_node->alias;
       origin_node->content = Loader::ReadFile(m_current_file_path, path);
       program.children.push_back(std::move(origin_node));
       s_parsed_files.insert(full_path.string());

@@ -65,6 +65,50 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing a chained conditional expression", "[parser][expression]")
+{
+    std::string input = R"(
+        style {
+            font-size: 1 > 0 ? 16 : 2 > 1 ? 14 : 12;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
+    REQUIRE(style_node != nullptr);
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "font-size");
+
+    // Root should be a ConditionalExpression: 1 > 0 ? 16 : (...)
+    auto* root_cond = dynamic_cast<CHTL::ConditionalExpression*>(prop->value.get());
+    REQUIRE(root_cond != nullptr);
+
+    // Consequence should be 16
+    auto* root_consequence = dynamic_cast<CHTL::NumberLiteral*>(root_cond->consequence.get());
+    REQUIRE(root_consequence != nullptr);
+    REQUIRE(root_consequence->value == 16.0);
+
+    // Alternative should be another ConditionalExpression: 2 > 1 ? 14 : 12
+    auto* nested_cond = dynamic_cast<CHTL::ConditionalExpression*>(root_cond->alternative.get());
+    REQUIRE(nested_cond != nullptr);
+
+    // Nested consequence should be 14
+    auto* nested_consequence = dynamic_cast<CHTL::NumberLiteral*>(nested_cond->consequence.get());
+    REQUIRE(nested_consequence != nullptr);
+    REQUIRE(nested_consequence->value == 14.0);
+
+    // Nested alternative should be 12
+    auto* nested_alternative = dynamic_cast<CHTL::NumberLiteral*>(nested_cond->alternative.get());
+    REQUIRE(nested_alternative != nullptr);
+    REQUIRE(nested_alternative->value == 12.0);
+}
+
 TEST_CASE("Test parsing a type import statement", "[parser][import]")
 {
     std::string input = R"([Import] [Template] @Style from "my-styles.chtl";)";

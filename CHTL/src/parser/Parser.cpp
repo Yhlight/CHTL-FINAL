@@ -1316,7 +1316,7 @@ Parser::parseConditionalExpression(std::unique_ptr<Expression> condition) {
   if (m_peekToken.type == TokenType::COLON) {
     nextToken();
     nextToken();
-    expr->alternative = parseExpression(LOWEST);
+    expr->alternative = parseExpression((Precedence)(CONDITIONAL - 1));
   } else {
     expr->alternative = nullptr;
   }

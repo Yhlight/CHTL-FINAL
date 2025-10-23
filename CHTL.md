@@ -1297,6 +1297,31 @@ CHTL JS的函数皆为声明式语法
 ### 文件后缀
 对于包含CHTL JS的JS文件，你可以命名为*.cjjs  
 
+### ScriptMain
+ScriptMain是CHTL JS的入口，只能用于编写纯CHTL JS语法，不兼容JS语法  
+这是早期阶段的一种妥协，是实现实现混合CHTL JS和JS支持前的一种选择  
+此功能将一直保留，将用于那些希望独立使用CHTL JS的开发者  
+
+ScriptMain会直接传递那些JS代码，仅仅只处理纯CHTL JS代码  
+只有CHTL项目真正实现混合语法处理后，ScriptMain将被标记为弃用  
+
+```
+ScriptMain
+{
+    {{box}}->Listen {
+        click: () => {
+
+        },
+
+        mouseenter: mouseEnterEvent,  // 已经存在的函数
+
+        mousemove: function() {
+
+        }
+    };
+}
+```
+
 ### 脚本加载器
 你可以使用ScriptLoader {}来导入文件  
 CHTL JS实现了AMD风格JavaScript文件加载器  

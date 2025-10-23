@@ -1,6 +1,8 @@
 #define CATCH_CONFIG_MAIN
 #include "catch.hpp"
 #include "eval/Evaluator.h"
+#include "parser/Parser.h"
+#include "lexer/Lexer.h"
 #include "AstNode.h"
 
 #include <memory>
@@ -112,21 +114,63 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
         REQUIRE(result.unit == "px");
     }
 
-    SECTION("Throws error for different units addition")
-    {
-        auto infix = std::make_unique<CHTL::InfixExpression>();
-        auto left = std::make_unique<CHTL::NumberLiteral>();
-        left->value = 10;
-        left->unit = "px";
-        auto right = std::make_unique<CHTL::NumberLiteral>();
-        right->value = 5;
-        right->unit = "em";
-        infix->left = std::move(left);
-        infix->op = "+";
-        infix->right = std::move(right);
+SECTION("Throws error for different units addition")
+{
+    auto infix = std::make_unique<CHTL::InfixExpression>();
+    auto left = std::make_unique<CHTL::NumberLiteral>();
+    left->value = 10;
+    left->unit = "px";
+    auto right = std::make_unique<CHTL::NumberLiteral>();
+    right->value = 5;
+    right->unit = "em";
+    infix->left = std::move(left);
+    infix->op = "+";
+    infix->right = std::move(right);
 
-        REQUIRE_THROWS(evaluator.Eval(infix.get(), context));
-    }
+    REQUIRE_THROWS(evaluator.Eval(infix.get(), context));
+}
+}
+
+TEST_CASE("Evaluator handles indexed attribute access", "[Evaluator]")
+{
+    std::string input = R"(
+        div {
+            class = "button";
+            style { width: 100px; }
+        }
+        div {
+            class = "button";
+            style { width: 150px; }
+        }
+        div {
+            class = "button";
+            style { width: 200px; }
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    REQUIRE(p.GetErrors().empty());
+
+    CHTL::Evaluator evaluator;
+    CHTL::EvalContext context;
+    context.program = program.get();
+
+    auto expr1 = std::make_unique<CHTL::AttributeAccessExpression>();
+    expr1->selector = ".button[1]";
+    expr1->attribute_name = "width";
+    CHTL::Value result1 = evaluator.Eval(expr1.get(), context);
+    REQUIRE(result1.type == CHTL::ValueType::NUMBER);
+    REQUIRE(result1.num == 150.0);
+    REQUIRE(result1.unit == "px");
+
+    auto expr2 = std::make_unique<CHTL::AttributeAccessExpression>();
+    expr2->selector = ".button[2]";
+    expr2->attribute_name = "width";
+    CHTL::Value result2 = evaluator.Eval(expr2.get(), context);
+    REQUIRE(result2.type == CHTL::ValueType::NUMBER);
+    REQUIRE(result2.num == 200.0);
+    REQUIRE(result2.unit == "px");
 }
 
 TEST_CASE("Evaluator handles decoupled string expressions", "[evaluator][expression]")

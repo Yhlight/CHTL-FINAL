@@ -4,6 +4,7 @@
 #include "loader/Loader.h"
 #include "parser/Parser.h"
 #include "generator/Generator.h"
+#include "validator/Validator.h"
 #include "bridge/ConcreteSaltBridge.h"
 #include "AstNode.h"
 
@@ -41,6 +42,16 @@ int main(int argc, char* argv[]) {
                 return 1;
             }
 
+            CHTL::Validator validator;
+            validator.Validate(program.get());
+
+            if (!validator.GetErrors().empty()) {
+                for (const auto& error : validator.GetErrors()) {
+                    std::cerr << "Validator Error: " << error << std::endl;
+                }
+                return 1;
+            }
+
             auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
             parser.SetBridge(bridge);
             CHTL::Generator generator(bridge);
@@ -62,6 +73,16 @@ int main(int argc, char* argv[]) {
             if (!parser.GetErrors().empty()) {
                 for (const auto& error : parser.GetErrors()) {
                     std::cerr << "Parser Error: " << error << std::endl;
+                }
+                return 1;
+            }
+
+            CHTL::Validator validator;
+            validator.Validate(program.get());
+
+            if (!validator.GetErrors().empty()) {
+                for (const auto& error : validator.GetErrors()) {
+                    std::cerr << "Validator Error: " << error << std::endl;
                 }
                 return 1;
             }

@@ -7,7 +7,7 @@ namespace CHTL
 {
     extern const std::string GLOBAL_NAMESPACE;
 
-    // Helper function to recursively find nodes
+    // Helper function to recursively find nodes matching a simple selector (no indices)
     void findNodes(AstNode* start_node, const std::string& selector, std::vector<ElementNode*>& found_nodes)
     {
         if (!start_node) return;
@@ -52,7 +52,6 @@ namespace CHTL
         }
 
         // Recursively search children
-        // (This needs to be adapted based on how children are stored in different node types)
         if (auto* element = dynamic_cast<ElementNode*>(start_node)) {
             for (const auto& child : element->children) {
                 findNodes(child.get(), selector, found_nodes);
@@ -242,22 +241,40 @@ namespace CHTL
             case NodeType::AttributeAccess:
             {
                 auto attr_access_node = static_cast<AttributeAccessExpression*>(node);
-                std::vector<ElementNode*> found_nodes;
-                if (context.program) {
-                    findNodes(const_cast<ProgramNode*>(context.program), attr_access_node->selector, found_nodes);
+
+                // Separate selector from index, e.g., ".button[1]" -> ".button" and 1
+                std::string base_selector = attr_access_node->selector;
+                int index = 0; // Default to the first element if no index is specified
+                size_t bracket_pos = base_selector.find('[');
+                if (bracket_pos != std::string::npos) {
+                    size_t end_bracket_pos = base_selector.find(']');
+                    if (end_bracket_pos != std::string::npos && end_bracket_pos > bracket_pos + 1) {
+                        try {
+                            index = std::stoi(base_selector.substr(bracket_pos + 1, end_bracket_pos - bracket_pos - 1));
+                        } catch (...) {
+                             throw std::runtime_error("Invalid index format in selector: " + attr_access_node->selector);
+                        }
+                        base_selector = base_selector.substr(0, bracket_pos);
+                    }
                 }
 
-                if (!found_nodes.empty()) {
-                    // For now, just use the first match
-                    ElementNode* target_node = found_nodes[0];
-                    for (const auto& child : target_node->children) {
-                        if (child->GetType() == NodeType::Style) {
-                            auto* style_node = static_cast<StyleNode*>(child.get());
-                            for (const auto& style_child : style_node->children) {
-                                if (style_child->GetType() == NodeType::StyleProperty) {
-                                    auto* prop = static_cast<StyleProperty*>(style_child.get());
-                                    if (prop->name == attr_access_node->attribute_name) {
-                                        return eval(prop->value.get(), context);
+                std::vector<ElementNode*> found_nodes;
+                if (context.program) {
+                    findNodes(const_cast<ProgramNode*>(context.program), base_selector, found_nodes);
+                }
+
+                if (index < found_nodes.size()) {
+                    ElementNode* target_node = found_nodes[index];
+                    if (target_node) {
+                        for (const auto& child : target_node->children) {
+                            if (child->GetType() == NodeType::Style) {
+                                auto* style_node = static_cast<StyleNode*>(child.get());
+                                for (const auto& style_child : style_node->children) {
+                                    if (style_child->GetType() == NodeType::StyleProperty) {
+                                        auto* prop = static_cast<StyleProperty*>(style_child.get());
+                                        if (prop->name == attr_access_node->attribute_name) {
+                                            return eval(prop->value.get(), context);
+                                        }
                                     }
                                 }
                             }

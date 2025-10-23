@@ -58,4 +58,10 @@ target_include_directories(ModuleTest PRIVATE ../../third-party ../CHTLJS/includ
 add_executable(CJMODAPITest CJMODAPITest.cpp)
 target_link_libraries(CJMODAPITest PRIVATE CHTL gtest_main)
 add_test(NAME CJMODAPITest COMMAND CJMODAPITest)
+
+add_executable(ValidatorTest ValidatorTest.cpp)
+target_link_libraries(ValidatorTest PRIVATE CHTL gtest_main)
+target_include_directories(ValidatorTest PRIVATE ${CMAKE_SOURCE_DIR}/CHTL/include)
+add_test(NAME ValidatorTest COMMAND ValidatorTest)
+target_include_directories(ValidatorTest PRIVATE ../../third-party)
 target_include_directories(CJMODAPITest PRIVATE ../../third-party ../CHTLJS/include)

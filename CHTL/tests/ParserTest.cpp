@@ -461,6 +461,42 @@ TEST_CASE("Test parsing an if-else if-else chain", "[parser][if]")
     REQUIRE(prop_node->name == "color");
 }
 
+TEST_CASE("Test parsing an except statement with precise and type constraints", "[parser][except]")
+{
+    std::string input = "div { except span, [Custom] @Element Box, @Html; }";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    auto* div = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+
+    auto* except_node = dynamic_cast<CHTL::ExceptNode*>(div->children[0].get());
+    REQUIRE(except_node != nullptr);
+    REQUIRE(except_node->constraints.size() == 3);
+
+    // Check constraint 1: span (precise)
+    REQUIRE(except_node->constraints[0].path.size() == 1);
+    REQUIRE(except_node->constraints[0].path[0] == "span");
+    REQUIRE(except_node->constraints[0].is_type_constraint == false);
+
+    // Check constraint 2: [Custom] @Element Box (precise)
+    REQUIRE(except_node->constraints[1].path.size() == 3);
+    REQUIRE(except_node->constraints[1].path[0] == "[Custom]");
+    REQUIRE(except_node->constraints[1].path[1] == "@Element");
+    REQUIRE(except_node->constraints[1].path[2] == "Box");
+    REQUIRE(except_node->constraints[1].is_type_constraint == false);
+
+    // Check constraint 3: @Html (type)
+    REQUIRE(except_node->constraints[2].path.size() == 1);
+    REQUIRE(except_node->constraints[2].path[0] == "@Html");
+    REQUIRE(except_node->constraints[2].is_type_constraint == true);
+}
+
 TEST_CASE("Test parsing a CustomUsage with insert specialization", "[parser]")
 {
     SECTION("insert after selector")

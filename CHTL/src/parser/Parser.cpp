@@ -306,7 +306,6 @@ std::unique_ptr<ExceptNode> Parser::parseExceptNode() {
     }
 
     if (m_currentToken.type == TokenType::AT) {
-      constraint.is_type_constraint = true;
       nextToken();
       if (m_currentToken.type != TokenType::IDENT) {
         m_errors.push_back(
@@ -315,6 +314,10 @@ std::unique_ptr<ExceptNode> Parser::parseExceptNode() {
       }
       constraint.path.push_back("@" + m_currentToken.literal);
       nextToken();
+      // A type constraint is ONLY of the form @Type, nothing else.
+      if (constraint.path.size() == 1 && m_currentToken.type != TokenType::IDENT) {
+          constraint.is_type_constraint = true;
+      }
     }
 
     if (m_currentToken.type == TokenType::IDENT) {

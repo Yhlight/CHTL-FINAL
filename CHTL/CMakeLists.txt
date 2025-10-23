@@ -19,6 +19,7 @@ file(GLOB_RECURSE CHTL_SOURCES
     "src/loader/*.cpp"
     "src/nodes/*.cpp"
     "src/parser/*.cpp"
+    "src/validator/*.cpp"
     "CHTLJS/src/*.cpp"
     "CHTLJS/src/generator/*.cpp"
     "CHTLJS/src/lexer/*.cpp"
@@ -47,6 +48,7 @@ target_include_directories(CHTL PUBLIC
     include/loader
     include/nodes
     include/parser
+    include/validator
     CHTLJS/include/CJMODSystem
 )
 

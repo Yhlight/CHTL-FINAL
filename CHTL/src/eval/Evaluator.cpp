@@ -1,10 +1,69 @@
 #include "eval/Evaluator.h"
 #include <stdexcept>
 #include <cmath>
+#include <vector>
 
 namespace CHTL
 {
     extern const std::string GLOBAL_NAMESPACE;
+
+    // Helper function to recursively find nodes
+    void findNodes(AstNode* start_node, const std::string& selector, std::vector<ElementNode*>& found_nodes)
+    {
+        if (!start_node) return;
+
+        if (start_node->GetType() == NodeType::Element)
+        {
+            auto* element = static_cast<ElementNode*>(start_node);
+            bool match = false;
+            if (selector[0] == '#')
+            {
+                for (const auto& attr : element->attributes)
+                {
+                    if (attr.name == "id" && attr.value == selector.substr(1))
+                    {
+                        match = true;
+                        break;
+                    }
+                }
+            }
+            else if (selector[0] == '.')
+            {
+                 for (const auto& attr : element->attributes)
+                {
+                    if (attr.name == "class" && attr.value == selector.substr(1))
+                    {
+                        match = true;
+                        break;
+                    }
+                }
+            }
+            else
+            {
+                if (element->tag_name == selector)
+                {
+                    match = true;
+                }
+            }
+            if (match)
+            {
+                found_nodes.push_back(element);
+            }
+        }
+
+        // Recursively search children
+        // (This needs to be adapted based on how children are stored in different node types)
+        if (auto* element = dynamic_cast<ElementNode*>(start_node)) {
+            for (const auto& child : element->children) {
+                findNodes(child.get(), selector, found_nodes);
+            }
+        } else if (auto* program = dynamic_cast<ProgramNode*>(start_node)) {
+             for (const auto& child : program->children) {
+                findNodes(child.get(), selector, found_nodes);
+            }
+        }
+    }
+
 
     Value Evaluator::Eval(Expression* node, EvalContext& context)
     {
@@ -179,6 +238,33 @@ namespace CHTL
                     }
                 }
                 throw std::runtime_error("Variable '" + var_access_node->variable_name + "' not found in template '" + var_access_node->template_name + "'.");
+            }
+            case NodeType::AttributeAccess:
+            {
+                auto attr_access_node = static_cast<AttributeAccessExpression*>(node);
+                std::vector<ElementNode*> found_nodes;
+                if (context.program) {
+                    findNodes(const_cast<ProgramNode*>(context.program), attr_access_node->selector, found_nodes);
+                }
+
+                if (!found_nodes.empty()) {
+                    // For now, just use the first match
+                    ElementNode* target_node = found_nodes[0];
+                    for (const auto& child : target_node->children) {
+                        if (child->GetType() == NodeType::Style) {
+                            auto* style_node = static_cast<StyleNode*>(child.get());
+                            for (const auto& style_child : style_node->children) {
+                                if (style_child->GetType() == NodeType::StyleProperty) {
+                                    auto* prop = static_cast<StyleProperty*>(style_child.get());
+                                    if (prop->name == attr_access_node->attribute_name) {
+                                        return eval(prop->value.get(), context);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                throw std::runtime_error("Attribute '" + attr_access_node->attribute_name + "' not found for selector '" + attr_access_node->selector + "'.");
             }
             default:
                 throw std::runtime_error("Unknown expression node type in Evaluator.");

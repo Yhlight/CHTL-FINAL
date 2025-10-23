@@ -23,6 +23,7 @@ std::unordered_map<TokenType, Parser::Precedence> Parser::precedences = {
     {TokenType::GT, Parser::Precedence::COMPARE},
     {TokenType::LT, Parser::Precedence::COMPARE},
     {TokenType::QUESTION, Parser::Precedence::CONDITIONAL},
+    {TokenType::DOT, Parser::Precedence::CALL},
 };
 
 Parser::Parser(Lexer &lexer, std::string file_path)
@@ -1186,10 +1187,10 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence) {
     }
   } else if (m_currentToken.type == TokenType::STRING) {
     leftExp = parseStringLiteral();
-  } else if (m_currentToken.type == TokenType::DOT) {
-    nextToken();
-    leftExp = parseAttributeAccessExpression();
-  } else {
+  } else if (m_currentToken.type == TokenType::DOT || m_currentToken.type == TokenType::HASH) {
+    leftExp = parseSelectorIdentifier();
+  }
+  else {
     m_errors.push_back("No prefix parse function for " +
                        TokenTypeToString(m_currentToken.type) + " found.");
     return nullptr;
@@ -1209,7 +1210,11 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence) {
     } else if (peekType == TokenType::QUESTION) {
       nextToken();
       leftExp = parseConditionalExpression(std::move(leftExp));
-    } else {
+    } else if (peekType == TokenType::DOT) {
+      nextToken();
+      leftExp = parseAttributeAccessExpression(std::move(leftExp));
+    }
+    else {
       return leftExp;
     }
   }
@@ -1261,30 +1266,59 @@ Parser::parseConditionalExpression(std::unique_ptr<Expression> condition) {
   return expr;
 }
 
-std::unique_ptr<Expression> Parser::parseAttributeAccessExpression() {
-  auto node = std::make_unique<AttributeAccessExpression>();
-  std::string selector;
-  // The first DOT is already consumed by the caller.
-  selector += ".";
-  if (m_currentToken.type != TokenType::IDENT) {
-    m_errors.push_back("Expected identifier for class name in selector.");
-    return nullptr;
-  }
-  selector += m_currentToken.literal;
-  if (m_peekToken.type != TokenType::DOT) {
-    m_errors.push_back("Expected '.' after selector in attribute access.");
-    return nullptr;
-  }
-  nextToken(); // consume class name
-  nextToken(); // consume '.'
-  if (m_currentToken.type != TokenType::IDENT) {
-    m_errors.push_back(
-        "Expected identifier for attribute name in attribute access.");
-    return nullptr;
-  }
-  node->selector = selector;
-  node->attribute_name = m_currentToken.literal;
-  return node;
+std::unique_ptr<Expression> Parser::parseAttributeAccessExpression(std::unique_ptr<Expression> left) {
+    auto node = std::make_unique<AttributeAccessExpression>();
+
+    if (left->GetType() != NodeType::Identifier) {
+        m_errors.push_back("Attribute access must start with an identifier-like selector.");
+        return nullptr;
+    }
+
+    auto* ident_node = static_cast<Identifier*>(left.get());
+    std::string selector = ident_node->value;
+
+    // Check for indexed access, e.g., button[0]
+    if (m_peekToken.type == TokenType::LBRACKET) {
+        nextToken(); // consume identifier, current is '['
+        nextToken(); // consume '[', current is number
+        if (m_currentToken.type != TokenType::NUMBER) {
+            m_errors.push_back("Expected a number for index access.");
+            return nullptr;
+        }
+        selector += "[" + m_currentToken.literal + "]";
+        if (!expectPeek(TokenType::RBRACKET)) {
+             m_errors.push_back("Expected ']' to close index.");
+            return nullptr;
+        }
+    }
+
+    // At this point, the current token is the DOT
+    nextToken(); // consume selector part (or ']')
+
+    if (m_currentToken.type != TokenType::IDENT) {
+        m_errors.push_back("Expected identifier for attribute name in attribute access.");
+        return nullptr;
+    }
+
+    node->selector = selector;
+    node->attribute_name = m_currentToken.literal;
+
+    return node;
+}
+
+std::unique_ptr<Expression> Parser::parseSelectorIdentifier()
+{
+    auto ident = std::make_unique<Identifier>();
+    std::string selector = m_currentToken.literal; // a leading . or #
+    nextToken();
+    if (m_currentToken.type != TokenType::IDENT)
+    {
+        m_errors.push_back("Expected identifier after selector prefix.");
+        return nullptr;
+    }
+    selector += m_currentToken.literal;
+    ident->value = selector;
+    return ident;
 }
 
 std::unique_ptr<Expression> Parser::parseIdentifier() {

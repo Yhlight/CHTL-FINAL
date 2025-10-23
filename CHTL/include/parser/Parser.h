@@ -69,6 +69,7 @@ namespace CHTL
             PRODUCT, // * /
             POWER,   // **
             PREFIX,  // -X or !X
+            CALL, // dot operator
         };
 
         static std::unordered_map<TokenType, Precedence> precedences;
@@ -106,8 +107,9 @@ namespace CHTL
         std::unique_ptr<Expression> parseIdentifier();
         std::unique_ptr<Expression> parseNumberLiteral();
         std::unique_ptr<Expression> parseStringLiteral();
+        std::unique_ptr<Expression> parseSelectorIdentifier();
         std::unique_ptr<Expression> parseVariableAccessExpression();
-        std::unique_ptr<Expression> parseAttributeAccessExpression();
+        std::unique_ptr<Expression> parseAttributeAccessExpression(std::unique_ptr<Expression> left);
         std::unique_ptr<Expression> parseInfixExpression(std::unique_ptr<Expression> left);
         std::unique_ptr<Expression> parseConditionalExpression(std::unique_ptr<Expression> condition);
 

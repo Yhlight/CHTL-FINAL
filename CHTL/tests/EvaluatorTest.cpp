@@ -129,6 +129,68 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
     }
 }
 
+TEST_CASE("Attribute Access", "[evaluator]")
+{
+    CHTL::Evaluator evaluator;
+    CHTL::ProgramNode program;
+    CHTL::EvalContext context{ {}, &program};
+
+    // Setup a simple DOM-like structure for testing
+    auto div1 = std::make_unique<CHTL::ElementNode>();
+    div1->tag_name = "div";
+    div1->attributes.push_back({"id", "box"});
+    div1->attributes.push_back({"class", "container"});
+    auto style1 = std::make_unique<CHTL::StyleNode>();
+    auto prop1 = std::make_unique<CHTL::StyleProperty>();
+    prop1->name = "width";
+    auto val1 = std::make_unique<CHTL::NumberLiteral>();
+    val1->value = 100;
+    val1->unit = "px";
+    prop1->value = std::move(val1);
+    style1->children.push_back(std::move(prop1));
+    div1->children.push_back(std::move(style1));
+
+    auto span1 = std::make_unique<CHTL::ElementNode>();
+    span1->tag_name = "span";
+    span1->attributes.push_back({"class", "item"});
+    div1->children.push_back(std::move(span1));
+
+    program.children.push_back(std::move(div1));
+
+    SECTION("Access by ID")
+    {
+        auto access = std::make_unique<CHTL::AttributeAccessExpression>();
+        access->selector = "#box";
+        access->attribute_name = "width";
+        auto result = evaluator.Eval(access.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::NUMBER);
+        REQUIRE(result.num == 100);
+        REQUIRE(result.unit == "px");
+    }
+
+    SECTION("Access by Class")
+    {
+        auto access = std::make_unique<CHTL::AttributeAccessExpression>();
+        access->selector = ".container";
+        access->attribute_name = "width";
+        auto result = evaluator.Eval(access.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::NUMBER);
+        REQUIRE(result.num == 100);
+        REQUIRE(result.unit == "px");
+    }
+
+    SECTION("Access by Tag Name")
+    {
+        auto access = std::make_unique<CHTL::AttributeAccessExpression>();
+        access->selector = "div";
+        access->attribute_name = "width";
+        auto result = evaluator.Eval(access.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::NUMBER);
+        REQUIRE(result.num == 100);
+        REQUIRE(result.unit == "px");
+    }
+}
+
 TEST_CASE("Evaluator correctly handles modulo and power operators", "[evaluator]")
 {
     CHTL::Evaluator evaluator;

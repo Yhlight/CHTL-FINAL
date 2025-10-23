@@ -2,63 +2,109 @@
 #include <stdexcept>
 #include <cmath>
 #include <vector>
+#include <sstream>
+#include <set>
+#include <optional>
+#include <sstream>
+#include <set>
+#include <algorithm>
 
 namespace CHTL
 {
     extern const std::string GLOBAL_NAMESPACE;
 
-    // Helper function to recursively find nodes matching a simple selector (no indices)
-    void findNodes(AstNode* start_node, const std::string& selector, std::vector<ElementNode*>& found_nodes)
-    {
-        if (!start_node) return;
+    // Checks if a single element matches a simple selector (e.g., #id, .class, tag)
+    bool nodeMatchesSelector(const ElementNode* element, const std::string& selector_part) {
+        if (!element || selector_part.empty()) return false;
 
-        if (start_node->GetType() == NodeType::Element)
-        {
-            auto* element = static_cast<ElementNode*>(start_node);
-            bool match = false;
-            if (selector[0] == '#')
-            {
-                for (const auto& attr : element->attributes)
-                {
-                    if (attr.name == "id" && attr.value == selector.substr(1))
-                    {
-                        match = true;
-                        break;
-                    }
+        char first_char = selector_part[0];
+        std::string value = selector_part.substr(1);
+
+        if (first_char == '#') {
+            return std::any_of(element->attributes.begin(), element->attributes.end(),
+                [&](const Attribute& attr) { return attr.name == "id" && attr.value == value; });
+        }
+        if (first_char == '.') {
+             return std::any_of(element->attributes.begin(), element->attributes.end(),
+                [&](const Attribute& attr) { return attr.name == "class" && attr.value == value; });
+        }
+        return element->tag_name == selector_part;
+    }
+
+    // Helper to get all descendant ElementNodes of a given node, including the node itself if it matches.
+    void getAllDescendants(const AstNode* node, std::vector<ElementNode*>& descendants) {
+        if (!node) return;
+
+        // Add the node itself if it's an element
+        if (auto* element = dynamic_cast<const ElementNode*>(node)) {
+             for (const auto& child : element->children) {
+                if (child->GetType() == NodeType::Element) {
+                    descendants.push_back(static_cast<ElementNode*>(child.get()));
                 }
+                getAllDescendants(child.get(), descendants);
             }
-            else if (selector[0] == '.')
-            {
-                 for (const auto& attr : element->attributes)
-                {
-                    if (attr.name == "class" && attr.value == selector.substr(1))
-                    {
-                        match = true;
-                        break;
-                    }
+        } else if (auto* program = dynamic_cast<const ProgramNode*>(node)) {
+             for (const auto& child : program->children) {
+                if (child->GetType() == NodeType::Element) {
+                    descendants.push_back(static_cast<ElementNode*>(child.get()));
                 }
-            }
-            else
-            {
-                if (element->tag_name == selector)
-                {
-                    match = true;
-                }
-            }
-            if (match)
-            {
-                found_nodes.push_back(element);
+                getAllDescendants(child.get(), descendants);
             }
         }
+    }
 
-        // Recursively search children
-        if (auto* element = dynamic_cast<ElementNode*>(start_node)) {
-            for (const auto& child : element->children) {
-                findNodes(child.get(), selector, found_nodes);
+    void findNodes(AstNode* start_node, const std::string& selector, std::vector<ElementNode*>& found_nodes) {
+        std::stringstream ss(selector);
+        std::string part;
+        std::vector<std::string> parts;
+        while (ss >> part) {
+            parts.push_back(part);
+        }
+
+        if (parts.empty()) return;
+
+        std::vector<ElementNode*> current_matches;
+
+        // Initial search space
+        if (start_node->GetType() == NodeType::Element) {
+            current_matches.push_back(static_cast<ElementNode*>(start_node));
+        }
+        getAllDescendants(start_node, current_matches);
+
+        // Filter initial space by the first selector part
+        std::vector<ElementNode*> filtered_matches;
+        for(auto* node : current_matches) {
+            if(nodeMatchesSelector(node, parts[0])) {
+                filtered_matches.push_back(node);
             }
-        } else if (auto* program = dynamic_cast<ProgramNode*>(start_node)) {
-             for (const auto& child : program->children) {
-                findNodes(child.get(), selector, found_nodes);
+        }
+        current_matches = filtered_matches;
+
+        // Process subsequent selector parts
+        for (size_t i = 1; i < parts.size(); ++i) {
+            if (current_matches.empty()) break;
+
+            std::vector<ElementNode*> next_matches;
+            for (ElementNode* matched_node : current_matches) {
+                // The search space for the next part is the descendants of the current match
+                std::vector<ElementNode*> search_space;
+                getAllDescendants(matched_node, search_space);
+                for (ElementNode* descendant : search_space) {
+                    if (nodeMatchesSelector(descendant, parts[i])) {
+                        next_matches.push_back(descendant);
+                    }
+                }
+            }
+            current_matches = next_matches;
+        }
+
+        // Deduplicate and assign results, preserving order
+        std::set<ElementNode*> seen_nodes;
+        found_nodes.clear();
+        for (ElementNode* node : current_matches) {
+            if (seen_nodes.find(node) == seen_nodes.end()) {
+                seen_nodes.insert(node);
+                found_nodes.push_back(node);
             }
         }
     }

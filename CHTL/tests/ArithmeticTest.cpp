@@ -1,102 +1,98 @@
-#include "gtest/gtest.h"
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 #include "eval/Value.h"
 
 using namespace CHTL;
 
-// Test fixture for arithmetic operations
-class ArithmeticTest : public ::testing::Test {
-protected:
+TEST_CASE("Arithmetic operations on Value objects", "[evaluator][arithmetic]")
+{
     Value v10px{ValueType::NUMBER, 10.0, "px"};
     Value v5px{ValueType::NUMBER, 5.0, "px"};
     Value v2em{ValueType::NUMBER, 2.0, "em"};
     Value v_no_unit{ValueType::NUMBER, 2.0, ""};
-};
 
-// Tests for Addition
-TEST_F(ArithmeticTest, AdditionSameUnit) {
-    Value result = v10px + v5px;
-    EXPECT_EQ(result.num, 15.0);
-    EXPECT_EQ(result.unit, "px");
-}
+    SECTION("Addition")
+    {
+        SECTION("Same Unit") {
+            Value result = v10px + v5px;
+            REQUIRE(result.num == 15.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("With Empty Unit") {
+            Value result = v10px + v_no_unit;
+            REQUIRE(result.num == 12.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("To Empty Unit") {
+            Value result = v_no_unit + v10px;
+            REQUIRE(result.num == 12.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("Different Units") {
+            REQUIRE_THROWS(v10px + v2em);
+        }
+    }
 
-TEST_F(ArithmeticTest, AdditionWithEmptyUnit) {
-    Value result = v10px + v_no_unit;
-    EXPECT_EQ(result.num, 12.0);
-    EXPECT_EQ(result.unit, "px");
-}
+    SECTION("Subtraction")
+    {
+        SECTION("Same Unit") {
+            Value result = v10px - v5px;
+            REQUIRE(result.num == 5.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("With Empty Unit") {
+            Value result = v10px - v_no_unit;
+            REQUIRE(result.num == 8.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("From Empty Unit") {
+            Value result = v_no_unit - v10px;
+            REQUIRE(result.num == -8.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("Different Units") {
+            REQUIRE_THROWS(v10px - v2em);
+        }
+    }
 
-TEST_F(ArithmeticTest, AdditionToEmptyUnit) {
-    Value result = v_no_unit + v10px;
-    EXPECT_EQ(result.num, 12.0);
-    EXPECT_EQ(result.unit, "px");
-}
+    SECTION("Multiplication")
+    {
+        SECTION("With Empty Unit") {
+            Value result = v10px * v_no_unit;
+            REQUIRE(result.num == 20.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("By Empty Unit") {
+            Value result = v_no_unit * v10px;
+            REQUIRE(result.num == 20.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("Different Units") {
+            REQUIRE_THROWS(v10px * v2em);
+        }
+        SECTION("Same Units") {
+            REQUIRE_THROWS(v10px * v5px);
+        }
+    }
 
-TEST_F(ArithmeticTest, AdditionDifferentUnits) {
-    EXPECT_THROW(v10px + v2em, std::runtime_error);
-}
-
-// Tests for Subtraction
-TEST_F(ArithmeticTest, SubtractionSameUnit) {
-    Value result = v10px - v5px;
-    EXPECT_EQ(result.num, 5.0);
-    EXPECT_EQ(result.unit, "px");
-}
-
-TEST_F(ArithmeticTest, SubtractionWithEmptyUnit) {
-    Value result = v10px - v_no_unit;
-    EXPECT_EQ(result.num, 8.0);
-    EXPECT_EQ(result.unit, "px");
-}
-
-TEST_F(ArithmeticTest, SubtractionFromEmptyUnit) {
-    Value result = v_no_unit - v10px;
-    EXPECT_EQ(result.num, -8.0);
-    EXPECT_EQ(result.unit, "px");
-}
-
-TEST_F(ArithmeticTest, SubtractionDifferentUnits) {
-    EXPECT_THROW(v10px - v2em, std::runtime_error);
-}
-
-// Tests for Multiplication
-TEST_F(ArithmeticTest, MultiplicationWithEmptyUnit) {
-    Value result = v10px * v_no_unit;
-    EXPECT_EQ(result.num, 20.0);
-    EXPECT_EQ(result.unit, "px");
-}
-
-TEST_F(ArithmeticTest, MultiplicationByEmptyUnit) {
-    Value result = v_no_unit * v10px;
-    EXPECT_EQ(result.num, 20.0);
-    EXPECT_EQ(result.unit, "px");
-}
-
-TEST_F(ArithmeticTest, MultiplicationDifferentUnits) {
-    EXPECT_THROW(v10px * v2em, std::runtime_error);
-}
-
-TEST_F(ArithmeticTest, MultiplicationSameUnits) {
-    EXPECT_THROW(v10px * v5px, std::runtime_error);
-}
-
-// Tests for Division
-TEST_F(ArithmeticTest, DivisionSameUnit) {
-    Value result = v10px / v5px;
-    EXPECT_EQ(result.num, 2.0);
-    EXPECT_EQ(result.unit, ""); // Units should cancel out
-}
-
-TEST_F(ArithmeticTest, DivisionByEmptyUnit) {
-    Value result = v10px / v_no_unit;
-    EXPECT_EQ(result.num, 5.0);
-    EXPECT_EQ(result.unit, "px");
-}
-
-TEST_F(ArithmeticTest, DivisionDifferentUnits) {
-    EXPECT_THROW(v10px / v2em, std::runtime_error);
-}
-
-TEST_F(ArithmeticTest, DivisionByZero) {
-    Value v0{ValueType::NUMBER, 0.0, ""};
-    EXPECT_THROW(v10px / v0, std::runtime_error);
+    SECTION("Division")
+    {
+        SECTION("Same Unit") {
+            Value result = v10px / v5px;
+            REQUIRE(result.num == 2.0);
+            REQUIRE(result.unit == ""); // Units should cancel out
+        }
+        SECTION("By Empty Unit") {
+            Value result = v10px / v_no_unit;
+            REQUIRE(result.num == 5.0);
+            REQUIRE(result.unit == "px");
+        }
+        SECTION("Different Units") {
+            REQUIRE_THROWS(v10px / v2em);
+        }
+        SECTION("By Zero") {
+            Value v0{ValueType::NUMBER, 0.0, ""};
+            REQUIRE_THROWS(v10px / v0);
+        }
+    }
 }

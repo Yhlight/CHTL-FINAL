@@ -63,6 +63,8 @@ namespace CHTL
         enum Precedence
         {
             LOWEST = 0,
+            LOGICAL_OR,  // ||
+            LOGICAL_AND, // &&
             CONDITIONAL, // ? :
             COMPARE, // > or <
             SUM,     // + -
@@ -109,6 +111,7 @@ namespace CHTL
         std::unique_ptr<Expression> parseStringLiteral();
         std::unique_ptr<Expression> parseSelectorIdentifier();
         std::unique_ptr<Expression> parseVariableAccessExpression();
+        std::unique_ptr<Expression> parsePrefixExpression();
         std::unique_ptr<Expression> parseAttributeAccessExpression(std::unique_ptr<Expression> left);
         std::unique_ptr<Expression> parseInfixExpression(std::unique_ptr<Expression> left);
         std::unique_ptr<Expression> parseConditionalExpression(std::unique_ptr<Expression> condition);

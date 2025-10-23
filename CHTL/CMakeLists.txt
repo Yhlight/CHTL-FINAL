@@ -52,9 +52,6 @@ target_include_directories(CHTL PUBLIC
     CHTLJS/include/CJMODSystem
 )
 
-# 添加 GTest
-add_subdirectory(../third-party/gtest ${CMAKE_BINARY_DIR}/third-party/gtest)
-
 # 添加测试子目录
 add_subdirectory(tests)
 

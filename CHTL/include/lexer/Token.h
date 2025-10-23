@@ -58,6 +58,9 @@ namespace CHTL
         POWER,      // **
         GT,         // >
         LT,         // <
+        LOGICAL_AND, // &&
+        LOGICAL_OR,  // ||
+        LOGICAL_NOT, // !
 
         // 分隔符
         LPAREN,     // (

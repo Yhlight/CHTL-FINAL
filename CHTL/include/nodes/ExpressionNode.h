@@ -29,6 +29,22 @@ namespace CHTL
         static std::unique_ptr<NumberLiteral> deserialize(std::istream& is);
     };
 
+    // 前缀表达式节点
+    struct PrefixExpression : public Expression
+    {
+        std::string op;
+        std::unique_ptr<Expression> right;
+
+        NodeType GetType() const override { return NodeType::PrefixExpression; }
+        std::string ToString() const override {
+            return "(" + op + right->ToString() + ")";
+        }
+        std::unique_ptr<AstNode> clone() const override;
+
+        void serialize(std::ostream& os) const override;
+        static std::unique_ptr<PrefixExpression> deserialize(std::istream& is);
+    };
+
     // 中缀表达式节点
     struct InfixExpression : public Expression
     {

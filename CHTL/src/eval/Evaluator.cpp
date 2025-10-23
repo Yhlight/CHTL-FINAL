@@ -124,6 +124,16 @@ namespace CHTL
 
         switch (node->GetType())
         {
+            case NodeType::PrefixExpression:
+            {
+                auto prefix_node = static_cast<PrefixExpression*>(node);
+                Value right_val = eval(prefix_node->right.get(), context);
+                if (prefix_node->op == "!")
+                {
+                    return !right_val;
+                }
+                throw std::runtime_error("Unknown prefix operator: " + prefix_node->op);
+            }
             case NodeType::NumberLiteral:
             {
                 auto num_node = static_cast<NumberLiteral*>(node);
@@ -186,6 +196,14 @@ namespace CHTL
                 if (infix_node->op == "<")
                 {
                     return left_val < right_val;
+                }
+                if (infix_node->op == "&&")
+                {
+                    return left_val && right_val;
+                }
+                if (infix_node->op == "||")
+                {
+                    return left_val || right_val;
                 }
                 throw std::runtime_error("Unknown infix operator: " + infix_node->op);
             }

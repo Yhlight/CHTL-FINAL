@@ -314,7 +314,23 @@ Token Lexer::NextToken()
             tok = {TokenType::DOT, std::string(1, m_char), tok.line, tok.column};
             break;
         case '&':
-            tok = {TokenType::AMPERSAND, std::string(1, m_char), tok.line, tok.column};
+            if (peekChar() == '&') {
+                readChar(); // consume first '&'
+                tok = {TokenType::LOGICAL_AND, "&&", tok.line, tok.column};
+            } else {
+                tok = {TokenType::AMPERSAND, std::string(1, m_char), tok.line, tok.column};
+            }
+            break;
+        case '|':
+            if (peekChar() == '|') {
+                readChar(); // consume first '|'
+                tok = {TokenType::LOGICAL_OR, "||", tok.line, tok.column};
+            } else {
+                tok = {TokenType::ILLEGAL, std::string(1, m_char), tok.line, tok.column};
+            }
+            break;
+        case '!':
+            tok = {TokenType::LOGICAL_NOT, "!", tok.line, tok.column};
             break;
         case '"':
         case '\'':

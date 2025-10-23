@@ -1,13 +1,15 @@
-#include "gtest/gtest.h"
+#define CATCH_CONFIG_MAIN
+#include "catch.hpp"
 #include "loader/Loader.h"
 #include "nodes/ProgramNode.h"
 #include "nodes/TextNode.h"
 #include <fstream>
 #include <memory>
+#include <cstdlib>
 
 using namespace CHTL;
 
-TEST(ModuleTest, PackAndLoad)
+TEST_CASE("Module packaging and loading", "[module]")
 {
     // Create a dummy .chtl file
     std::ofstream ofs("test_module.chtl");
@@ -15,15 +17,16 @@ TEST(ModuleTest, PackAndLoad)
     ofs.close();
 
     // Package the .chtl file into a .cmod file
-    system("python3 ../../package.py test_module.chtl -o test_module.cmod");
+    int result = system("python3 ../../package.py test_module.chtl -o test_module.cmod");
+    REQUIRE(result == 0);
 
     // Load the .cmod file
     auto program = Loader::LoadModule(".", "test_module.cmod");
 
-    ASSERT_NE(program, nullptr);
-    ASSERT_EQ(program->GetType(), NodeType::Program);
+    REQUIRE(program != nullptr);
+    REQUIRE(program->GetType() == NodeType::Program);
     auto program_node = static_cast<ProgramNode*>(program.get());
-    ASSERT_EQ(program_node->children.size(), 1);
-    ASSERT_EQ(program_node->children[0]->GetType(), NodeType::Text);
-    ASSERT_EQ(static_cast<TextNode*>(program_node->children[0].get())->value, "hello module");
+    REQUIRE(program_node->children.size() == 1);
+    REQUIRE(program_node->children[0]->GetType() == NodeType::Text);
+    REQUIRE(static_cast<TextNode*>(program_node->children[0].get())->value == "hello module");
 }

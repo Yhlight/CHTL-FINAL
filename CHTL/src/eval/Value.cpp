@@ -138,4 +138,40 @@ namespace CHTL
         val.boolean = num < other.num;
         return val;
     }
+
+    Value Value::operator!() const
+    {
+        if (type != ValueType::BOOL)
+        {
+            throw std::runtime_error("Logical NOT operator only applies to booleans.");
+        }
+        Value val;
+        val.type = ValueType::BOOL;
+        val.boolean = !boolean;
+        return val;
+    }
+
+    Value Value::operator&&(const Value& other) const
+    {
+        if (type != ValueType::BOOL || other.type != ValueType::BOOL)
+        {
+            throw std::runtime_error("Logical AND operator only applies to booleans.");
+        }
+        Value val;
+        val.type = ValueType::BOOL;
+        val.boolean = boolean && other.boolean;
+        return val;
+    }
+
+    Value Value::operator||(const Value& other) const
+    {
+        if (type != ValueType::BOOL || other.type != ValueType::BOOL)
+        {
+            throw std::runtime_error("Logical OR operator only applies to booleans.");
+        }
+        Value val;
+        val.type = ValueType::BOOL;
+        val.boolean = boolean || other.boolean;
+        return val;
+    }
 }

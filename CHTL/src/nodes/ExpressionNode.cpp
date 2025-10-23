@@ -43,6 +43,13 @@ namespace CHTL
         return node;
     }
 
+    std::unique_ptr<AstNode> PrefixExpression::clone() const {
+        auto node = std::make_unique<PrefixExpression>();
+        node->op = this->op;
+        node->right = std::unique_ptr<Expression>(static_cast<Expression*>(this->right->clone().release()));
+        return node;
+    }
+
     std::unique_ptr<AstNode> InfixExpression::clone() const {
         auto node = std::make_unique<InfixExpression>();
         node->left = std::unique_ptr<Expression>(static_cast<Expression*>(this->left->clone().release()));
@@ -112,6 +119,26 @@ namespace CHTL
         is.read(reinterpret_cast<char*>(&len), sizeof(len));
         node->unit.resize(len);
         is.read(&node->unit[0], len);
+        return node;
+    }
+
+    // PrefixExpression
+    void PrefixExpression::serialize(std::ostream& os) const {
+        int type = static_cast<int>(GetType());
+        os.write(reinterpret_cast<const char*>(&type), sizeof(type));
+        size_t len = op.length();
+        os.write(reinterpret_cast<const char*>(&len), sizeof(len));
+        os.write(op.c_str(), len);
+        right->serialize(os);
+    }
+
+    std::unique_ptr<PrefixExpression> PrefixExpression::deserialize(std::istream& is) {
+        auto node = std::make_unique<PrefixExpression>();
+        size_t len;
+        is.read(reinterpret_cast<char*>(&len), sizeof(len));
+        node->op.resize(len);
+        is.read(&node->op[0], len);
+        node->right = std::unique_ptr<Expression>(static_cast<Expression*>(AstNode::deserialize(is).release()));
         return node;
     }
 

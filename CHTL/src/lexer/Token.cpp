@@ -46,6 +46,9 @@ namespace CHTL
             case TokenType::POWER:               return "POWER";
             case TokenType::GT:                  return "GT";
             case TokenType::LT:                  return "LT";
+            case TokenType::LOGICAL_AND:         return "LOGICAL_AND";
+            case TokenType::LOGICAL_OR:          return "LOGICAL_OR";
+            case TokenType::LOGICAL_NOT:         return "LOGICAL_NOT";
             case TokenType::LPAREN:              return "LPAREN";
             case TokenType::RPAREN:              return "RPAREN";
             case TokenType::LBRACE:              return "LBRACE";

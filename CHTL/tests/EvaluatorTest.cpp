@@ -399,3 +399,97 @@ TEST_CASE("Evaluator handles division with units", "[evaluator]")
         REQUIRE_THROWS(evaluator.Eval(infix.get(), context));
     }
 }
+
+TEST_CASE("Evaluator handles logical operators", "[evaluator][logical]")
+{
+    CHTL::Evaluator evaluator;
+    CHTL::EvalContext context;
+
+    // Helper to create an AST for a comparison to get a boolean Value
+    auto make_bool_expr = [](bool val) {
+        auto infix = std::make_unique<CHTL::InfixExpression>();
+        auto left = std::make_unique<CHTL::NumberLiteral>();
+        auto right = std::make_unique<CHTL::NumberLiteral>();
+        if (val) { // true -> 1 > 0
+            left->value = 1;
+            right->value = 0;
+        } else { // false -> 0 > 1
+            left->value = 0;
+            right->value = 1;
+        }
+        infix->left = std::move(left);
+        infix->op = ">";
+        infix->right = std::move(right);
+        return infix;
+    };
+
+
+    SECTION("Logical NOT")
+    {
+        auto prefix = std::make_unique<CHTL::PrefixExpression>();
+        prefix->op = "!";
+        prefix->right = make_bool_expr(true); // !true
+        auto result = evaluator.Eval(prefix.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::BOOL);
+        REQUIRE(result.boolean == false);
+
+        prefix->right = make_bool_expr(false); // !false
+        result = evaluator.Eval(prefix.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::BOOL);
+        REQUIRE(result.boolean == true);
+    }
+
+    SECTION("Logical AND")
+    {
+        auto infix = std::make_unique<CHTL::InfixExpression>();
+        infix->op = "&&";
+
+        // true && true
+        infix->left = make_bool_expr(true);
+        infix->right = make_bool_expr(true);
+        auto result = evaluator.Eval(infix.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::BOOL);
+        REQUIRE(result.boolean == true);
+
+        // true && false
+        infix->left = make_bool_expr(true);
+        infix->right = make_bool_expr(false);
+        result = evaluator.Eval(infix.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::BOOL);
+        REQUIRE(result.boolean == false);
+    }
+
+    SECTION("Logical OR")
+    {
+        auto infix = std::make_unique<CHTL::InfixExpression>();
+        infix->op = "||";
+
+        // false || true
+        infix->left = make_bool_expr(false);
+        infix->right = make_bool_expr(true);
+        auto result = evaluator.Eval(infix.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::BOOL);
+        REQUIRE(result.boolean == true);
+
+        // false || false
+        infix->left = make_bool_expr(false);
+        infix->right = make_bool_expr(false);
+        result = evaluator.Eval(infix.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::BOOL);
+        REQUIRE(result.boolean == false);
+    }
+
+    SECTION("Throws on non-boolean operands")
+    {
+        auto infix = std::make_unique<CHTL::InfixExpression>();
+        infix->op = "&&";
+        infix->left = make_bool_expr(true);
+        infix->right = std::make_unique<CHTL::NumberLiteral>(10, "");
+        REQUIRE_THROWS(evaluator.Eval(infix.get(), context));
+
+        auto prefix = std::make_unique<CHTL::PrefixExpression>();
+        prefix->op = "!";
+        prefix->right = std::make_unique<CHTL::NumberLiteral>(0, "");
+        REQUIRE_THROWS(evaluator.Eval(prefix.get(), context));
+    }
+}

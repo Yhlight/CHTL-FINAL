@@ -37,5 +37,8 @@ enum class ValueType { EMPTY, NUMBER, STRING, BOOL };
         Value operator/(const Value& other) const;
         Value operator>(const Value& other) const;
         Value operator<(const Value& other) const;
+        Value operator!() const;
+        Value operator&&(const Value& other) const;
+        Value operator||(const Value& other) const;
     };
 }

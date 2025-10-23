@@ -22,6 +22,8 @@ std::unordered_map<TokenType, Parser::Precedence> Parser::precedences = {
     {TokenType::POWER, Parser::Precedence::POWER},
     {TokenType::GT, Parser::Precedence::COMPARE},
     {TokenType::LT, Parser::Precedence::COMPARE},
+    {TokenType::LOGICAL_AND, Parser::Precedence::LOGICAL_AND},
+    {TokenType::LOGICAL_OR, Parser::Precedence::LOGICAL_OR},
     {TokenType::QUESTION, Parser::Precedence::CONDITIONAL},
     {TokenType::DOT, Parser::Precedence::CALL},
 };
@@ -1223,6 +1225,8 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence) {
   std::unique_ptr<Expression> leftExp;
   if (m_currentToken.type == TokenType::NUMBER) {
     leftExp = parseNumberLiteral();
+  } else if (m_currentToken.type == TokenType::LOGICAL_NOT) {
+    leftExp = parsePrefixExpression();
   } else if (m_currentToken.type == TokenType::IDENT) {
     if (m_peekToken.type == TokenType::LPAREN) {
       leftExp = parseVariableAccessExpression();
@@ -1248,7 +1252,8 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence) {
     if (peekType == TokenType::PLUS || peekType == TokenType::MINUS ||
         peekType == TokenType::ASTERISK || peekType == TokenType::SLASH ||
         peekType == TokenType::GT || peekType == TokenType::LT ||
-        peekType == TokenType::MODULO || peekType == TokenType::POWER) {
+        peekType == TokenType::MODULO || peekType == TokenType::POWER ||
+        peekType == TokenType::LOGICAL_AND || peekType == TokenType::LOGICAL_OR) {
       nextToken();
       leftExp = parseInfixExpression(std::move(leftExp));
     } else if (peekType == TokenType::QUESTION) {
@@ -1292,6 +1297,14 @@ Parser::parseInfixExpression(std::unique_ptr<Expression> left) {
   nextToken();
   expr->right = parseExpression(curPrecedence);
   return expr;
+}
+
+std::unique_ptr<Expression> Parser::parsePrefixExpression() {
+    auto expr = std::make_unique<PrefixExpression>();
+    expr->op = m_currentToken.literal;
+    nextToken();
+    expr->right = parseExpression(PREFIX);
+    return expr;
 }
 
 std::unique_ptr<Expression>

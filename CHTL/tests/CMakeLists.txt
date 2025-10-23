@@ -1,79 +1,36 @@
 # CHTL/tests/CMakeLists.txt
 
-# 添加测试可执行文件
-add_executable(TokenTest TokenTest.cpp)
-add_executable(AstTest AstTest.cpp)
-add_executable(GeneratorTest GeneratorTest.cpp)
-add_executable(EvaluatorTest EvaluatorTest.cpp)
-add_executable(LexerTest LexerTest.cpp)
-add_executable(ParserTest ParserTest.cpp)
+# Common setup for all tests
+macro(add_chkl_test test_name)
+    add_executable(${test_name} ${ARGN})
+    target_link_libraries(${test_name} PRIVATE CHTL)
+    target_include_directories(${test_name} PRIVATE ../../third-party)
+    add_test(NAME ${test_name} COMMAND ${test_name})
+endmacro()
 
-# 链接CHTL库
-target_link_libraries(TokenTest PRIVATE CHTL)
-target_link_libraries(AstTest PRIVATE CHTL)
-target_link_libraries(GeneratorTest PRIVATE CHTL)
-target_link_libraries(EvaluatorTest PRIVATE CHTL)
-target_link_libraries(LexerTest PRIVATE CHTL)
-target_link_libraries(ParserTest PRIVATE CHTL)
-
-# 添加third-party目录以便找到catch.hpp
-target_include_directories(TokenTest PRIVATE ../../third-party)
-target_include_directories(AstTest PRIVATE ../../third-party)
-target_include_directories(GeneratorTest PRIVATE ../../third-party)
-target_include_directories(EvaluatorTest PRIVATE ../../third-party)
-target_include_directories(LexerTest PRIVATE ../../third-party)
-target_include_directories(ParserTest PRIVATE ../../third-party)
+# Add test executables
+add_chkl_test(TokenTest TokenTest.cpp)
+add_chkl_test(AstTest AstTest.cpp)
+add_chkl_test(GeneratorTest GeneratorTest.cpp)
+add_chkl_test(EvaluatorTest EvaluatorTest.cpp)
+add_chkl_test(LexerTest LexerTest.cpp)
+add_chkl_test(ParserTest ParserTest.cpp)
+add_chkl_test(ArithmeticTest ArithmeticTest.cpp)
+add_chkl_test(AttributeAccessTest AttributeAccessTest.cpp)
 
 # CHTL JS Tests
-add_executable(CHTLJSLexerTest CHTLJSLexerTest.cpp)
-target_link_libraries(CHTLJSLexerTest PRIVATE CHTL)
-target_include_directories(CHTLJSLexerTest PRIVATE ../../third-party)
+add_chkl_test(CHTLJSLexerTest CHTLJSLexerTest.cpp)
+add_chkl_test(CHTLJSParserTest CHTLJSParserTest.cpp)
+add_chkl_test(IfElseGeneratorTest IfElseGeneratorTest.cpp)
+add_chkl_test(BridgeTest BridgeTest.cpp)
+add_chkl_test(CHTLJSGeneratorTest CHTLJS/GeneratorTest.cpp)
+add_chkl_test(SerializationTest SerializationTest.cpp)
+add_chkl_test(ModuleTest ModuleTest.cpp)
+add_chkl_test(CJMODAPITest CJMODAPITest.cpp)
+add_chkl_test(ValidatorTest ValidatorTest.cpp)
 
-add_executable(CHTLJSParserTest CHTLJSParserTest.cpp)
-target_link_libraries(CHTLJSParserTest PRIVATE CHTL)
-target_include_directories(CHTLJSParserTest PRIVATE ../../third-party)
-
-add_executable(IfElseGeneratorTest IfElseGeneratorTest.cpp)
-target_link_libraries(IfElseGeneratorTest PRIVATE CHTL)
-target_include_directories(IfElseGeneratorTest PRIVATE ../../third-party)
-
-add_executable(BridgeTest BridgeTest.cpp)
-target_link_libraries(BridgeTest PRIVATE CHTL)
-target_include_directories(BridgeTest PRIVATE ../../third-party)
-
-add_executable(CHTLJSGeneratorTest CHTLJS/GeneratorTest.cpp)
-target_link_libraries(CHTLJSGeneratorTest PRIVATE CHTL gtest_main)
-target_include_directories(CHTLJSGeneratorTest PRIVATE ../../third-party)
-
-add_executable(SerializationTest SerializationTest.cpp)
-target_link_libraries(SerializationTest PRIVATE CHTL gtest_main)
-add_test(NAME SerializationTest COMMAND SerializationTest)
-target_include_directories(SerializationTest PRIVATE ../../third-party ../CHTLJS/include)
-
-add_executable(ModuleTest ModuleTest.cpp)
-target_link_libraries(ModuleTest PRIVATE CHTL gtest_main)
-add_test(NAME ModuleTest COMMAND ModuleTest)
-target_include_directories(ModuleTest PRIVATE ../../third-party ../CHTLJS/include)
-
-add_executable(CJMODAPITest CJMODAPITest.cpp)
-target_link_libraries(CJMODAPITest PRIVATE CHTL gtest_main)
-add_test(NAME CJMODAPITest COMMAND CJMODAPITest)
-
-add_executable(ValidatorTest ValidatorTest.cpp)
-target_link_libraries(ValidatorTest PRIVATE CHTL gtest_main)
-target_include_directories(ValidatorTest PRIVATE ${CMAKE_SOURCE_DIR}/CHTL/include)
-add_test(NAME ValidatorTest COMMAND ValidatorTest)
-target_include_directories(ValidatorTest PRIVATE ../../third-party)
-target_include_directories(CJMODAPITest PRIVATE ../../third-party ../CHTLJS/include)
-
-add_executable(ArithmeticTest ArithmeticTest.cpp)
-target_link_libraries(ArithmeticTest PRIVATE CHTL gtest_main)
-target_include_directories(ArithmeticTest PRIVATE ${CMAKE_SOURCE_DIR}/CHTL/include)
-add_test(NAME ArithmeticTest COMMAND ArithmeticTest)
-target_include_directories(ArithmeticTest PRIVATE ../../third-party)
-
-add_executable(AttributeAccessTest AttributeAccessTest.cpp)
-target_link_libraries(AttributeAccessTest PRIVATE CHTL gtest_main)
-target_include_directories(AttributeAccessTest PRIVATE ${CMAKE_SOURCE_DIR}/CHTL/include)
-add_test(NAME AttributeAccessTest COMMAND AttributeAccessTest)
-target_include_directories(AttributeAccessTest PRIVATE ../../third-party)
+# Add extra include directories for JS tests
+target_include_directories(CHTLJSGeneratorTest PRIVATE ../CHTLJS/include)
+target_include_directories(SerializationTest PRIVATE ../CHTLJS/include)
+target_include_directories(ModuleTest PRIVATE ../CHTLJS/include)
+target_include_directories(CJMODAPITest PRIVATE ../CHTLJS/include)

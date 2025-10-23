@@ -42,6 +42,7 @@ namespace CHTL
         NumberLiteral,
         StringLiteral,
         Identifier,
+        PrefixExpression,
         InfixExpression,
         ConditionalExpression,
         VariableAccess,

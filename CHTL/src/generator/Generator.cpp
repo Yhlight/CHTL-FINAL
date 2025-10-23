@@ -93,8 +93,19 @@ namespace CHTL
             case NodeType::Else:
                 visit(static_cast<ElseNode*>(node), context);
                 break;
+            case NodeType::Use:
+                visit(static_cast<UseNode*>(node), context);
+                break;
             default:
                 throw std::runtime_error("Unknown AST node type in Generator");
+        }
+    }
+
+    void Generator::visit(UseNode* node, EvalContext& context)
+    {
+        if (!node->path.empty() && node->path[0] == "html5")
+        {
+            m_output << "<!DOCTYPE html>";
         }
     }
 

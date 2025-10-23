@@ -61,6 +61,7 @@ namespace CHTL
         void visit(StyleProperty* node, EvalContext& context, std::stringstream& style_stream);
         void visit(IfNode* node, EvalContext& context);
         void visit(ElseNode* node, EvalContext& context);
+        void visit(UseNode* node, EvalContext& context);
 
         // CHTL JS AST visitors
         void visit(CHTLJS::AstNode* node, EvalContext& context);

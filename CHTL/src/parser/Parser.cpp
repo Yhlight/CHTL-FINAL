@@ -39,47 +39,76 @@ void Parser::nextToken() {
   m_peekToken = m_lexer.NextToken();
 }
 
-std::unique_ptr<ProgramNode> Parser::ParseProgram() {
-  auto program = std::make_unique<ProgramNode>();
+std::unique_ptr<ProgramNode> Parser::ParseProgram()
+{
+    auto program = std::make_unique<ProgramNode>();
 
-  if (!m_current_file_path.empty()) {
-    std::filesystem::path canonical_path =
-        std::filesystem::weakly_canonical(m_current_file_path);
-    s_parsed_files.insert(canonical_path.string());
-  }
-
-  while (m_currentToken.type != TokenType::END_OF_FILE) {
-    std::unique_ptr<AstNode> stmt = nullptr;
-    if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE) {
-      stmt = parseTemplateDefinition();
-      if (stmt) {
-        auto *tmpl_def = static_cast<TemplateDefinitionNode *>(stmt.get());
-        program->templates[m_current_namespace][tmpl_def->name] = tmpl_def;
-      }
-    } else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM) {
-      stmt = parseCustomDefinitionNode();
-      if (stmt) {
-        auto *custom_def = static_cast<CustomDefinitionNode *>(stmt.get());
-        program->customs[m_current_namespace][custom_def->name] = custom_def;
-      }
-    } else if (m_currentToken.type == TokenType::KEYWORD_IMPORT) {
-      stmt = parseImportNode(*program);
-    } else if (m_currentToken.type == TokenType::KEYWORD_NAMESPACE) {
-      stmt = parseNamespaceNode(*program);
-    } else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION) {
-      stmt = parseConfigurationStatement();
-    } else if (m_currentToken.type == TokenType::KEYWORD_USE) {
-      stmt = parseUseStatement();
-    } else {
-      stmt = parseStatement();
+    if (!m_current_file_path.empty())
+    {
+        std::filesystem::path canonical_path = std::filesystem::weakly_canonical(m_current_file_path);
+        s_parsed_files.insert(canonical_path.string());
     }
 
-    if (stmt) {
-      program->children.push_back(std::move(stmt));
+    // `use` statements are only allowed at the beginning of the file.
+    if (m_currentToken.type == TokenType::KEYWORD_USE)
+    {
+        auto use_stmt = parseUseStatement();
+        if (use_stmt)
+        {
+            program->children.push_back(std::move(use_stmt));
+        }
+        nextToken(); // Consume the semicolon
     }
-    nextToken();
-  }
-  return program;
+
+    while (m_currentToken.type != TokenType::END_OF_FILE)
+    {
+        std::unique_ptr<AstNode> stmt = nullptr;
+        if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE)
+        {
+            stmt = parseTemplateDefinition();
+            if (stmt)
+            {
+                auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
+                program->templates[m_current_namespace][tmpl_def->name] = tmpl_def;
+            }
+        }
+        else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM)
+        {
+            stmt = parseCustomDefinitionNode();
+            if (stmt)
+            {
+                auto* custom_def = static_cast<CustomDefinitionNode*>(stmt.get());
+                program->customs[m_current_namespace][custom_def->name] = custom_def;
+            }
+        }
+        else if (m_currentToken.type == TokenType::KEYWORD_IMPORT)
+        {
+            stmt = parseImportNode(*program);
+        }
+        else if (m_currentToken.type == TokenType::KEYWORD_NAMESPACE)
+        {
+            stmt = parseNamespaceNode(*program);
+        }
+        else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION)
+        {
+            stmt = parseConfigurationStatement();
+        }
+        else if (m_currentToken.type == TokenType::KEYWORD_USE)
+        {
+            m_errors.push_back("use statement is only allowed at the beginning of the file.");
+        }
+        else
+        {
+            stmt = parseStatement();
+        }
+
+        if (stmt)
+        {
+            program->children.push_back(std::move(stmt));
+        }
+        nextToken();
+    }
+    return program;
 }
 
 bool Parser::expectPeek(TokenType t) {
@@ -562,37 +591,49 @@ std::unique_ptr<NameConfigNode> Parser::parseNameConfigNode() {
   return node;
 }
 
-std::unique_ptr<UseNode> Parser::parseUseStatement() {
-  auto node = std::make_unique<UseNode>();
-  nextToken();
+std::unique_ptr<UseNode> Parser::parseUseStatement()
+{
+    auto node = std::make_unique<UseNode>();
+    nextToken(); // consume 'use'
 
-  while (m_currentToken.type != TokenType::SEMICOLON &&
-         m_currentToken.type != TokenType::END_OF_FILE) {
-    std::string path_part;
-    if (m_currentToken.type == TokenType::AT) {
-      path_part = "@";
-      nextToken();
-      if (m_currentToken.type != TokenType::IDENT) {
-        m_errors.push_back("Expected identifier after '@' in use statement.");
-        return nullptr;
-      }
-      path_part += m_currentToken.literal;
-      node->path.push_back(path_part);
-    } else if (m_currentToken.type == TokenType::IDENT ||
-               m_currentToken.type == TokenType::KEYWORD_HTML5) {
-      node->path.push_back(m_currentToken.literal);
-    } else {
-      m_errors.push_back("Invalid token in use statement: " +
-                         m_currentToken.ToString());
-      return nullptr;
+    if (m_currentToken.type == TokenType::KEYWORD_HTML5)
+    {
+        node->path.push_back(m_currentToken.literal);
+        nextToken();
     }
-    nextToken();
-  }
-  if (m_currentToken.type != TokenType::SEMICOLON) {
-    m_errors.push_back("Expected ';' after use statement.");
-    return nullptr;
-  }
-  return node;
+    else if (m_currentToken.type == TokenType::AT)
+    {
+        nextToken(); // consume '@'
+        if (m_currentToken.type != TokenType::IDENT)
+        {
+            m_errors.push_back("Expected configuration type after '@' in use statement.");
+            return nullptr;
+        }
+        std::string config_type = "@" + m_currentToken.literal;
+        node->path.push_back(config_type);
+        nextToken();
+
+        if (m_currentToken.type != TokenType::IDENT)
+        {
+            m_errors.push_back("Expected configuration name in use statement.");
+            return nullptr;
+        }
+        node->path.push_back(m_currentToken.literal);
+        nextToken();
+    }
+    else
+    {
+        m_errors.push_back("Invalid token in use statement. Expected 'html5' or '@Config'.");
+        return nullptr;
+    }
+
+    if (m_currentToken.type != TokenType::SEMICOLON)
+    {
+        m_errors.push_back("Expected ';' after use statement.");
+        return nullptr;
+    }
+
+    return node;
 }
 
 std::unique_ptr<ImportNode> Parser::parseImportNode(ProgramNode &program) {

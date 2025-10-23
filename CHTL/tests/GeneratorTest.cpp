@@ -153,6 +153,24 @@ TEST_CASE("Generator handles except constraints", "[generator][except]")
     REQUIRE(html_output == expected_html);
 }
 
+TEST_CASE("Generator correctly handles use html5 statement", "[generator][use]")
+{
+    std::string input = R"(
+        use html5;
+        div {}
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+    checkParserErrors(p);
+
+    auto bridge = std::make_shared<CHTL::ConcreteSaltBridge>();
+    CHTL::Generator generator(bridge);
+    std::string html_output = generator.Generate(program.get());
+    std::string expected_html = "<!DOCTYPE html><div></div>";
+    REQUIRE(html_output == expected_html);
+}
+
 TEST_CASE("Generator correctly handles element template usage", "[generator][template]")
 {
     std::string input = R"(

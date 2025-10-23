@@ -6,15 +6,15 @@
 
 namespace CHTL
 {
-    struct UseNode : public AstNode
+    class UseNode : public AstNode
     {
-        std::vector<std::string> path; // e.g., {"[Configuration]", "@Config", "Basic"} or {"html5"}
+    public:
+        std::vector<std::string> path;
 
         NodeType GetType() const override { return NodeType::Use; }
+
         std::string ToString() const override;
         std::unique_ptr<AstNode> clone() const override;
-
         void serialize(std::ostream& os) const override;
-        static std::unique_ptr<UseNode> deserialize(std::istream& is);
     };
 }

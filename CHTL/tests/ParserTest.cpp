@@ -727,41 +727,59 @@ TEST_CASE("Test parsing Configuration with a Name block", "[parser]")
     REQUIRE(name_config_node->settings.at("KEYWORD_TEXT") == "text_element");
 }
 
-TEST_CASE("Test parsing a simple use statement", "[parser]")
+TEST_CASE("Test parsing use statements", "[parser][use]")
 {
-    std::string input = "use html5;";
-    CHTL::Lexer l(input);
-    CHTL::Parser p(l);
-    auto program = p.ParseProgram();
+    SECTION("Test parsing a simple use statement")
+    {
+        std::string input = "use html5;";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
 
-    checkParserErrors(p);
+        checkParserErrors(p);
 
-    REQUIRE(program != nullptr);
-    REQUIRE(program->children.size() == 1);
+        REQUIRE(program != nullptr);
+        REQUIRE(program->children.size() == 1);
 
-    auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[0].get());
-    REQUIRE(use_node != nullptr);
-    REQUIRE(use_node->path.size() == 1);
-    REQUIRE(use_node->path[0] == "html5");
-}
+        auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[0].get());
+        REQUIRE(use_node != nullptr);
+        REQUIRE(use_node->path.size() == 1);
+        REQUIRE(use_node->path[0] == "html5");
+    }
 
-TEST_CASE("Test parsing a complex use statement for config", "[parser]")
-{
-    std::string input = "use @Config Basic;";
-    CHTL::Lexer l(input);
-    CHTL::Parser p(l);
-    auto program = p.ParseProgram();
+    SECTION("Test parsing a complex use statement for config")
+    {
+        std::string input = "use @Config Basic;";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
 
-    checkParserErrors(p);
+        checkParserErrors(p);
 
-    REQUIRE(program != nullptr);
-    REQUIRE(program->children.size() == 1);
+        REQUIRE(program != nullptr);
+        REQUIRE(program->children.size() == 1);
 
-    auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[0].get());
-    REQUIRE(use_node != nullptr);
-    REQUIRE(use_node->path.size() == 2);
-    REQUIRE(use_node->path[0] == "@Config");
-    REQUIRE(use_node->path[1] == "Basic");
+        auto* use_node = dynamic_cast<CHTL::UseNode*>(program->children[0].get());
+        REQUIRE(use_node != nullptr);
+        REQUIRE(use_node->path.size() == 2);
+        REQUIRE(use_node->path[0] == "@Config");
+        REQUIRE(use_node->path[1] == "Basic");
+    }
+
+    SECTION("Test error on misplaced use statement")
+    {
+        std::string input = R"(
+            div {}
+            use html5;
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+
+        const auto& errors = p.GetErrors();
+        REQUIRE(errors.size() == 1);
+        REQUIRE(errors[0].find("use statement is only allowed at the beginning of the file") != std::string::npos);
+    }
 }
 
 TEST_CASE("Test parsing a simple Origin block", "[parser]")

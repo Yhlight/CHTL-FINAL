@@ -29,6 +29,8 @@ namespace CHTL
         KEYWORD_NAMESPACE,  // [Namespace]
         KEYWORD_CONFIGURATION, // [Configuration]
         KEYWORD_NAME,       // [Name]
+        KEYWORD_INFO,       // [Info]
+        KEYWORD_EXPORT,     // [Export]
 
         KEYWORD_INHERIT,    // inherit
         KEYWORD_DELETE,     // delete

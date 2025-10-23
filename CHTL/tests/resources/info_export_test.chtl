@@ -1,0 +1,30 @@
+[Info]
+{
+    name: "TestModule";
+    version: "1.0.0";
+    author: "Test Author";
+}
+
+[Export]
+{
+    [Custom] @Style TestStyle1, TestStyle2;
+    [Template] @Element TestElement;
+}
+
+[Template] @Element TestElement
+{
+    div
+    {
+        text: "This is a test element.";
+    }
+}
+
+[Custom] @Style TestStyle1
+{
+    color: "red";
+}
+
+[Custom] @Style TestStyle2
+{
+    font-size: "16px";
+}

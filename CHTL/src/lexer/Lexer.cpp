@@ -171,6 +171,14 @@ Token Lexer::readBlockKeyword()
     {
         return {TokenType::KEYWORD_NAME, "[Name]", startLine, startColumn};
     }
+    else if (identifier == "Info")
+    {
+        return {TokenType::KEYWORD_INFO, "[Info]", startLine, startColumn};
+    }
+    else if (identifier == "Export")
+    {
+        return {TokenType::KEYWORD_EXPORT, "[Export]", startLine, startColumn};
+    }
 
     return {TokenType::ILLEGAL, "[" + identifier + "]", startLine, startColumn};
 }

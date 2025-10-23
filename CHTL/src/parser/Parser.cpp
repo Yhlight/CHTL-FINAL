@@ -105,6 +105,14 @@ std::unique_ptr<ProgramNode> Parser::ParseProgram()
         {
             m_errors.push_back("use statement is only allowed at the beginning of the file.");
         }
+        else if (m_currentToken.type == TokenType::KEYWORD_INFO)
+        {
+            stmt = parseInfoNode();
+        }
+        else if (m_currentToken.type == TokenType::KEYWORD_EXPORT)
+        {
+            stmt = parseExportNode();
+        }
         else
         {
             stmt = parseStatement();
@@ -1614,5 +1622,106 @@ std::unique_ptr<ScriptNode> Parser::parseScriptNode() {
   }
 
   return node;
+}
+
+std::unique_ptr<InfoNode> Parser::parseInfoNode() {
+    auto node = std::make_unique<InfoNode>();
+    nextToken(); // consume [Info]
+
+    if (m_currentToken.type != TokenType::LBRACE) {
+        m_errors.push_back("Expected '{' for [Info] block.");
+        return nullptr;
+    }
+    nextToken(); // consume '{'
+
+    while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE) {
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected identifier for info key.");
+            return nullptr;
+        }
+        std::string key = m_currentToken.literal;
+
+        if (!expectPeek(TokenType::COLON)) {
+            m_errors.push_back("Expected ':' after info key.");
+            return nullptr;
+        }
+        nextToken(); // consume ':'
+
+        if (m_currentToken.type != TokenType::STRING) {
+            m_errors.push_back("Expected string for info value.");
+            return nullptr;
+        }
+        node->metadata[key] = m_currentToken.literal;
+
+        if (m_peekToken.type == TokenType::SEMICOLON) {
+            nextToken();
+        }
+        nextToken();
+    }
+
+    if (m_currentToken.type != TokenType::RBRACE) {
+        m_errors.push_back("Expected '}' to close [Info] block.");
+        return nullptr;
+    }
+
+    return node;
+}
+
+std::unique_ptr<ExportNode> Parser::parseExportNode() {
+    auto node = std::make_unique<ExportNode>();
+    nextToken(); // consume [Export]
+
+    if (m_currentToken.type != TokenType::LBRACE) {
+        m_errors.push_back("Expected '{' for [Export] block.");
+        return nullptr;
+    }
+    nextToken(); // consume '{'
+
+    while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE) {
+        ExportItem item;
+        std::string type_str;
+
+        if (m_currentToken.type == TokenType::KEYWORD_CUSTOM || m_currentToken.type == TokenType::KEYWORD_TEMPLATE || m_currentToken.type == TokenType::KEYWORD_ORIGIN || m_currentToken.type == TokenType::KEYWORD_CONFIGURATION) {
+            type_str += m_currentToken.literal;
+            nextToken();
+        }
+
+        if (m_currentToken.type == TokenType::AT) {
+            type_str += m_currentToken.literal;
+            nextToken();
+            if (m_currentToken.type != TokenType::IDENT) {
+                m_errors.push_back("Expected type identifier after '@'.");
+                return nullptr;
+            }
+            type_str += m_currentToken.literal;
+            nextToken();
+        }
+        item.type = type_str;
+
+        while (m_currentToken.type != TokenType::SEMICOLON && m_currentToken.type != TokenType::END_OF_FILE) {
+            if (m_currentToken.type != TokenType::IDENT) {
+                m_errors.push_back("Expected identifier for export name.");
+                return nullptr;
+            }
+            item.names.push_back(m_currentToken.literal);
+            nextToken();
+            if (m_currentToken.type == TokenType::COMMA) {
+                nextToken();
+            }
+        }
+        node->items.push_back(item);
+
+        if (m_currentToken.type != TokenType::SEMICOLON) {
+            m_errors.push_back("Expected ';' after export item list.");
+            return nullptr;
+        }
+        nextToken();
+    }
+
+    if (m_currentToken.type != TokenType::RBRACE) {
+        m_errors.push_back("Expected '}' to close [Export] block.");
+        return nullptr;
+    }
+    return node;
 }
 } // namespace CHTL

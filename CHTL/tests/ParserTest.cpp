@@ -65,6 +65,48 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test parsing Info and Export blocks", "[parser][module]")
+{
+    std::string input = R"(
+        [Info]
+        {
+            name: "TestModule";
+            version: "1.0.0";
+        }
+
+        [Export]
+        {
+            [Custom] @Style TestStyle1, TestStyle2;
+            [Template] @Element TestElement;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->children.size() == 2);
+
+    auto* info_node = dynamic_cast<CHTL::InfoNode*>(program->children[0].get());
+    REQUIRE(info_node != nullptr);
+    REQUIRE(info_node->metadata.size() == 2);
+    REQUIRE(info_node->metadata.at("name") == "TestModule");
+    REQUIRE(info_node->metadata.at("version") == "1.0.0");
+
+    auto* export_node = dynamic_cast<CHTL::ExportNode*>(program->children[1].get());
+    REQUIRE(export_node != nullptr);
+    REQUIRE(export_node->items.size() == 2);
+    REQUIRE(export_node->items[0].type == "[Custom]@Style");
+    REQUIRE(export_node->items[0].names.size() == 2);
+    REQUIRE(export_node->items[0].names[0] == "TestStyle1");
+    REQUIRE(export_node->items[0].names[1] == "TestStyle2");
+    REQUIRE(export_node->items[1].type == "[Template]@Element");
+    REQUIRE(export_node->items[1].names.size() == 1);
+    REQUIRE(export_node->items[1].names[0] == "TestElement");
+}
+
 TEST_CASE("Test Namespace Functionality", "[parser][namespace]")
 {
     SECTION("Nested namespaces")

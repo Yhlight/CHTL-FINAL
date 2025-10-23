@@ -49,6 +49,8 @@ namespace CHTL
         AttributeAccess,
         ExpressionList,
         DecoupledStringExpression,
+        Info,
+        Export,
     };
 
     // AST节点基类
@@ -89,3 +91,5 @@ namespace CHTL
 #include "StylePropertyNode.h"
 #include "StyleRuleNode.h"
 #include "ExpressionNode.h"
+#include "InfoNode.h"
+#include "ExportNode.h"

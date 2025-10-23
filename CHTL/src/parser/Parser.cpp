@@ -92,6 +92,14 @@ std::unique_ptr<ProgramNode> Parser::ParseProgram()
         else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION)
         {
             stmt = parseConfigurationStatement();
+            if (stmt)
+            {
+                auto* config_node = static_cast<ConfigurationNode*>(stmt.get());
+                if (!config_node->name.empty())
+                {
+                    program->configurations[config_node->name] = config_node;
+                }
+            }
         }
         else if (m_currentToken.type == TokenType::KEYWORD_USE)
         {
@@ -702,6 +710,10 @@ void Parser::processSingleImport(ProgramNode &program, const std::string &path,
             break;
           }
         }
+      } else if (import_node->import_scope == "[Configuration]") {
+          if(imported_program->configurations.count(import_node->imported_name)) {
+              found_node = imported_program->configurations.at(import_node->imported_name);
+          }
       }
 
       if (found_node) {
@@ -716,6 +728,8 @@ void Parser::processSingleImport(ProgramNode &program, const std::string &path,
         } else if (import_node->import_scope == "[Custom]") {
           program.customs[m_current_namespace][final_name] =
               static_cast<const CustomDefinitionNode *>(cloned_node.get());
+        } else if (import_node->import_scope == "[Configuration]") {
+            program.configurations[final_name] = static_cast<const ConfigurationNode*>(cloned_node.get());
         }
 
         program.children.push_back(std::move(cloned_node));
@@ -798,7 +812,8 @@ std::unique_ptr<ImportNode> Parser::parseImportNode(ProgramNode &program) {
 
   if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE ||
       m_currentToken.type == TokenType::KEYWORD_CUSTOM ||
-      m_currentToken.type == TokenType::KEYWORD_ORIGIN) {
+      m_currentToken.type == TokenType::KEYWORD_ORIGIN ||
+      m_currentToken.type == TokenType::KEYWORD_CONFIGURATION) {
     node->import_scope = m_currentToken.literal;
     nextToken();
 

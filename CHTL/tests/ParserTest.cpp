@@ -191,6 +191,26 @@ TEST_CASE("Test Import Functionality", "[parser][import]")
         REQUIRE(origin_node->name == "myHtml");
         REQUIRE(origin_node->content.find("<h1>Hello, World!</h1>") != std::string::npos);
     }
+
+  SECTION("Importing a named configuration")
+  {
+    std::string main_file_content = R"([Import] [Configuration] @Config MyConfig from "./resources/config_to_import.chtl";)";
+    CHTL::Parser::ResetParsedFiles();
+
+    CHTL::Lexer l(main_file_content);
+    CHTL::Parser p(l, main_file_path);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    REQUIRE(program->configurations.count("MyConfig") == 1);
+    const auto* config_node = program->configurations.at("MyConfig");
+    REQUIRE(config_node != nullptr);
+    REQUIRE(config_node->name == "MyConfig");
+    REQUIRE(config_node->settings.count("setting") == 1);
+    REQUIRE(config_node->settings.at("setting") == "value");
+  }
 }
 
 TEST_CASE("Test parsing a chained conditional expression", "[parser][expression]")

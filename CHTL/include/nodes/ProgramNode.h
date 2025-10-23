@@ -9,16 +9,19 @@ namespace CHTL
 {
     struct TemplateDefinitionNode; // Forward declaration
     struct CustomDefinitionNode; // Forward declaration
+    struct ConfigurationNode; // Forward declaration
 
     // Using a nested map for namespaced definitions: namespace -> definition_name -> node
     using TemplateMap = std::unordered_map<std::string, std::unordered_map<std::string, const TemplateDefinitionNode*>>;
     using CustomMap = std::unordered_map<std::string, std::unordered_map<std::string, const CustomDefinitionNode*>>;
+    using ConfigurationMap = std::unordered_map<std::string, const ConfigurationNode*>;
 
     struct ProgramNode : public AstNode
     {
         std::vector<std::unique_ptr<AstNode>> children;
         TemplateMap templates;
         CustomMap customs;
+        ConfigurationMap configurations;
         std::vector<std::unique_ptr<ProgramNode>> imported_programs; // To hold ownership
 
         NodeType GetType() const override { return NodeType::Program; }

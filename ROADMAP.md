@@ -28,7 +28,7 @@
 | 导入 (`[Import]`) | ✅ 已完成 | 已支持 CHTL、CSS、JS、HTML 文件和通配符导入。 |
 | 命名空间 (`[Namespace]`) | ✅ 已完成 | 已支持嵌套命名空间和冲突检测。 |
 | 约束 (`except`) | ✅ 已完成 | |
-| 配置组 (`[Configuration]`) | ⚠️ 部分实现 | 基础功能已存在，但 `[Name]` 块和导入配置功能不完整。 |
+| 配置组 (`[Configuration]`) | ✅ 已完成 | |
 | use | ✅ 已完成 | |
 
 ## 2. CHTL JS

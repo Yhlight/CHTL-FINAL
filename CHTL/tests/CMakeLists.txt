@@ -17,6 +17,7 @@ add_chkl_test(LexerTest LexerTest.cpp)
 add_chkl_test(ParserTest ParserTest.cpp)
 add_chkl_test(ArithmeticTest ArithmeticTest.cpp)
 add_chkl_test(AttributeAccessTest AttributeAccessTest.cpp)
+add_chkl_test(CustomizationTest CustomizationTest.cpp)
 
 # CHTL JS Tests
 add_chkl_test(CHTLJSLexerTest CHTLJSLexerTest.cpp)

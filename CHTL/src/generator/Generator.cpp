@@ -498,9 +498,8 @@ namespace CHTL
                     applyStyleTemplate(tmpl, local_context, inline_properties);
                 }
             }
-            else if (child->GetType() == NodeType::CustomUsage)
+            else if (auto* usage = dynamic_cast<CustomUsageNode*>(child.get()))
             {
-                 auto* usage = static_cast<CustomUsageNode*>(child.get());
                  const CustomDefinitionNode* custom_def = nullptr;
                  if (m_programNode->customs.count(local_context.current_namespace) && m_programNode->customs.at(local_context.current_namespace).count(usage->name)) {
                      custom_def = m_programNode->customs.at(local_context.current_namespace).at(usage->name);

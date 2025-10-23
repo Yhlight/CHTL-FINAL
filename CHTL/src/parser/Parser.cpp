@@ -22,8 +22,6 @@ std::unordered_map<TokenType, Parser::Precedence> Parser::precedences = {
     {TokenType::POWER, Parser::Precedence::POWER},
     {TokenType::GT, Parser::Precedence::COMPARE},
     {TokenType::LT, Parser::Precedence::COMPARE},
-    {TokenType::LOGICAL_AND, Parser::Precedence::LOGICAL_AND},
-    {TokenType::LOGICAL_OR, Parser::Precedence::LOGICAL_OR},
     {TokenType::QUESTION, Parser::Precedence::CONDITIONAL},
     {TokenType::DOT, Parser::Precedence::CALL},
 };
@@ -143,6 +141,8 @@ std::unique_ptr<AstNode> Parser::parseStatement() {
     return parseScriptNode();
   } else if (m_currentToken.type == TokenType::KEYWORD_IF) {
     return parseIfChain();
+  } else if (m_currentToken.type == TokenType::AT) {
+    return parseAtUsage();
   }
   return nullptr;
 }
@@ -383,28 +383,7 @@ std::unique_ptr<InsertSpecializationNode> Parser::parseInsertSpecialization() {
     node->position = m_currentToken.literal;
     nextToken(); // consume position keyword
 
-    std::string selector;
-    if (m_currentToken.type == TokenType::IDENT) {
-      selector += m_currentToken.literal;
-      nextToken();
-      if (m_currentToken.type == TokenType::LBRACKET) {
-        selector += m_currentToken.literal;
-        nextToken();
-        if (m_currentToken.type == TokenType::NUMBER) {
-          selector += m_currentToken.literal;
-          nextToken();
-          if (m_currentToken.type == TokenType::RBRACKET) {
-            selector += m_currentToken.literal;
-            nextToken();
-          } else {
-            m_errors.push_back("Expected ']' to close selector index.");
-          }
-        } else {
-          m_errors.push_back("Expected number for selector index.");
-        }
-      }
-    }
-
+    std::string selector = parseSelector();
     if (selector.empty()) {
       m_errors.push_back("Expected target selector after '" + node->position +
                          "'.");
@@ -440,6 +419,7 @@ std::unique_ptr<InsertSpecializationNode> Parser::parseInsertSpecialization() {
     if (stmt) {
       node->content.push_back(std::move(stmt));
     }
+    nextToken();
   }
 
   if (m_currentToken.type != TokenType::RBRACE) {
@@ -948,19 +928,47 @@ std::unique_ptr<AstNode> Parser::parseAtUsage() {
   }
 }
 
+std::string Parser::parseSelector() {
+    if (m_currentToken.type != TokenType::IDENT) {
+        m_errors.push_back("Expected an identifier to start the selector.");
+        return "";
+    }
+    std::string selector = m_currentToken.literal;
+    nextToken();
+
+    if (m_currentToken.type == TokenType::LBRACKET) {
+        selector += m_currentToken.literal; // Append '['
+        nextToken(); // consume '['
+
+        if (m_currentToken.type != TokenType::NUMBER) {
+            m_errors.push_back("Expected number for selector index.");
+            return "";
+        }
+        selector += m_currentToken.literal; // Append number
+        nextToken(); // consume number
+
+        if (m_currentToken.type != TokenType::RBRACKET) {
+            m_errors.push_back("Expected ']' to close selector index.");
+            return "";
+        }
+        selector += m_currentToken.literal; // Append ']'
+        nextToken(); // consume ']'
+    }
+    return selector;
+}
+
 std::unique_ptr<DeleteSpecializationNode> Parser::parseDeleteSpecialization() {
-  auto node = std::make_unique<DeleteSpecializationNode>();
-  nextToken();
-  if (m_currentToken.type != TokenType::IDENT) {
-    m_errors.push_back("Expected property name after 'delete'.");
-    return nullptr;
-  }
-  node->property_name = m_currentToken.literal;
-  if (!expectPeek(TokenType::SEMICOLON)) {
-    m_errors.push_back("Expected ';' after delete statement.");
-    return nullptr;
-  }
-  return node;
+    auto node = std::make_unique<DeleteSpecializationNode>();
+    nextToken(); // consume 'delete'
+    node->property_name = parseSelector();
+    if (node->property_name.empty()) {
+        return nullptr; // Error occurred in parseSelector
+    }
+    if (m_currentToken.type != TokenType::SEMICOLON) {
+        m_errors.push_back("Expected ';' after delete statement.");
+        return nullptr;
+    }
+    return node;
 }
 
 std::unique_ptr<TemplateDefinitionNode> Parser::parseTemplateDefinition() {
@@ -1225,8 +1233,6 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence) {
   std::unique_ptr<Expression> leftExp;
   if (m_currentToken.type == TokenType::NUMBER) {
     leftExp = parseNumberLiteral();
-  } else if (m_currentToken.type == TokenType::LOGICAL_NOT) {
-    leftExp = parsePrefixExpression();
   } else if (m_currentToken.type == TokenType::IDENT) {
     if (m_peekToken.type == TokenType::LPAREN) {
       leftExp = parseVariableAccessExpression();
@@ -1252,8 +1258,7 @@ std::unique_ptr<Expression> Parser::parseExpression(Precedence precedence) {
     if (peekType == TokenType::PLUS || peekType == TokenType::MINUS ||
         peekType == TokenType::ASTERISK || peekType == TokenType::SLASH ||
         peekType == TokenType::GT || peekType == TokenType::LT ||
-        peekType == TokenType::MODULO || peekType == TokenType::POWER ||
-        peekType == TokenType::LOGICAL_AND || peekType == TokenType::LOGICAL_OR) {
+        peekType == TokenType::MODULO || peekType == TokenType::POWER) {
       nextToken();
       leftExp = parseInfixExpression(std::move(leftExp));
     } else if (peekType == TokenType::QUESTION) {
@@ -1299,14 +1304,6 @@ Parser::parseInfixExpression(std::unique_ptr<Expression> left) {
   return expr;
 }
 
-std::unique_ptr<Expression> Parser::parsePrefixExpression() {
-    auto expr = std::make_unique<PrefixExpression>();
-    expr->op = m_currentToken.literal;
-    nextToken();
-    expr->right = parseExpression(PREFIX);
-    return expr;
-}
-
 std::unique_ptr<Expression>
 Parser::parseConditionalExpression(std::unique_ptr<Expression> condition) {
   auto expr = std::make_unique<ConditionalExpression>();
@@ -1316,7 +1313,7 @@ Parser::parseConditionalExpression(std::unique_ptr<Expression> condition) {
   if (m_peekToken.type == TokenType::COLON) {
     nextToken();
     nextToken();
-    expr->alternative = parseExpression((Precedence)(CONDITIONAL - 1));
+    expr->alternative = parseExpression(LOWEST);
   } else {
     expr->alternative = nullptr;
   }

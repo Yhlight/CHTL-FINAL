@@ -55,10 +55,6 @@ namespace CHTL
 
     Value Value::operator/(const Value& other) const
     {
-        if (!other.unit.empty())
-        {
-            throw std::runtime_error("Invalid operation: cannot divide by a unit '" + other.unit + "'.");
-        }
         if (other.num == 0)
         {
             throw std::runtime_error("Division by zero.");
@@ -66,7 +62,19 @@ namespace CHTL
         Value val;
         val.type = ValueType::NUMBER;
         val.num = num / other.num;
-        val.unit = unit;
+
+        if (unit == other.unit)
+        {
+            val.unit = ""; // Units cancel out
+        }
+        else if (other.unit.empty())
+        {
+            val.unit = unit; // Keep original unit
+        }
+        else
+        {
+             throw std::runtime_error("Unit mismatch: cannot divide '" + unit + "' by '" + other.unit + "'.");
+        }
         return val;
     }
 

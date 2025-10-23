@@ -205,3 +205,60 @@ TEST_CASE("Evaluator correctly handles modulo and power operators", "[evaluator]
         REQUIRE(evaluator.Eval(root.get(), context).num == 14.0);
     }
 }
+
+TEST_CASE("Evaluator handles division with units", "[evaluator]")
+{
+    CHTL::Evaluator evaluator;
+    CHTL::EvalContext context;
+
+    SECTION("Division of same units results in a unitless number")
+    {
+        auto infix = std::make_unique<CHTL::InfixExpression>();
+        auto left = std::make_unique<CHTL::NumberLiteral>();
+        left->value = 100;
+        left->unit = "px";
+        auto right = std::make_unique<CHTL::NumberLiteral>();
+        right->value = 2;
+        right->unit = "px";
+        infix->left = std::move(left);
+        infix->op = "/";
+        infix->right = std::move(right);
+
+        auto result = evaluator.Eval(infix.get(), context);
+        REQUIRE(result.num == 50.0);
+        REQUIRE(result.unit == "");
+    }
+
+    SECTION("Division by a unitless number preserves the unit")
+    {
+        auto infix = std::make_unique<CHTL::InfixExpression>();
+        auto left = std::make_unique<CHTL::NumberLiteral>();
+        left->value = 100;
+        left->unit = "px";
+        auto right = std::make_unique<CHTL::NumberLiteral>();
+        right->value = 2;
+        infix->left = std::move(left);
+        infix->op = "/";
+        infix->right = std::move(right);
+
+        auto result = evaluator.Eval(infix.get(), context);
+        REQUIRE(result.num == 50.0);
+        REQUIRE(result.unit == "px");
+    }
+
+    SECTION("Throws error for division of different units")
+    {
+        auto infix = std::make_unique<CHTL::InfixExpression>();
+        auto left = std::make_unique<CHTL::NumberLiteral>();
+        left->value = 10;
+        left->unit = "px";
+        auto right = std::make_unique<CHTL::NumberLiteral>();
+        right->value = 5;
+        right->unit = "em";
+        infix->left = std::move(left);
+        infix->op = "/";
+        infix->right = std::move(right);
+
+        REQUIRE_THROWS(evaluator.Eval(infix.get(), context));
+    }
+}

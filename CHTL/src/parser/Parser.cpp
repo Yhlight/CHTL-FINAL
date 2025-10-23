@@ -439,7 +439,12 @@ Parser::parseNamespaceNode(ProgramNode &program) {
   }
   node->name = m_currentToken.literal;
   std::string prev_namespace = m_current_namespace;
-  m_current_namespace = node->name;
+  if (m_current_namespace == GLOBAL_NAMESPACE) {
+    m_current_namespace = node->name;
+  } else {
+    m_current_namespace += "." + node->name;
+  }
+
   if (!expectPeek(TokenType::LBRACE)) {
     m_errors.push_back("Expected '{' for namespace block.");
     return nullptr;
@@ -449,22 +454,34 @@ Parser::parseNamespaceNode(ProgramNode &program) {
   while (m_currentToken.type != TokenType::RBRACE &&
          m_currentToken.type != TokenType::END_OF_FILE) {
     std::unique_ptr<AstNode> stmt = nullptr;
-    if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE) {
+    if (m_currentToken.type == TokenType::KEYWORD_NAMESPACE) {
+        stmt = parseNamespaceNode(program);
+    }
+    else if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE) {
       stmt = parseTemplateDefinition();
+      if (stmt) {
+        auto *tmpl_def = static_cast<TemplateDefinitionNode *>(stmt.get());
+        if (program.templates[m_current_namespace].count(tmpl_def->name)) {
+          m_errors.push_back("Redefinition of template '" + tmpl_def->name +
+                             "' in namespace '" + m_current_namespace + "'.");
+        }
+        program.templates[m_current_namespace][tmpl_def->name] = tmpl_def;
+      }
     } else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM) {
       stmt = parseCustomDefinitionNode();
+      if (stmt) {
+        auto *custom_def = static_cast<CustomDefinitionNode *>(stmt.get());
+        if (program.customs[m_current_namespace].count(custom_def->name)) {
+          m_errors.push_back("Redefinition of custom '" + custom_def->name +
+                             "' in namespace '" + m_current_namespace + "'.");
+        }
+        program.customs[m_current_namespace][custom_def->name] = custom_def;
+      }
     } else {
       stmt = parseStatement();
     }
 
     if (stmt) {
-      if (stmt->GetType() == NodeType::TemplateDefinition) {
-        auto *tmpl_def = static_cast<TemplateDefinitionNode *>(stmt.get());
-        program.templates[m_current_namespace][tmpl_def->name] = tmpl_def;
-      } else if (stmt->GetType() == NodeType::CustomDefinition) {
-        auto *custom_def = static_cast<CustomDefinitionNode *>(stmt.get());
-        program.customs[m_current_namespace][custom_def->name] = custom_def;
-      }
       node->children.push_back(std::move(stmt));
     }
     nextToken();

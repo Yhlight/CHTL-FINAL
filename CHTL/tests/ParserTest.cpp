@@ -65,6 +65,49 @@ TEST_CASE("Test parsing style block with identifier property", "[parser]")
     REQUIRE(value_node->value == "red");
 }
 
+TEST_CASE("Test Namespace Functionality", "[parser][namespace]")
+{
+    SECTION("Nested namespaces")
+    {
+        std::string input = R"(
+            [Namespace] MySpace {
+                [Namespace] InnerSpace {
+                    [Template] @Style MyTemplate {
+                        color: red;
+                    }
+                }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        auto program = p.ParseProgram();
+
+        checkParserErrors(p);
+
+        REQUIRE(program != nullptr);
+        REQUIRE(program->templates.count("MySpace.InnerSpace") == 1);
+        const auto& inner_space = program->templates.at("MySpace.InnerSpace");
+        REQUIRE(inner_space.count("MyTemplate") == 1);
+    }
+
+    SECTION("Conflict detection")
+    {
+        std::string input = R"(
+            [Namespace] MySpace {
+                [Template] @Style MyTemplate { color: red; }
+                [Template] @Style MyTemplate { color: blue; }
+            }
+        )";
+        CHTL::Lexer l(input);
+        CHTL::Parser p(l);
+        p.ParseProgram();
+
+        const auto& errors = p.GetErrors();
+        REQUIRE(errors.size() == 1);
+        REQUIRE(errors[0].find("Redefinition of template 'MyTemplate'") != std::string::npos);
+    }
+}
+
 TEST_CASE("Test Import Functionality", "[parser][import]")
 {
     // The test executable runs from `CHTL/build/tests/`.

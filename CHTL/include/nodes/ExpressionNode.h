@@ -127,4 +127,18 @@ namespace CHTL
         void serialize(std::ostream& os) const override;
         static std::unique_ptr<AttributeAccessExpression> deserialize(std::istream& is);
     };
+
+    // 字符串解耦表达式节点
+    struct DecoupledStringExpression : public Expression
+    {
+        std::string string_part;
+        std::unique_ptr<NumberLiteral> number_part;
+
+        NodeType GetType() const override { return NodeType::DecoupledStringExpression; }
+        std::string ToString() const override { return string_part + " " + number_part->ToString(); }
+        std::unique_ptr<AstNode> clone() const override;
+
+        void serialize(std::ostream& os) const override;
+        static std::unique_ptr<DecoupledStringExpression> deserialize(std::istream& is);
+    };
 }

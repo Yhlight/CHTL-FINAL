@@ -266,6 +266,16 @@ namespace CHTL
                 }
                 throw std::runtime_error("Attribute '" + attr_access_node->attribute_name + "' not found for selector '" + attr_access_node->selector + "'.");
             }
+            case NodeType::DecoupledStringExpression:
+            {
+                auto decoupled_node = static_cast<DecoupledStringExpression*>(node);
+                Value val;
+                val.type = ValueType::NUMBER;
+                val.num = decoupled_node->number_part->value;
+                val.unit = decoupled_node->number_part->unit;
+                val.string_template = decoupled_node->string_part;
+                return val;
+            }
             default:
                 throw std::runtime_error("Unknown expression node type in Evaluator.");
         }

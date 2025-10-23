@@ -1321,10 +1321,77 @@ std::unique_ptr<Expression> Parser::parseSelectorIdentifier()
     return ident;
 }
 
-std::unique_ptr<Expression> Parser::parseIdentifier() {
-  auto ident = std::make_unique<Identifier>();
-  ident->value = m_currentToken.literal;
-  return ident;
+std::unique_ptr<Expression> Parser::parseIdentifier()
+{
+    // Check if it's a decoupled string expression like 'linear 0.5s all'
+    if (m_peekToken.type == TokenType::IDENT || m_peekToken.type == TokenType::NUMBER)
+    {
+        std::vector<Token> tokens;
+        tokens.push_back(m_currentToken);
+
+        // Greedily consume subsequent identifiers and numbers
+        while (m_peekToken.type == TokenType::IDENT || m_peekToken.type == TokenType::NUMBER)
+        {
+            nextToken();
+            tokens.push_back(m_currentToken);
+        }
+
+        // Find the single number literal in the token sequence
+        auto num_it = std::find_if(tokens.begin(), tokens.end(), [](const Token& t){
+            return t.type == TokenType::NUMBER;
+        });
+
+        if (num_it != tokens.end())
+        {
+             // Check if there is only one number
+            if (std::count_if(tokens.begin(), tokens.end(), [](const Token& t){ return t.type == TokenType::NUMBER; }) == 1)
+            {
+                auto node = std::make_unique<DecoupledStringExpression>();
+                node->number_part = std::make_unique<NumberLiteral>();
+                node->number_part->value = std::stod(num_it->literal);
+
+                std::string unit_str;
+                auto next_token_it = std::next(num_it);
+                if (next_token_it != tokens.end() && next_token_it->type == TokenType::IDENT)
+                {
+                    node->number_part->unit = next_token_it->literal;
+                }
+
+                std::stringstream ss;
+                for (auto it = tokens.begin(); it != tokens.end(); ++it)
+                {
+                    if (it != tokens.begin()) {
+                        ss << " ";
+                    }
+
+                    if (it == num_it)
+                    {
+                        ss << "%s"; // Placeholder for the number
+                    }
+                    else if (it == next_token_it && !node->number_part->unit.empty())
+                    {
+                        // This token is the unit, so we effectively remove it from the stream
+                        // by not appending it. We also pop the last space.
+                        std::string s = ss.str();
+                        s.pop_back();
+                        ss.str("");
+                        ss << s;
+                    }
+                    else
+                    {
+                        ss << it->literal;
+                    }
+                }
+                node->string_part = ss.str();
+                return node;
+            }
+        }
+    }
+
+    // Default case: simple identifier
+    auto ident = std::make_unique<Identifier>();
+    ident->value = m_currentToken.literal;
+    return ident;
 }
 
 std::unique_ptr<Expression> Parser::parseStringLiteral() {

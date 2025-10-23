@@ -129,6 +129,37 @@ TEST_CASE("Evaluator correctly evaluates expressions", "[evaluator]")
     }
 }
 
+TEST_CASE("Evaluator handles decoupled string expressions", "[evaluator][expression]")
+{
+    CHTL::Evaluator evaluator;
+    CHTL::EvalContext context;
+
+    SECTION("Evaluates a decoupled string multiplication")
+    {
+        // AST for "(linear 0.5s all) * 2"
+        auto root = std::make_unique<CHTL::InfixExpression>();
+        root->op = "*";
+
+        auto left_decoupled = std::make_unique<CHTL::DecoupledStringExpression>();
+        left_decoupled->string_part = "linear %s all";
+        auto num_part = std::make_unique<CHTL::NumberLiteral>();
+        num_part->value = 0.5;
+        num_part->unit = "s";
+        left_decoupled->number_part = std::move(num_part);
+        root->left = std::move(left_decoupled);
+
+        auto right_num = std::make_unique<CHTL::NumberLiteral>();
+        right_num->value = 2;
+        root->right = std::move(right_num);
+
+        auto result = evaluator.Eval(root.get(), context);
+        REQUIRE(result.type == CHTL::ValueType::NUMBER);
+        REQUIRE(result.num == 1.0);
+        REQUIRE(result.unit == "s");
+        REQUIRE(result.string_template == "linear %s all");
+    }
+}
+
 TEST_CASE("Attribute Access", "[evaluator]")
 {
     CHTL::Evaluator evaluator;

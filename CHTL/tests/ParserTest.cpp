@@ -236,6 +236,33 @@ TEST_CASE("Test parsing a Custom Style with valueless properties", "[parser][cus
     REQUIRE(prop2->value == nullptr);
 }
 
+TEST_CASE("Test parsing a decoupled string expression", "[parser][expression]")
+{
+    std::string input = R"(
+        style {
+            transition: linear 0.5s all;
+        }
+    )";
+    CHTL::Lexer l(input);
+    CHTL::Parser p(l);
+    auto program = p.ParseProgram();
+
+    checkParserErrors(p);
+
+    REQUIRE(program != nullptr);
+    auto* style_node = dynamic_cast<CHTL::StyleNode*>(program->children[0].get());
+    REQUIRE(style_node != nullptr);
+    auto* prop = dynamic_cast<CHTL::StyleProperty*>(style_node->children[0].get());
+    REQUIRE(prop != nullptr);
+    REQUIRE(prop->name == "transition");
+
+    auto* decoupled_expr = dynamic_cast<CHTL::DecoupledStringExpression*>(prop->value.get());
+    REQUIRE(decoupled_expr != nullptr);
+    REQUIRE(decoupled_expr->string_part == "linear %s all");
+    REQUIRE(decoupled_expr->number_part->value == 0.5);
+    REQUIRE(decoupled_expr->number_part->unit == "s");
+}
+
 TEST_CASE("Test parsing a style property using a variable", "[parser][expression]")
 {
     std::string input = R"(

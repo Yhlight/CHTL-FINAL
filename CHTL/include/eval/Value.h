@@ -14,6 +14,7 @@ enum class ValueType { EMPTY, NUMBER, STRING, BOOL };
         std::string unit = "";
         std::string str = "";
         bool boolean = false;
+        std::string string_template = "";
 
         bool IsTruthy() const {
             switch (type) {

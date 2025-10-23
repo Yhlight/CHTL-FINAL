@@ -10,15 +10,26 @@ namespace CHTL
         {
             val.num = num + other.num;
             val.unit = unit;
-            return val;
         }
-        if (unit.empty())
+        else if (unit.empty())
         {
             val.num = num + other.num;
             val.unit = other.unit;
-            return val;
         }
-        throw std::runtime_error("Unit mismatch: cannot add '" + unit + "' and '" + other.unit + "'.");
+        else
+        {
+            throw std::runtime_error("Unit mismatch: cannot add '" + unit + "' and '" + other.unit + "'.");
+        }
+
+        if (!string_template.empty())
+        {
+            val.string_template = string_template;
+        }
+        else if (!other.string_template.empty())
+        {
+            val.string_template = other.string_template;
+        }
+        return val;
     }
 
     Value Value::operator-(const Value& other) const
@@ -29,15 +40,26 @@ namespace CHTL
         {
             val.num = num - other.num;
             val.unit = unit;
-            return val;
         }
-        if (unit.empty())
+        else if (unit.empty())
         {
             val.num = num - other.num;
             val.unit = other.unit;
-            return val;
         }
-        throw std::runtime_error("Unit mismatch: cannot subtract '" + other.unit + "' from '" + unit + "'.");
+        else
+        {
+            throw std::runtime_error("Unit mismatch: cannot subtract '" + other.unit + "' from '" + unit + "'.");
+        }
+
+        if (!string_template.empty())
+        {
+            val.string_template = string_template;
+        }
+        else if (!other.string_template.empty())
+        {
+            val.string_template = other.string_template;
+        }
+        return val;
     }
 
     Value Value::operator*(const Value& other) const
@@ -48,9 +70,21 @@ namespace CHTL
         {
             val.num = num * other.num;
             val.unit = unit.empty() ? other.unit : unit;
-            return val;
         }
-        throw std::runtime_error("Invalid operation: cannot multiply unit '" + unit + "' by unit '" + other.unit + "'.");
+        else
+        {
+            throw std::runtime_error("Invalid operation: cannot multiply unit '" + unit + "' by unit '" + other.unit + "'.");
+        }
+
+        if (!string_template.empty())
+        {
+            val.string_template = string_template;
+        }
+        else if (!other.string_template.empty())
+        {
+            val.string_template = other.string_template;
+        }
+        return val;
     }
 
     Value Value::operator/(const Value& other) const
@@ -74,6 +108,15 @@ namespace CHTL
         else
         {
              throw std::runtime_error("Unit mismatch: cannot divide '" + unit + "' by '" + other.unit + "'.");
+        }
+
+        if (!string_template.empty())
+        {
+            val.string_template = string_template;
+        }
+        else if (!other.string_template.empty())
+        {
+            val.string_template = other.string_template;
         }
         return val;
     }

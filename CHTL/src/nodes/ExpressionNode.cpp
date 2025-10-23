@@ -272,4 +272,31 @@ namespace CHTL
         is.read(&node->attribute_name[0], a_len);
         return node;
     }
+
+    // DecoupledStringExpression
+    std::unique_ptr<AstNode> DecoupledStringExpression::clone() const {
+        auto node = std::make_unique<DecoupledStringExpression>();
+        node->string_part = this->string_part;
+        node->number_part = std::unique_ptr<NumberLiteral>(static_cast<NumberLiteral*>(this->number_part->clone().release()));
+        return node;
+    }
+
+    void DecoupledStringExpression::serialize(std::ostream& os) const {
+        int type = static_cast<int>(GetType());
+        os.write(reinterpret_cast<const char*>(&type), sizeof(type));
+        size_t s_len = string_part.length();
+        os.write(reinterpret_cast<const char*>(&s_len), sizeof(s_len));
+        os.write(string_part.c_str(), s_len);
+        number_part->serialize(os);
+    }
+
+    std::unique_ptr<DecoupledStringExpression> DecoupledStringExpression::deserialize(std::istream& is) {
+        auto node = std::make_unique<DecoupledStringExpression>();
+        size_t s_len;
+        is.read(reinterpret_cast<char*>(&s_len), sizeof(s_len));
+        node->string_part.resize(s_len);
+        is.read(&node->string_part[0], s_len);
+        node->number_part = std::unique_ptr<NumberLiteral>(static_cast<NumberLiteral*>(AstNode::deserialize(is).release()));
+        return node;
+    }
 }

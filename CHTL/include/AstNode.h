@@ -47,6 +47,7 @@ namespace CHTL
         VariableAccess,
         AttributeAccess,
         ExpressionList,
+        DecoupledStringExpression,
     };
 
     // AST节点基类

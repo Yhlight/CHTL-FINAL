@@ -70,8 +70,8 @@ def package_vscode_extension():
     print("--- VSCode扩展打包成功。 ---")
     return True
 
-def main():
-    """构建和测试CHTL项目的主函数。"""
+def build_project():
+    """构建CHTL项目。"""
     # 1. 确保构建目录存在
     if not os.path.exists(BUILD_DIR):
         print(f"创建构建目录: {BUILD_DIR}")
@@ -79,32 +79,57 @@ def main():
 
     # 2. 运行CMake
     if not run_command(["cmake", ".."], cwd=BUILD_DIR):
-        sys.exit(1)
+        return False
 
     # 3. 运行Make
     if not run_command(["make"], cwd=BUILD_DIR):
-        sys.exit(1)
+        return False
 
-    # 4. 运行测试
+    return True
+
+def run_tests():
+    """运行CHTL测试。"""
     print("\n--- 构建完成。开始运行测试... ---")
     test_execs = find_test_executables(BUILD_DIR)
 
     if not test_execs:
         print("未找到测试可执行文件。跳过测试步骤。")
-    else:
-        print(f"找到测试: {', '.join(test_execs)}")
-        for test in test_execs:
-            if not run_command([test], cwd=BUILD_DIR):
-                print(f"--- 测试失败: {test} ---")
-                sys.exit(1)
-            else:
-                print(f"--- 测试通过: {test} ---")
+        return True
 
-    # 5. 打包VSCode扩展
-    if not package_vscode_extension():
+    print(f"找到测试: {', '.join(test_execs)}")
+    for test in test_execs:
+        if not run_command([test], cwd=BUILD_DIR):
+            print(f"--- 测试失败: {test} ---")
+            return False
+        else:
+            print(f"--- 测试通过: {test} ---")
+    return True
+
+def preprocess_file(input_file, output_file):
+    """使用chtl-preprocess预处理文件。"""
+    print(f"\n--- 预处理文件: {input_file} -> {output_file} ---")
+    preprocessor_path = os.path.join(BUILD_DIR, "chtl-preprocess")
+    if not run_command([preprocessor_path, input_file, output_file], cwd="."):
+        print("--- 文件预处理失败。 ---")
+        return False
+    print("--- 文件预处理成功。 ---")
+    return True
+
+def main():
+    """构建和测试CHTL项目的主函数。"""
+    if not build_project():
         sys.exit(1)
 
-    print("\n--- 构建、测试和打包脚本成功完成。 ---")
+    if not preprocess_file("mixed_js_test.chtl", "mixed_js_test.processed.chtl"):
+        sys.exit(1)
+
+    if not run_tests():
+        sys.exit(1)
+
+    # if not package_vscode_extension():
+    #     sys.exit(1)
+
+    print("\n--- 构建和测试脚本成功完成。 ---")
 
 if __name__ == "__main__":
     main()

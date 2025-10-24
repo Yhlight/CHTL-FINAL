@@ -1,0 +1,29 @@
+div {
+    script {
+        // This is a regular JavaScript comment.
+        console.log("This is regular JavaScript.");
+
+        // CHTL JS block
+        {{.my-button}}->Listen {
+            click: () => {
+                console.log('Button clicked!');
+            }
+        };
+
+        // Another regular JavaScript statement
+        let x = 10;
+        console.log("x = " + x);
+
+        // Another CHTL JS block
+        const anim = Animate {
+            target: {{.my-div}},
+            duration: 1000,
+            begin: {
+                opacity: 0,
+            },
+            end: {
+                opacity: 1,
+            }
+        };
+    }
+}

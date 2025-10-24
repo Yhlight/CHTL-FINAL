@@ -58,3 +58,6 @@ add_subdirectory(tests)
 # 添加CLI可执行文件
 add_executable(chtl cli/main.cpp)
 target_link_libraries(chtl PRIVATE CHTL)
+
+# 添加预处理器可执行文件
+add_executable(chtl-preprocess preprocessor/preprocess.cpp)

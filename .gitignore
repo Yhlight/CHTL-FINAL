@@ -1,1 +1,22 @@
-third-party/
+# CMake
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+
+# Compiled binaries
+*.exe
+*.dll
+*.so
+*.a
+*.lib
+*.out
+
+# CHTL artifacts
+*.cmod
+*.cjmod
+
+# Other
+.DS_Store

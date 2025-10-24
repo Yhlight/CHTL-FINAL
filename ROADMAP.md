@@ -36,6 +36,7 @@
 | 功能 | 完成度 | 备注 |
 | --- | --- | --- |
 | **核心** | | |
+| CHTL JS Preprocessor | ⏳ In Progress | Wraps CHTL JS code with `[__CHTLJS__]` and `[__ENDCHTLJS__]` tags. |
 | ScriptMain | ✅ 已完成 | |
 | 脚本加载器 (`ScriptLoader`) | ✅ 已完成 | |
 | 局部 script (`script {}`) | ✅ 已完成 | |

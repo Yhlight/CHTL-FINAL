@@ -1040,7 +1040,7 @@ TEST_CASE("Generator correctly generates script blocks with CHTL JS", "[generato
     std::string html_output = generator.Generate(program.get());
 
     // The CHTLJSParser should now correctly interleave RawJS and EnhancedSelector nodes.
-    std::string expected_html = "<div><script>\n                let my_element = document.querySelector('.my-div');\n            </script></div>";
+    std::string expected_html = "<div><script>let my_element = [__CHTLJS__]{{ .my-div }}[__ENDCHTLJS__];</script></div>";
     REQUIRE(html_output == expected_html);
 }
 

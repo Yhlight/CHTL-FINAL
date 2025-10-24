@@ -4,9 +4,9 @@ This document outlines the development roadmap for the CHTL project.
 
 ## Phase 1: Core Language Features
 
-- [ ] Lexer and Tokenizer
-- [ ] Parser (AST)
-- [ ] Basic HTML Generation
+- [x] Lexer and Tokenizer
+- [x] Parser (AST)
+- [x] Basic HTML Generation
 - [ ] Comments (`//`, `/**/`, `#`)
 - [ ] Text Nodes (`text {}` and `text:` attribute)
 - [ ] Element Nodes

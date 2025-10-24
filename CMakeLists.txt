@@ -4,4 +4,33 @@ project(CHTL LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(chtl CHTL/CHTL/main.cpp)
+# CHTL Compiler sources
+set(CHTL_COMPILER_SOURCES
+    CHTL/CHTL/main.cpp
+    CHTL/CHTL/CHTLLexer/Lexer.cpp
+    CHTL/CHTL/CHTLParser/Parser.cpp
+    CHTL/CHTL/CHTLGenerator/Generator.cpp
+)
+
+add_executable(chtl ${CHTL_COMPILER_SOURCES})
+target_include_directories(chtl PUBLIC ${CMAKE_SOURCE_DIR})
+
+# Tests
+enable_testing()
+
+set(LEXER_TEST_SOURCES
+    CHTL/Test/CHTLLexer/LexerTest.cpp
+    CHTL/CHTL/CHTLLexer/Lexer.cpp
+)
+
+add_executable(lexer_test ${LEXER_TEST_SOURCES})
+target_include_directories(lexer_test PUBLIC ${CMAKE_SOURCE_DIR})
+
+set(PARSER_TEST_SOURCES
+    CHTL/Test/CHTLParser/ParserTest.cpp
+    CHTL/CHTL/CHTLLexer/Lexer.cpp
+    CHTL/CHTL/CHTLParser/Parser.cpp
+)
+
+add_executable(parser_test ${PARSER_TEST_SOURCES})
+target_include_directories(parser_test PUBLIC ${CMAKE_SOURCE_DIR})

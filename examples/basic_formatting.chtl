@@ -1,0 +1,67 @@
+// CHTL 格式化示例
+// 这个文件展示了格式化器如何美化CHTL代码
+
+html {
+    head {
+        title {
+            text { CHTL Formatting Example }
+        }
+    }
+    
+    body {
+        // 格式化后的容器
+        div {
+            class = "container";
+            id = "main-content";
+        } {
+            // 标题
+            h1 {
+                class = "title";
+            } {
+                text { Welcome to CHTL }
+            }
+            
+            // 内容区域
+            div {
+                class = "content";
+            } {
+                p {
+                    text { This is a formatted CHTL file. }
+                }
+                
+                p {
+                    text { The formatter automatically handles indentation, spacing, and alignment. }
+                }
+            }
+            
+            // 样式
+            style {
+                .container {
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }
+                
+                .title {
+                    font-size: 2rem;
+                    color: #333;
+                    margin-bottom: 20px;
+                }
+                
+                .content {
+                    line-height: 1.6;
+                    color: #666;
+                }
+            }
+            
+            // 脚本
+            script {
+                console.log('CHTL Formatter is working!');
+                
+                document.addEventListener('DOMContentLoaded', () => {
+                    console.log('Page loaded');
+                });
+            }
+        }
+    }
+}

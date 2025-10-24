@@ -7,6 +7,9 @@
 #include "CHTLJS/include/nodes/RawJSNode.h"
 #include "CHTLJS/include/nodes/ScriptLoaderNode.h"
 #include "CHTLJS/include/nodes/VirNode.h"
+#include "CHTLJS/include/nodes/EventBindNode.h"
+#include "CHTLJS/include/nodes/RouterNode.h"
+#include "CHTLJS/include/nodes/ReactiveValueNode.h"
 
 namespace CHTLJS {
 
@@ -43,6 +46,15 @@ void Generator::visit(const AstNode &node) {
     break;
   case NodeType::Vir:
     visit(static_cast<const VirNode &>(node));
+    break;
+  case NodeType::EventBind:
+    visit(static_cast<const EventBindNode &>(node));
+    break;
+  case NodeType::Router:
+    visit(static_cast<const RouterNode &>(node));
+    break;
+  case NodeType::ReactiveValue:
+    visit(static_cast<const ReactiveValueNode &>(node));
     break;
   default:
     // Handle unknown node type
@@ -189,6 +201,92 @@ void Generator::visit(const AnimateNode &node) {
 
 void Generator::visit(const VirNode &node) {
   // Vir is a compile-time construct and does not generate runtime code.
+}
+
+void Generator::visit(const EventBindNode &node) {
+  // 获取目标选择器
+  std::string current_output = output_;
+  output_ = "";
+  visit(*node.target);
+  std::string target_selector_js = output_;
+  output_ = current_output;
+
+  if (node.isBlock) {
+    // 块形式: {{box}} &-> { click: fn1, mouseenter: fn2 }
+    for (const auto &[events, handler] : node.blockEvents) {
+      for (const auto &event : events) {
+        output_ += target_selector_js + ".addEventListener('" + event + "', " + handler + ");\n";
+      }
+    }
+  } else {
+    // 单事件或多事件: {{box}} &-> click, mouseenter: handler
+    for (const auto &event : node.eventNames) {
+      output_ += target_selector_js + ".addEventListener('" + event + "', " + node.handler + ");\n";
+    }
+  }
+}
+
+void Generator::visit(const RouterNode &node) {
+  output_ += "(function() {\n";
+  output_ += "  const routes = {};\n";
+  
+  // 添加路由映射
+  for (const auto &[url, page] : node.urlPageMappings) {
+    output_ += "  routes['" + url + "'] = '" + page + "';\n";
+  }
+  
+  // 路由函数
+  output_ += "  function navigate(url) {\n";
+  output_ += "    const page = routes[url];\n";
+  output_ += "    if (page) {\n";
+  if (!node.rootPath.empty() || node.rootContainer) {
+    if (node.rootContainer) {
+      std::string current_output = output_;
+      output_ = "";
+      visit(*node.rootContainer);
+      std::string container_js = output_;
+      output_ = current_output;
+      output_ += "      const container = " + container_js + ";\n";
+    } else {
+      output_ += "      const container = document.querySelector('" + node.rootPath + "');\n";
+    }
+    output_ += "      if (container) {\n";
+    output_ += "        document.querySelectorAll('.page').forEach(p => p.style.display = 'none');\n";
+    output_ += "        const targetPage = document.querySelector(page);\n";
+    output_ += "        if (targetPage) targetPage.style.display = 'block';\n";
+    output_ += "      }\n";
+  }
+  output_ += "    }\n";
+  output_ += "  }\n";
+  
+  // 设置路由模式
+  if (node.mode == "history") {
+    output_ += "  window.addEventListener('popstate', (e) => {\n";
+    output_ += "    navigate(window.location.pathname);\n";
+    output_ += "  });\n";
+    output_ += "  document.addEventListener('click', (e) => {\n";
+    output_ += "    if (e.target.tagName === 'A') {\n";
+    output_ += "      e.preventDefault();\n";
+    output_ += "      const url = e.target.getAttribute('href');\n";
+    output_ += "      history.pushState(null, '', url);\n";
+    output_ += "      navigate(url);\n";
+    output_ += "    }\n";
+    output_ += "  });\n";
+  } else if (node.mode == "hash") {
+    output_ += "  window.addEventListener('hashchange', () => {\n";
+    output_ += "    navigate(window.location.hash.slice(1));\n";
+    output_ += "  });\n";
+  }
+  
+  output_ += "  navigate(window.location.";
+  output_ += (node.mode == "hash" ? std::string("hash.slice(1)") : std::string("pathname"));
+  output_ += ");\n";
+  output_ += "})();\n";
+}
+
+void Generator::visit(const ReactiveValueNode &node) {
+  // 响应式值在编译时被替换为变量引用
+  output_ += node.variableName;
 }
 
 } // namespace CHTLJS

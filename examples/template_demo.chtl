@@ -1,0 +1,94 @@
+// CHTL 模板系统示例
+
+// 定义样式模板
+[Template @Style ButtonStyle] {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+// 定义元素模板
+[Template @Element Card] {
+    div {
+        class = "card";
+    } {
+        style {
+            .card {
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 20px;
+                margin: 10px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+        }
+    }
+}
+
+// 自定义按钮组件
+[Custom @Element PrimaryButton] {
+    button {
+        class = "btn-primary";
+    } {
+        style {
+            @use ButtonStyle;
+            
+            .btn-primary {
+                background-color: #007bff;
+                color: white;
+            }
+            
+            &:hover {
+                background-color: #0056b3;
+            }
+        }
+    }
+}
+
+// 使用模板和自定义组件
+html {
+    head {
+        title {
+            text { CHTL Template Demo }
+        }
+    }
+    
+    body {
+        h1 {
+            text { 模板系统示例 }
+        }
+        
+        // 使用Card模板
+        @use Card {
+            h2 {
+                text { 卡片标题 1 }
+            }
+            
+            p {
+                text { 这是使用模板创建的卡片内容。 }
+            }
+        }
+        
+        @use Card {
+            h2 {
+                text { 卡片标题 2 }
+            }
+            
+            p {
+                text { 模板让代码重用变得简单。 }
+            }
+        }
+        
+        // 使用自定义按钮
+        div {
+            @use PrimaryButton {
+                text { 点击我 }
+            }
+            
+            @use PrimaryButton {
+                text { 提交 }
+            }
+        }
+    }
+}

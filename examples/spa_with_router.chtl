@@ -1,0 +1,167 @@
+// 完整的SPA应用示例 - 展示路由和事件绑定
+
+html {
+    head {
+        title {
+            text { CHTL SPA Demo }
+        }
+        
+        style {
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: Arial, sans-serif;
+            }
+            
+            .navbar {
+                display: flex;
+                gap: 20px;
+                padding: 20px;
+                background-color: #333;
+            }
+            
+            .navbar a {
+                color: white;
+                text-decoration: none;
+                padding: 10px 20px;
+                border-radius: 4px;
+                transition: background-color 0.3s;
+            }
+            
+            .navbar a:hover {
+                background-color: #555;
+            }
+            
+            .page {
+                padding: 40px;
+                display: none;
+            }
+            
+            .page.active {
+                display: block;
+            }
+        }
+    }
+    
+    body {
+        // 导航栏
+        nav {
+            class = "navbar";
+        } {
+            a {
+                href = "/";
+                text { 首页 }
+            }
+            
+            a {
+                href = "/about";
+                text { 关于 }
+            }
+            
+            a {
+                href = "/contact";
+                text { 联系我们 }
+            }
+        }
+        
+        // 页面容器
+        div {
+            id = "app";
+        } {
+            // 首页
+            div {
+                id = "home-page";
+                class = "page active";
+            } {
+                h1 {
+                    text { 欢迎使用CHTL }
+                }
+                
+                p {
+                    text { CHTL是一个现代化的超文本语言，专为HTML开发设计。 }
+                }
+            }
+            
+            // 关于页面
+            div {
+                id = "about-page";
+                class = "page";
+            } {
+                h1 {
+                    text { 关于CHTL }
+                }
+                
+                p {
+                    text { CHTL提供了强大的模板系统、样式块和脚本支持。 }
+                }
+            }
+            
+            // 联系页面
+            div {
+                id = "contact-page";
+                class = "page";
+            } {
+                h1 {
+                    text { 联系我们 }
+                }
+                
+                p {
+                    text { Email: contact@chtl.dev }
+                }
+            }
+        }
+        
+        // CHTL JS 脚本
+        script {
+            // 配置路由
+            Router {
+                url: "/",
+                page: {{#home-page}},
+            }
+            
+            Router {
+                url: "/about",
+                page: {{#about-page}},
+            }
+            
+            Router {
+                url: "/contact",
+                page: {{#contact-page}},
+            }
+            
+            Router {
+                mode: "history"
+            }
+            
+            // 使用事件绑定操作符
+            {{nav a}} &-> {
+                click: (e) => {
+                    e.preventDefault();
+                    const href = e.target.getAttribute('href');
+                    history.pushState(null, '', href);
+                    
+                    // 切换页面显示
+                    document.querySelectorAll('.page').forEach(p => {
+                        p.classList.remove('active');
+                    });
+                    
+                    const targetId = href === '/' ? 'home-page' : href.slice(1) + '-page';
+                    const targetPage = document.getElementById(targetId);
+                    if (targetPage) {
+                        targetPage.classList.add('active');
+                    }
+                },
+                mouseenter: function() {
+                    this.style.backgroundColor = '#555';
+                },
+                mouseleave: function() {
+                    this.style.backgroundColor = '';
+                }
+            };
+        }
+    }
+}

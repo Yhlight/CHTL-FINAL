@@ -1,0 +1,134 @@
+// CHTL JS 动画示例
+
+html {
+    head {
+        title {
+            text { CHTL Animation Demo }
+        }
+        
+        style {
+            .box {
+                width: 100px;
+                height: 100px;
+                background-color: #007bff;
+                margin: 50px;
+                cursor: pointer;
+            }
+            
+            .controls {
+                padding: 20px;
+            }
+            
+            button {
+                padding: 10px 20px;
+                margin: 5px;
+                cursor: pointer;
+            }
+        }
+    }
+    
+    body {
+        h1 {
+            text { CHTL Animation Demo }
+        }
+        
+        div {
+            class = "controls";
+        } {
+            button {
+                id = "fade-btn";
+                text { 淡入淡出 }
+            }
+            
+            button {
+                id = "scale-btn";
+                text { 缩放 }
+            }
+            
+            button {
+                id = "rotate-btn";
+                text { 旋转 }
+            }
+            
+            button {
+                id = "combo-btn";
+                text { 组合动画 }
+            }
+        }
+        
+        div {
+            class = "box";
+            id = "animated-box";
+        }
+        
+        script {
+            // 淡入淡出动画
+            {{#fade-btn}} &-> click: () => {
+                {{#animated-box}}->Animate {
+                    duration: 1000,
+                    easing: 'ease-in-out',
+                    begin: { opacity: 1 },
+                    end: { opacity: 0.2 },
+                    loop: 1,
+                    direction: 'alternate'
+                };
+            };
+            
+            // 缩放动画
+            {{#scale-btn}} &-> click: () => {
+                {{#animated-box}}->Animate {
+                    duration: 800,
+                    easing: 'ease-out',
+                    begin: { transform: 'scale(1)' },
+                    end: { transform: 'scale(1.5)' },
+                    loop: 1,
+                    direction: 'alternate'
+                };
+            };
+            
+            // 旋转动画
+            {{#rotate-btn}} &-> click: () => {
+                {{#animated-box}}->Animate {
+                    duration: 1500,
+                    begin: { transform: 'rotate(0deg)' },
+                    end: { transform: 'rotate(360deg)' },
+                    loop: 2
+                };
+            };
+            
+            // 组合动画
+            {{#combo-btn}} &-> click: () => {
+                {{#animated-box}}->Animate {
+                    duration: 2000,
+                    easing: 'cubic-bezier(0.68, -0.55, 0.27, 1.55)',
+                    begin: {
+                        opacity: 1,
+                        transform: 'translate(0, 0) scale(1) rotate(0deg)'
+                    },
+                    when: [{
+                        at: 0.5,
+                        transform: 'translate(200px, 0) scale(1.2) rotate(180deg)'
+                    }],
+                    end: {
+                        opacity: 1,
+                        transform: 'translate(0, 0) scale(1) rotate(360deg)'
+                    },
+                    callback: () => {
+                        console.log('Animation complete!');
+                    }
+                };
+            };
+            
+            // 鼠标悬停效果
+            {{#animated-box}} &-> {
+                mouseenter: function() {
+                    this.style.transform = 'scale(1.1)';
+                    this.style.transition = 'transform 0.3s';
+                },
+                mouseleave: function() {
+                    this.style.transform = 'scale(1)';
+                }
+            };
+        }
+    }
+}

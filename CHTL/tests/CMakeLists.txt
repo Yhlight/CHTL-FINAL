@@ -30,6 +30,7 @@ add_chkl_test(ModuleTest ModuleTest.cpp)
 add_chkl_test(CJMODAPITest CJMODAPITest.cpp)
 add_chkl_test(ValidatorTest ValidatorTest.cpp)
 add_chkl_test(NewFeaturesTest NewFeaturesTest.cpp)
+add_chkl_test(FormatterTest FormatterTest.cpp)
 
 # Add extra include directories for JS tests
 target_include_directories(CHTLJSGeneratorTest PRIVATE ../CHTLJS/include)

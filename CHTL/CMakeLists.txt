@@ -14,6 +14,7 @@ file(GLOB_RECURSE CHTL_SOURCES
     "src/*.cpp"
     "src/bridge/*.cpp"
     "src/eval/*.cpp"
+    "src/formatter/*.cpp"
     "src/generator/*.cpp"
     "src/lexer/*.cpp"
     "src/loader/*.cpp"
@@ -40,6 +41,7 @@ target_include_directories(CHTL PUBLIC
     include
     include/bridge
     include/eval
+    include/formatter
     include/generator
     CHTLJS/include/generator
     CHTLJS/include/nodes

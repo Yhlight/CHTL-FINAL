@@ -1,1 +1,2 @@
 third-party/
+\n# Build artifacts\nbuild/\nbin/\n\n# CMake files\nCMakeCache.txt\nCMakeFiles/\ncmake_install.cmake\nMakefile\n\n# C++ object files\n*.o\n*.a\n*.so\n\n# Executables\n*.exe\n

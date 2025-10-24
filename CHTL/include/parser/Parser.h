@@ -10,6 +10,7 @@
 #include <unordered_set>
 #include <vector>
 #include <string>
+#include <filesystem>
 
 namespace CHTL
 {
@@ -105,6 +106,61 @@ namespace CHTL
         std::unique_ptr<ExportNode> parseExportNode();
         Attribute parseAttribute();
         void processSingleImport(ProgramNode &program, const std::string &path, ImportNode *import_node);
+
+        /**
+         * @brief Parses a single top-level statement (e.g., [Template], [Custom], element).
+         * @param program The program node to which definitions should be added.
+         * @return A unique pointer to the parsed AstNode.
+         */
+        std::unique_ptr<AstNode> parseTopLevelStatement(ProgramNode& program);
+
+        /**
+         * @brief Parses a single statement inside an element block (e.g., attribute, nested element).
+         * @param parent The parent element node to which children or attributes should be added.
+         * @return A unique pointer to the parsed AstNode, or nullptr if handled internally (e.g., attribute).
+         */
+        std::unique_ptr<AstNode> parseElementStatement(ElementNode& parent);
+
+        /**
+         * @brief Handles the import of non-CHTL files (.css, .js, .html).
+         */
+        void handleNonChtlImport(ProgramNode& program, const std::string& path, ImportNode* import_node, const std::string& extension, const std::filesystem::path& full_path);
+
+        /**
+         * @brief Handles the import of CHTL files.
+         */
+        void handleChtlImport(ProgramNode& program, const std::string& path, ImportNode* import_node, const std::filesystem::path& full_path);
+
+        /**
+         * @brief Imports a specific named entity from a parsed CHTL file.
+         */
+        void importSpecificFromFile(ProgramNode& program, const ProgramNode& imported_program, ImportNode* import_node, const std::string& path);
+
+        /**
+         * @brief Imports all applicable entities from a parsed CHTL file.
+         */
+        void importAllFromFile(ProgramNode& program, const ProgramNode& imported_program, ImportNode* import_node);
+
+        /**
+         * @brief Parses the body of a @Style template definition.
+         */
+        void parseStyleTemplateBody(TemplateDefinitionNode* node);
+
+        /**
+         * @brief Parses the body of a @Var template definition.
+         */
+        void parseVarTemplateBody(TemplateDefinitionNode* node);
+
+        /**
+         * @brief Parses the body of an @Element template definition.
+         */
+        void parseElementTemplateBody(TemplateDefinitionNode* node);
+
+        /**
+         * @brief Parses a decoupled string expression (e.g., "linear 0.5s all").
+         * @return A unique pointer to the parsed Expression node.
+         */
+        std::unique_ptr<Expression> parseDecoupledStringExpression();
 
         // Expression parsing methods
         std::unique_ptr<Expression> parseExpression(Precedence precedence);

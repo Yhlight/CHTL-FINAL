@@ -62,62 +62,7 @@ std::unique_ptr<ProgramNode> Parser::ParseProgram()
 
     while (m_currentToken.type != TokenType::END_OF_FILE)
     {
-        std::unique_ptr<AstNode> stmt = nullptr;
-        if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE)
-        {
-            stmt = parseTemplateDefinition();
-            if (stmt)
-            {
-                auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
-                program->templates[m_current_namespace][tmpl_def->name] = tmpl_def;
-            }
-        }
-        else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM)
-        {
-            stmt = parseCustomDefinitionNode();
-            if (stmt)
-            {
-                auto* custom_def = static_cast<CustomDefinitionNode*>(stmt.get());
-                program->customs[m_current_namespace][custom_def->name] = custom_def;
-            }
-        }
-        else if (m_currentToken.type == TokenType::KEYWORD_IMPORT)
-        {
-            stmt = parseImportNode(*program);
-        }
-        else if (m_currentToken.type == TokenType::KEYWORD_NAMESPACE)
-        {
-            stmt = parseNamespaceNode(*program);
-        }
-        else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION)
-        {
-            stmt = parseConfigurationStatement();
-            if (stmt)
-            {
-                auto* config_node = static_cast<ConfigurationNode*>(stmt.get());
-                if (!config_node->name.empty())
-                {
-                    program->configurations[config_node->name] = config_node;
-                }
-            }
-        }
-        else if (m_currentToken.type == TokenType::KEYWORD_USE)
-        {
-            m_errors.push_back("use statement is only allowed at the beginning of the file.");
-        }
-        else if (m_currentToken.type == TokenType::KEYWORD_INFO)
-        {
-            stmt = parseInfoNode();
-        }
-        else if (m_currentToken.type == TokenType::KEYWORD_EXPORT)
-        {
-            stmt = parseExportNode();
-        }
-        else
-        {
-            stmt = parseStatement();
-        }
-
+        auto stmt = parseTopLevelStatement(*program);
         if (stmt)
         {
             program->children.push_back(std::move(stmt));
@@ -125,6 +70,72 @@ std::unique_ptr<ProgramNode> Parser::ParseProgram()
         nextToken();
     }
     return program;
+}
+
+std::unique_ptr<AstNode> Parser::parseTopLevelStatement(ProgramNode& program)
+{
+    std::unique_ptr<AstNode> stmt = nullptr;
+    if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE)
+    {
+        stmt = parseTemplateDefinition();
+        if (stmt)
+        {
+            auto* tmpl_def = static_cast<TemplateDefinitionNode*>(stmt.get());
+            if (program.templates[m_current_namespace].count(tmpl_def->name)) {
+                m_errors.push_back("Redefinition of template '" + tmpl_def->name + "' in namespace '" + m_current_namespace + "'.");
+            }
+            program.templates[m_current_namespace][tmpl_def->name] = tmpl_def;
+        }
+    }
+    else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM)
+    {
+        stmt = parseCustomDefinitionNode();
+        if (stmt)
+        {
+            auto* custom_def = static_cast<CustomDefinitionNode*>(stmt.get());
+            if (program.customs[m_current_namespace].count(custom_def->name)) {
+                m_errors.push_back("Redefinition of custom '" + custom_def->name + "' in namespace '" + m_current_namespace + "'.");
+            }
+            program.customs[m_current_namespace][custom_def->name] = custom_def;
+        }
+    }
+    else if (m_currentToken.type == TokenType::KEYWORD_IMPORT)
+    {
+        stmt = parseImportNode(program);
+    }
+    else if (m_currentToken.type == TokenType::KEYWORD_NAMESPACE)
+    {
+        stmt = parseNamespaceNode(program);
+    }
+    else if (m_currentToken.type == TokenType::KEYWORD_CONFIGURATION)
+    {
+        stmt = parseConfigurationStatement();
+        if (stmt)
+        {
+            auto* config_node = static_cast<ConfigurationNode*>(stmt.get());
+            if (!config_node->name.empty())
+            {
+                program.configurations[config_node->name] = config_node;
+            }
+        }
+    }
+    else if (m_currentToken.type == TokenType::KEYWORD_USE)
+    {
+        m_errors.push_back("use statement is only allowed at the beginning of the file.");
+    }
+    else if (m_currentToken.type == TokenType::KEYWORD_INFO)
+    {
+        stmt = parseInfoNode();
+    }
+    else if (m_currentToken.type == TokenType::KEYWORD_EXPORT)
+    {
+        stmt = parseExportNode();
+    }
+    else
+    {
+        stmt = parseStatement();
+    }
+    return stmt;
 }
 
 bool Parser::expectPeek(TokenType t) {
@@ -175,6 +186,24 @@ std::unique_ptr<ElementNode> Parser::parseElementNode() {
 
   while (m_currentToken.type != TokenType::RBRACE &&
          m_currentToken.type != TokenType::END_OF_FILE) {
+    auto stmt = parseElementStatement(*node);
+    if (stmt) {
+        // parseElementStatement is responsible for adding attributes vs children
+        // so we don't need to do anything here if it returns a node.
+        // If it returns nullptr, it's either an attribute or an error occurred.
+    }
+    nextToken();
+  }
+
+  if (m_currentToken.type != TokenType::RBRACE) {
+    m_errors.push_back("Expected '}' to close element block.");
+    return nullptr;
+  }
+
+  return node;
+}
+
+std::unique_ptr<AstNode> Parser::parseElementStatement(ElementNode& node) {
     if (m_currentToken.type == TokenType::KEYWORD_TEXT &&
         m_peekToken.type == TokenType::COLON) {
       nextToken();
@@ -187,25 +216,33 @@ std::unique_ptr<ElementNode> Parser::parseElementNode() {
 
       auto text_node = std::make_unique<TextNode>();
       text_node->value = m_currentToken.literal;
-      node->children.push_back(std::move(text_node));
+      node.children.push_back(std::move(text_node));
 
       if (m_peekToken.type == TokenType::SEMICOLON) {
         nextToken();
       }
+      return nullptr; // Indicates success, but no new node to return to caller loop
     } else if (m_currentToken.type == TokenType::IDENT &&
                m_peekToken.type == TokenType::COLON) {
-      node->attributes.push_back(parseAttribute());
+      node.attributes.push_back(parseAttribute());
+      return nullptr; // Indicates success, but no new node to return to caller loop
     } else if (m_currentToken.type == TokenType::AT) {
-      node->children.push_back(parseAtUsage());
+        auto at_node = parseAtUsage();
+        node.children.push_back(std::move(at_node));
+        return nullptr;
     } else if (m_currentToken.type == TokenType::KEYWORD_EXCEPT) {
-      node->children.push_back(parseExceptNode());
+        auto except_node = parseExceptNode();
+        node.children.push_back(std::move(except_node));
+        return nullptr;
     } else if (m_currentToken.type == TokenType::KEYWORD_IF) {
-      node->children.push_back(parseIfChain());
+        auto if_node = parseIfChain();
+        node.children.push_back(std::move(if_node));
+        return nullptr;
     } else {
       if (m_currentToken.type == TokenType::KEYWORD_SCRIPT) {
         std::string parent_selector;
         // Prefer ID
-        for (const auto &attr : node->attributes) {
+        for (const auto &attr : node.attributes) {
           if (attr.name == "id") {
             parent_selector = "#" + attr.value;
             break;
@@ -213,7 +250,7 @@ std::unique_ptr<ElementNode> Parser::parseElementNode() {
         }
         // Fallback to class if no ID
         if (parent_selector.empty()) {
-          for (const auto &attr : node->attributes) {
+          for (const auto &attr : node.attributes) {
             if (attr.name == "class") {
               // Just use the first class for now
               std::string first_class =
@@ -230,19 +267,10 @@ std::unique_ptr<ElementNode> Parser::parseElementNode() {
       }
       auto stmt = parseStatement();
       if (stmt) {
-        node->children.push_back(std::move(stmt));
+        node.children.push_back(std::move(stmt));
       }
+      return nullptr;
     }
-
-    nextToken();
-  }
-
-  if (m_currentToken.type != TokenType::RBRACE) {
-    m_errors.push_back("Expected '}' to close element block.");
-    return nullptr;
-  }
-
-  return node;
 }
 
 std::unique_ptr<AstNode> Parser::parseIfChain() {
@@ -334,6 +362,57 @@ std::unique_ptr<ElseNode> Parser::parseElseBlock() {
     return nullptr;
   }
   return node;
+}
+
+void Parser::parseVarTemplateBody(TemplateDefinitionNode* node) {
+    while (m_currentToken.type != TokenType::RBRACE &&
+           m_currentToken.type != TokenType::END_OF_FILE) {
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back(
+                "Expected identifier for variable name in @Var template.");
+            nextToken();
+            continue;
+        }
+        std::string varName = m_currentToken.literal;
+        if (!expectPeek(TokenType::COLON)) {
+            m_errors.push_back("Expected ':' after variable name '" + varName +
+                               "'.");
+            break;
+        }
+        nextToken();
+        node->variables[varName] = parseExpression(LOWEST);
+        if (m_peekToken.type == TokenType::SEMICOLON) {
+            nextToken();
+        }
+        nextToken();
+    }
+}
+
+void Parser::parseStyleTemplateBody(TemplateDefinitionNode* node) {
+    while (m_currentToken.type != TokenType::RBRACE &&
+           m_currentToken.type != TokenType::END_OF_FILE) {
+        if (m_currentToken.type == TokenType::IDENT) {
+            node->properties.push_back(std::move(parseStyleProperty()));
+        } else if (m_currentToken.type == TokenType::AT) {
+            node->properties.push_back(std::move(parseAtUsage()));
+        } else {
+            m_errors.push_back(
+                "Invalid token in " + node->type +
+                " template definition block: " + m_currentToken.ToString());
+        }
+        nextToken();
+    }
+}
+
+void Parser::parseElementTemplateBody(TemplateDefinitionNode* node) {
+    while (m_currentToken.type != TokenType::RBRACE &&
+           m_currentToken.type != TokenType::END_OF_FILE) {
+        auto stmt = parseStatement();
+        if (stmt) {
+            node->body.push_back(std::move(stmt));
+        }
+        nextToken();
+    }
 }
 
 std::unique_ptr<ExceptNode> Parser::parseExceptNode() {
@@ -469,34 +548,7 @@ Parser::parseNamespaceNode(ProgramNode &program) {
 
   while (m_currentToken.type != TokenType::RBRACE &&
          m_currentToken.type != TokenType::END_OF_FILE) {
-    std::unique_ptr<AstNode> stmt = nullptr;
-    if (m_currentToken.type == TokenType::KEYWORD_NAMESPACE) {
-        stmt = parseNamespaceNode(program);
-    }
-    else if (m_currentToken.type == TokenType::KEYWORD_TEMPLATE) {
-      stmt = parseTemplateDefinition();
-      if (stmt) {
-        auto *tmpl_def = static_cast<TemplateDefinitionNode *>(stmt.get());
-        if (program.templates[m_current_namespace].count(tmpl_def->name)) {
-          m_errors.push_back("Redefinition of template '" + tmpl_def->name +
-                             "' in namespace '" + m_current_namespace + "'.");
-        }
-        program.templates[m_current_namespace][tmpl_def->name] = tmpl_def;
-      }
-    } else if (m_currentToken.type == TokenType::KEYWORD_CUSTOM) {
-      stmt = parseCustomDefinitionNode();
-      if (stmt) {
-        auto *custom_def = static_cast<CustomDefinitionNode *>(stmt.get());
-        if (program.customs[m_current_namespace].count(custom_def->name)) {
-          m_errors.push_back("Redefinition of custom '" + custom_def->name +
-                             "' in namespace '" + m_current_namespace + "'.");
-        }
-        program.customs[m_current_namespace][custom_def->name] = custom_def;
-      }
-    } else {
-      stmt = parseStatement();
-    }
-
+    auto stmt = parseTopLevelStatement(program);
     if (stmt) {
       node->children.push_back(std::move(stmt));
     }
@@ -664,154 +716,138 @@ void Parser::processSingleImport(ProgramNode &program, const std::string &path,
     std::string extension = full_path.extension().string();
 
     if (extension == ".css" || extension == ".js" || extension == ".html") {
-      // Per spec, 'as' is required for HTML/CSS.
-      // For JS, no 'as' means skip. With 'as', it creates a named node.
-      if (import_node->alias.empty()) {
+        handleNonChtlImport(program, path, import_node, extension, full_path);
+    } else {
+        handleChtlImport(program, path, import_node, full_path);
+    }
+  } catch (const std::runtime_error &e) {
+    m_errors.push_back("Could not import file '" + path +
+                       "'. Reason: " + e.what());
+  }
+}
+
+void Parser::handleNonChtlImport(ProgramNode& program, const std::string& path, ImportNode* import_node, const std::string& extension, const std::filesystem::path& full_path) {
+    if (import_node->alias.empty()) {
         if (extension == ".html" || extension == ".css") {
-          m_errors.push_back("Import of " + path + " requires an 'as' clause.");
+            m_errors.push_back("Import of " + path + " requires an 'as' clause.");
         }
-        // For .js, we just skip if no 'as'. For others, we've logged an error.
         return;
-      }
-
-      auto origin_node = std::make_unique<OriginNode>();
-      if (extension == ".html") {
-        origin_node->type = "@Html";
-      } else if (extension == ".css") {
-        origin_node->type = "@Style";
-      } else { // .js
-        origin_node->type = "@JavaScript";
-      }
-
-      origin_node->name = import_node->alias;
-      origin_node->content = Loader::ReadFile(m_current_file_path, path);
-      program.children.push_back(std::move(origin_node));
-      s_parsed_files.insert(full_path.string());
-      return;
     }
 
+    auto origin_node = std::make_unique<OriginNode>();
+    if (extension == ".html") {
+        origin_node->type = "@Html";
+    } else if (extension == ".css") {
+        origin_node->type = "@Style";
+    } else { // .js
+        origin_node->type = "@JavaScript";
+    }
+
+    origin_node->name = import_node->alias;
+    origin_node->content = Loader::ReadFile(m_current_file_path, path);
+    program.children.push_back(std::move(origin_node));
+    s_parsed_files.insert(full_path.string());
+}
+
+void Parser::handleChtlImport(ProgramNode& program, const std::string& path, ImportNode* import_node, const std::filesystem::path& full_path) {
     std::string file_content = Loader::ReadFile(m_current_file_path, path);
     Lexer imported_lexer(file_content);
     Parser imported_parser(imported_lexer, full_path.string());
     auto imported_program = imported_parser.ParseProgram();
 
     if (!imported_parser.GetErrors().empty()) {
-      for (const auto &err : imported_parser.GetErrors()) {
-        m_errors.push_back("Error in imported file '" + path + "': " + err);
-      }
-      return;
+        for (const auto &err : imported_parser.GetErrors()) {
+            m_errors.push_back("Error in imported file '" + path + "': " + err);
+        }
+        return;
     }
 
     if (!import_node->imported_name.empty()) {
-      const AstNode *found_node = nullptr;
-      if (import_node->import_scope == "[Template]") {
-        for (const auto &[ns, def_map] : imported_program->templates) {
-          if (def_map.count(import_node->imported_name)) {
-            found_node = def_map.at(import_node->imported_name);
-            break;
-          }
-        }
-      } else if (import_node->import_scope == "[Custom]") {
-        for (const auto &[ns, def_map] : imported_program->customs) {
-          if (def_map.count(import_node->imported_name)) {
-            found_node = def_map.at(import_node->imported_name);
-            break;
-          }
-        }
-      } else if (import_node->import_scope == "[Configuration]") {
-          if(imported_program->configurations.count(import_node->imported_name)) {
-              found_node = imported_program->configurations.at(import_node->imported_name);
-          }
-      }
+        importSpecificFromFile(program, *imported_program, import_node, path);
+    } else {
+        importAllFromFile(program, *imported_program, import_node);
+    }
+}
 
-      if (found_node) {
+void Parser::importSpecificFromFile(ProgramNode& program, const ProgramNode& imported_program, ImportNode* import_node, const std::string& path) {
+    const AstNode *found_node = nullptr;
+    if (import_node->import_scope == "[Template]") {
+        for (const auto &[ns, def_map] : imported_program.templates) {
+            if (def_map.count(import_node->imported_name)) {
+                found_node = def_map.at(import_node->imported_name);
+                break;
+            }
+        }
+    } else if (import_node->import_scope == "[Custom]") {
+        for (const auto &[ns, def_map] : imported_program.customs) {
+            if (def_map.count(import_node->imported_name)) {
+                found_node = def_map.at(import_node->imported_name);
+                break;
+            }
+        }
+    } else if (import_node->import_scope == "[Configuration]") {
+        if (imported_program.configurations.count(import_node->imported_name)) {
+            found_node = imported_program.configurations.at(import_node->imported_name);
+        }
+    }
+
+    if (found_node) {
         std::unique_ptr<AstNode> cloned_node = found_node->clone();
         std::string final_name = import_node->alias.empty()
                                      ? import_node->imported_name
                                      : import_node->alias;
 
         if (import_node->import_scope == "[Template]") {
-          program.templates[m_current_namespace][final_name] =
-              static_cast<const TemplateDefinitionNode *>(cloned_node.get());
+            program.templates[m_current_namespace][final_name] =
+                static_cast<const TemplateDefinitionNode *>(cloned_node.get());
         } else if (import_node->import_scope == "[Custom]") {
-          program.customs[m_current_namespace][final_name] =
-              static_cast<const CustomDefinitionNode *>(cloned_node.get());
+            program.customs[m_current_namespace][final_name] =
+                static_cast<const CustomDefinitionNode *>(cloned_node.get());
         } else if (import_node->import_scope == "[Configuration]") {
             program.configurations[final_name] = static_cast<const ConfigurationNode*>(cloned_node.get());
         }
 
         program.children.push_back(std::move(cloned_node));
-      } else {
+    } else {
         m_errors.push_back("Could not find definition '" +
                            import_node->imported_name + "' in file '" + path +
                            "'.");
-      }
-    } else {
-      std::unordered_map<const AstNode *, AstNode *> already_cloned;
-
-      if (import_node->import_scope == "[Template]") {
-        for (auto const &[ns, def_map] : imported_program->templates) {
-          for (auto const &[name, def_ptr] : def_map) {
-            if (import_node->specific_type.empty() ||
-                def_ptr->type == import_node->specific_type) {
-              if (already_cloned.find(def_ptr) == already_cloned.end()) {
-                std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-                already_cloned[def_ptr] = cloned_def.get();
-                program.children.push_back(std::move(cloned_def));
-              }
-              program.templates[ns][name] =
-                  static_cast<const TemplateDefinitionNode *>(
-                      already_cloned[def_ptr]);
-            }
-          }
-        }
-      } else if (import_node->import_scope == "[Custom]") {
-        for (auto const &[ns, def_map] : imported_program->customs) {
-          for (auto const &[name, def_ptr] : def_map) {
-            if (import_node->specific_type.empty() ||
-                def_ptr->type == import_node->specific_type) {
-              if (already_cloned.find(def_ptr) == already_cloned.end()) {
-                std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-                already_cloned[def_ptr] = cloned_def.get();
-                program.children.push_back(std::move(cloned_def));
-              }
-              program.customs[ns][name] =
-                  static_cast<const CustomDefinitionNode *>(
-                      already_cloned[def_ptr]);
-            }
-          }
-        }
-      } else {
-        for (auto const &[ns, def_map] : imported_program->templates) {
-          for (auto const &[name, def_ptr] : def_map) {
-            if (already_cloned.find(def_ptr) == already_cloned.end()) {
-              std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-              already_cloned[def_ptr] = cloned_def.get();
-              program.children.push_back(std::move(cloned_def));
-            }
-            program.templates[ns][name] =
-                static_cast<const TemplateDefinitionNode *>(
-                    already_cloned[def_ptr]);
-          }
-        }
-        for (auto const &[ns, def_map] : imported_program->customs) {
-          for (auto const &[name, def_ptr] : def_map) {
-            if (already_cloned.find(def_ptr) == already_cloned.end()) {
-              std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
-              already_cloned[def_ptr] = cloned_def.get();
-              program.children.push_back(std::move(cloned_def));
-            }
-            program.customs[ns][name] =
-                static_cast<const CustomDefinitionNode *>(
-                    already_cloned[def_ptr]);
-          }
-        }
-      }
     }
-  } catch (const std::runtime_error &e) {
-    m_errors.push_back("Could not import file '" + path +
-                       "'. Reason: " + e.what());
-  }
+}
+
+void Parser::importAllFromFile(ProgramNode& program, const ProgramNode& imported_program, ImportNode* import_node) {
+    std::unordered_map<const AstNode *, AstNode *> already_cloned;
+
+    auto clone_and_register = [&](const AstNode* def_ptr) -> AstNode* {
+        if (already_cloned.find(def_ptr) == already_cloned.end()) {
+            std::unique_ptr<AstNode> cloned_def = def_ptr->clone();
+            already_cloned[def_ptr] = cloned_def.get();
+            program.children.push_back(std::move(cloned_def));
+        }
+        return already_cloned[def_ptr];
+    };
+
+    if (import_node->import_scope == "[Template]" || import_node->import_scope.empty()) {
+        for (auto const &[ns, def_map] : imported_program.templates) {
+            for (auto const &[name, def_ptr] : def_map) {
+                if (import_node->specific_type.empty() || def_ptr->type == import_node->specific_type) {
+                    AstNode* cloned_node = clone_and_register(def_ptr);
+                    program.templates[ns][name] = static_cast<const TemplateDefinitionNode *>(cloned_node);
+                }
+            }
+        }
+    }
+
+    if (import_node->import_scope == "[Custom]" || import_node->import_scope.empty()) {
+        for (auto const &[ns, def_map] : imported_program.customs) {
+            for (auto const &[name, def_ptr] : def_map) {
+                if (import_node->specific_type.empty() || def_ptr->type == import_node->specific_type) {
+                    AstNode* cloned_node = clone_and_register(def_ptr);
+                    program.customs[ns][name] = static_cast<const CustomDefinitionNode *>(cloned_node);
+                }
+            }
+        }
+    }
 }
 
 std::unique_ptr<ImportNode> Parser::parseImportNode(ProgramNode &program) {
@@ -1106,50 +1142,13 @@ std::unique_ptr<TemplateDefinitionNode> Parser::parseTemplateDefinition() {
     return nullptr;
   }
 
-  nextToken();
-  while (m_currentToken.type != TokenType::RBRACE &&
-         m_currentToken.type != TokenType::END_OF_FILE) {
-    if (templateType == "Var") {
-      if (m_currentToken.type != TokenType::IDENT) {
-        m_errors.push_back(
-            "Expected identifier for variable name in @Var template.");
-        nextToken();
-        continue;
-      }
-      std::string varName = m_currentToken.literal;
-      if (!expectPeek(TokenType::COLON)) {
-        m_errors.push_back("Expected ':' after variable name '" + varName +
-                           "'.");
-        break;
-      }
-      nextToken(); // Consume ':', current token is the start of the value
-                   // expression
-
-      node->variables[varName] = parseExpression(LOWEST);
-
-      if (m_peekToken.type == TokenType::SEMICOLON) {
-        nextToken();
-      }
-      nextToken();
-    } else if (templateType == "Style") {
-      if (m_currentToken.type == TokenType::IDENT) {
-        node->properties.push_back(std::move(parseStyleProperty()));
-      } else if (m_currentToken.type == TokenType::AT) {
-        node->properties.push_back(std::move(parseAtUsage()));
-      } else {
-        m_errors.push_back(
-            "Invalid token in " + node->type +
-            " template definition block: " + m_currentToken.ToString());
-      }
-      nextToken();
-    } else // @Element
-    {
-      auto stmt = parseStatement();
-      if (stmt) {
-        node->body.push_back(std::move(stmt));
-      }
-      nextToken();
-    }
+  nextToken(); // Consume '{'
+  if (templateType == "Var") {
+      parseVarTemplateBody(node.get());
+  } else if (templateType == "Style") {
+      parseStyleTemplateBody(node.get());
+  } else { // @Element
+      parseElementTemplateBody(node.get());
   }
   if (m_currentToken.type != TokenType::RBRACE) {
     m_errors.push_back("Expected '}' to close template block.");
@@ -1468,71 +1467,80 @@ std::unique_ptr<Expression> Parser::parseIdentifier()
     // Check if it's a decoupled string expression like 'linear 0.5s all'
     if (m_peekToken.type == TokenType::IDENT || m_peekToken.type == TokenType::NUMBER)
     {
-        std::vector<Token> tokens;
-        tokens.push_back(m_currentToken);
-
-        // Greedily consume subsequent identifiers and numbers
-        while (m_peekToken.type == TokenType::IDENT || m_peekToken.type == TokenType::NUMBER)
-        {
-            nextToken();
-            tokens.push_back(m_currentToken);
-        }
-
-        // Find the single number literal in the token sequence
-        auto num_it = std::find_if(tokens.begin(), tokens.end(), [](const Token& t){
-            return t.type == TokenType::NUMBER;
-        });
-
-        if (num_it != tokens.end())
-        {
-             // Check if there is only one number
-            if (std::count_if(tokens.begin(), tokens.end(), [](const Token& t){ return t.type == TokenType::NUMBER; }) == 1)
-            {
-                auto node = std::make_unique<DecoupledStringExpression>();
-                node->number_part = std::make_unique<NumberLiteral>();
-                node->number_part->value = std::stod(num_it->literal);
-
-                std::string unit_str;
-                auto next_token_it = std::next(num_it);
-                if (next_token_it != tokens.end() && next_token_it->type == TokenType::IDENT)
-                {
-                    node->number_part->unit = next_token_it->literal;
-                }
-
-                std::stringstream ss;
-                for (auto it = tokens.begin(); it != tokens.end(); ++it)
-                {
-                    if (it != tokens.begin()) {
-                        ss << " ";
-                    }
-
-                    if (it == num_it)
-                    {
-                        ss << "%s"; // Placeholder for the number
-                    }
-                    else if (it == next_token_it && !node->number_part->unit.empty())
-                    {
-                        // This token is the unit, so we effectively remove it from the stream
-                        // by not appending it. We also pop the last space.
-                        std::string s = ss.str();
-                        s.pop_back();
-                        ss.str("");
-                        ss << s;
-                    }
-                    else
-                    {
-                        ss << it->literal;
-                    }
-                }
-                node->string_part = ss.str();
-                return node;
-            }
-        }
+        return parseDecoupledStringExpression();
     }
 
     // Default case: simple identifier
     auto ident = std::make_unique<Identifier>();
     ident->value = m_currentToken.literal;
+    return ident;
+}
+
+std::unique_ptr<Expression> Parser::parseDecoupledStringExpression() {
+    std::vector<Token> tokens;
+    tokens.push_back(m_currentToken);
+
+    // Greedily consume subsequent identifiers and numbers
+    while (m_peekToken.type == TokenType::IDENT || m_peekToken.type == TokenType::NUMBER)
+    {
+        nextToken();
+        tokens.push_back(m_currentToken);
+    }
+
+    // Find the single number literal in the token sequence
+    auto num_it = std::find_if(tokens.begin(), tokens.end(), [](const Token& t){
+        return t.type == TokenType::NUMBER;
+    });
+
+    if (num_it != tokens.end() && std::count_if(tokens.begin(), tokens.end(), [](const Token& t){ return t.type == TokenType::NUMBER; }) == 1)
+    {
+        auto node = std::make_unique<DecoupledStringExpression>();
+        node->number_part = std::make_unique<NumberLiteral>();
+        node->number_part->value = std::stod(num_it->literal);
+
+        auto next_token_it = std::next(num_it);
+        if (next_token_it != tokens.end() && next_token_it->type == TokenType::IDENT)
+        {
+            node->number_part->unit = next_token_it->literal;
+        }
+
+        std::stringstream ss;
+        for (auto it = tokens.begin(); it != tokens.end(); ++it)
+        {
+            if (it != tokens.begin()) {
+                ss << " ";
+            }
+
+            if (it == num_it)
+            {
+                ss << "%s"; // Placeholder for the number
+            }
+            else if (it == next_token_it && !node->number_part->unit.empty())
+            {
+                std::string s = ss.str();
+                s.pop_back();
+                ss.str("");
+                ss << s;
+            }
+            else
+            {
+                ss << it->literal;
+            }
+        }
+        node->string_part = ss.str();
+        return node;
+    }
+
+    // If not a valid decoupled expression, fall back to treating the whole thing as a single identifier.
+    std::string full_identifier;
+    for (const auto& token : tokens) {
+        if (!full_identifier.empty()) {
+            full_identifier += " ";
+        }
+        full_identifier += token.literal;
+    }
+    auto ident = std::make_unique<Identifier>();
+    ident->value = full_identifier;
     return ident;
 }
 

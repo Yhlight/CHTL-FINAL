@@ -157,6 +157,16 @@ TEST_CASE("Test More Block Keywords", "[lexer]")
     runLexerTest(input, expected);
 }
 
+TEST_CASE("Test Escaped Quote in String", "[lexer]")
+{
+    std::string input = R"("hello \" world")";
+    std::vector<CHTL::Token> expected = {
+        {CHTL::TokenType::STRING, "hello \\\" world"},
+        {CHTL::TokenType::END_OF_FILE, ""}
+    };
+    runLexerTest(input, expected);
+}
+
 TEST_CASE("Test script keyword", "[lexer]")
 {
 	std::string input = "script";

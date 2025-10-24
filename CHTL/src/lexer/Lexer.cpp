@@ -187,11 +187,18 @@ Token Lexer::readBlockKeyword()
 std::string Lexer::readString(char quote_type)
 {
     size_t startPosition = m_position + 1; // 跳过起始的引号
-    do
+    while (true)
     {
         readChar();
-        // 可以在这里添加对转义字符的支持
-    } while (m_char != quote_type && m_char != 0);
+        if (m_char == '\\') {
+            // 遇到反斜杠，直接读取下一个字符作为字面量的一部分
+            readChar();
+        }
+        else if (m_char == quote_type || m_char == 0) {
+            // 遇到结束的引号或文件末尾，结束循环
+            break;
+        }
+    }
 
     std::string result = m_input.substr(startPosition, m_position - startPosition);
     readChar(); // 消耗结束的引号

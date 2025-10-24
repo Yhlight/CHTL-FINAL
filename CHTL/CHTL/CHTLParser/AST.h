@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 
 class Node {
 public:
@@ -12,6 +13,7 @@ public:
 class ElementNode : public Node {
 public:
     std::string tagName;
+    std::map<std::string, std::string> attributes;
     std::vector<std::unique_ptr<Node>> children;
 };
 

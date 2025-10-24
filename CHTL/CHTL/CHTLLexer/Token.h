@@ -10,7 +10,10 @@ enum class TokenType {
     CloseBrace,
     Colon,
     Semicolon,
+    Equals,
     Comment,
+    MultiLineComment,
+    GeneratorComment,
     EndOfFile,
     Unknown
 };

@@ -20,10 +20,23 @@ Token Lexer::nextToken() {
         case '}': return {TokenType::CloseBrace, "}", line, start};
         case ':': return {TokenType::Colon, ":", line, start};
         case ';': return {TokenType::Semicolon, ";", line, start};
+        case '=': return {TokenType::Equals, "=", line, start};
+        case '#':
+            while (peek() != '\n' && !isAtEnd()) advance();
+            return {TokenType::GeneratorComment, source.substr(start, current - start), line, start};
         case '/':
             if (peek() == '/') {
                 while (peek() != '\n' && !isAtEnd()) advance();
                 return {TokenType::Comment, source.substr(start, current - start), line, start};
+            } else if (peek() == '*') {
+                advance(); // consume '*'
+                while (peek() != '*' && !isAtEnd()) {
+                    if (peek() == '\n') line++;
+                    advance();
+                }
+                advance(); // consume '*'
+                advance(); // consume '/'
+                return {TokenType::MultiLineComment, source.substr(start, current - start), line, start};
             }
             break;
         case '"':

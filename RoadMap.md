@@ -7,11 +7,11 @@ This document outlines the development roadmap for the CHTL project.
 - [x] Lexer and Tokenizer
 - [x] Parser (AST)
 - [x] Basic HTML Generation
-- [ ] Comments (`//`, `/**/`, `#`)
-- [ ] Text Nodes (`text {}` and `text:` attribute)
-- [ ] Element Nodes
-- [ ] Attributes (`key: value;`)
-- [ ] Unquoted literals
+- [x] Comments (`//`, `/**/`, `#`)
+- [x] Text Nodes (`text {}` and `text:` attribute)
+- [x] Element Nodes
+- [x] Attributes (`key: value;`)
+- [x] Unquoted literals
 
 ## Phase 2: Advanced Styling and Expressions
 

@@ -9,7 +9,9 @@ public:
     std::unique_ptr<Node> parse();
 
 private:
+    void skipComments();
     std::unique_ptr<Node> parseElement();
+    void parseAttributes(ElementNode* element);
     std::unique_ptr<Node> parseText();
 
     const std::vector<Token>& tokens;

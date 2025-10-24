@@ -3,7 +3,11 @@
 std::string Generator::generate(const Node& node) {
     std::string html;
     if (const ElementNode* element = dynamic_cast<const ElementNode*>(&node)) {
-        html += "<" + element->tagName + ">";
+        html += "<" + element->tagName;
+        for (const auto& attr : element->attributes) {
+            html += " " + attr.first + "=\"" + attr.second + "\"";
+        }
+        html += ">";
         for (const auto& child : element->children) {
             html += generate(*child);
         }

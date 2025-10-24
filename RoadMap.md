@@ -4,9 +4,9 @@ This document outlines the planned development phases for the CHTL programming l
 
 ## Phase 1: Project Setup & Core Infrastructure (Current)
 - [x] Set up project structure, build system (CMake, Python script), and version control.
-- [ ] Establish the basic compiler architecture (Lexer, Parser, AST, Generator).
-- [ ] Implement a simple "Hello, World" equivalent to verify the end-to-end toolchain.
-- [ ] Develop a robust testing framework (TDD).
+- [x] Establish the basic compiler architecture (Lexer, Parser, AST, Generator).
+- [x] Implement a simple "Hello, World" equivalent to verify the end-to-end toolchain.
+- [x] Develop a robust testing framework (TDD).
 
 ## Phase 2: Basic CHTL Features
 - [ ] Implement core syntax: comments, text nodes, and literals.

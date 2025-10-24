@@ -120,16 +120,13 @@ def main():
     if not build_project():
         sys.exit(1)
 
-    if not preprocess_file("mixed_js_test.chtl", "mixed_js_test.processed.chtl"):
-        sys.exit(1)
-
     if not run_tests():
         sys.exit(1)
 
-    # if not package_vscode_extension():
-    #     sys.exit(1)
+    if not package_vscode_extension():
+        sys.exit(1)
 
-    print("\n--- 构建和测试脚本成功完成。 ---")
+    print("\n--- 构建、测试和打包脚本成功完成。 ---")
 
 if __name__ == "__main__":
     main()

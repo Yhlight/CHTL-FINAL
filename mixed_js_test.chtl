@@ -25,5 +25,21 @@ div {
                 opacity: 1,
             }
         };
+
+        // New test cases for additional CHTL JS keywords
+        {{.another-button}} &-> click: () => {
+            console.log('Another button clicked!');
+        };
+
+        Router {
+            url: "/home",
+            page: {{.home-page}},
+        };
+
+        util a > b -> change {
+            console.log("a is now greater than b");
+        } -> end {
+            console.log("a > b condition finished");
+        };
     }
 }

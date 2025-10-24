@@ -11,7 +11,10 @@ bool startsChtlJs(const std::string& line) {
            line.find("Listen {") != std::string::npos ||
            line.find("Delegate {") != std::string::npos ||
            line.find("Animate {") != std::string::npos ||
-           line.find("Vir ") != std::string::npos;
+           line.find("Vir ") != std::string::npos ||
+           line.find("&->") != std::string::npos ||
+           line.find("Router {") != std::string::npos ||
+           line.find("util ") != std::string::npos;
 }
 
 // Function to count braces on a line

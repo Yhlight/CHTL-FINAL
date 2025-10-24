@@ -29,5 +29,27 @@ div {
             }
         };
 [CHTLJSEND]
+
+        // New test cases for additional CHTL JS keywords
+[CHTLJS]
+        {{.another-button}} &-> click: () => {
+            console.log('Another button clicked!');
+        };
+[CHTLJSEND]
+
+[CHTLJS]
+        Router {
+            url: "/home",
+            page: {{.home-page}},
+        };
+[CHTLJSEND]
+
+[CHTLJS]
+        util a > b -> change {
+            console.log("a is now greater than b");
+        } -> end {
+            console.log("a > b condition finished");
+        };
+[CHTLJSEND]
     }
 }

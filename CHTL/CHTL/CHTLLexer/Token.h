@@ -11,6 +11,7 @@ enum class TokenType {
     Colon,
     Semicolon,
     Equals,
+    Ampersand,
     Comment,
     MultiLineComment,
     GeneratorComment,

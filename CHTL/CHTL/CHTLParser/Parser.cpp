@@ -74,7 +74,35 @@ void Parser::parseStyleBlock(ElementNode* element, Document& doc) {
             skipComments();
             if (current >= tokens.size() || tokens[current].type == TokenType::CloseBrace) break;
 
-            if (tokens[current].value[0] == '.' || tokens[current].value[0] == '#') {
+            if (tokens[current].type == TokenType::Ampersand) {
+                current++; // consume '&'
+                StyleRule rule;
+                std::string pseudo_selector;
+                while(current < tokens.size() && tokens[current].type != TokenType::OpenBrace) {
+                    pseudo_selector += tokens[current++].value;
+                }
+                std::string base_selector = (element->attributes.count("class") ? "." + element->attributes["class"] : "#" + element->attributes["id"]);
+                rule.selector = base_selector + pseudo_selector;
+
+                skipComments();
+                if (current < tokens.size() && tokens[current].type == TokenType::OpenBrace) {
+                    current++; // consume '{'
+                    while (current < tokens.size() && tokens[current].type != TokenType::CloseBrace) {
+                        skipComments();
+                        if (current >= tokens.size() || tokens[current].type == TokenType::CloseBrace) break;
+
+                        std::string style_key = tokens[current++].value;
+                        if (current < tokens.size() && (tokens[current].type == TokenType::Colon || tokens[current].type == TokenType::Equals)) current++;
+                        if (current < tokens.size() && (tokens[current].type == TokenType::String || tokens[current].type == TokenType::Identifier)) {
+                            rule.properties[style_key] = tokens[current++].value;
+                        }
+                        if (current < tokens.size() && tokens[current].type == TokenType::Semicolon) current++;
+                    }
+                    if (current < tokens.size() && tokens[current].type == TokenType::CloseBrace) current++;
+                }
+                doc.globalStyles.push_back(rule);
+
+            } else if (tokens[current].value[0] == '.' || tokens[current].value[0] == '#') {
                 StyleRule rule;
                 rule.selector = tokens[current].value;
                 if (tokens[current].value[0] == '.') element->attributes["class"] = tokens[current].value.substr(1);

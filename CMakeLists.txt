@@ -64,3 +64,13 @@ set(PARSER_GLOBAL_STYLE_TEST_SOURCES
 
 add_executable(parser_global_style_test ${PARSER_GLOBAL_STYLE_TEST_SOURCES})
 target_include_directories(parser_global_style_test PUBLIC ${CMAKE_SOURCE_DIR})
+
+set(PARSER_CONTEXTUAL_SELECTOR_TEST_SOURCES
+    CHTL/Test/CHTLParser/ParserContextualSelectorTest.cpp
+    CHTL/CHTL/CHTLLexer/Lexer.cpp
+    CHTL/CHTL/CHTLParser/Parser.cpp
+    CHTL/CHTL/CHTLGenerator/Generator.cpp
+)
+
+add_executable(parser_contextual_selector_test ${PARSER_CONTEXTUAL_SELECTOR_TEST_SOURCES})
+target_include_directories(parser_contextual_selector_test PUBLIC ${CMAKE_SOURCE_DIR})

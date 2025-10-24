@@ -21,6 +21,7 @@ Token Lexer::nextToken() {
         case ':': return {TokenType::Colon, ":", line, start};
         case ';': return {TokenType::Semicolon, ";", line, start};
         case '=': return {TokenType::Equals, "=", line, start};
+        case '&': return {TokenType::Ampersand, "&", line, start};
         case '#':
         case '.':
             if (isalpha(peek())) {

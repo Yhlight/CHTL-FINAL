@@ -4,12 +4,18 @@
 #include <iostream>
 #include <cassert>
 
-void test_style_blocks() {
+void test_global_styles() {
     std::string source = R"(
-        div {
-            style {
-                color: "red";
-                font-size: "16px";
+        html {
+            head {}
+            body {
+                div {
+                    style {
+                        .box {
+                            color: "red";
+                        }
+                    }
+                }
             }
         }
     )";
@@ -22,13 +28,13 @@ void test_style_blocks() {
     Generator generator;
     std::string html = generator.generate(doc);
 
-    std::string expected_html = "<div style=\"color: red;font-size: 16px;\"></div>";
+    std::string expected_html = "<html><head><style>.box {color: red;}</style></head><body><div class=\"box\"></div></body></html>";
     assert(html == expected_html);
 
-    std::cout << "test_style_blocks passed." << std::endl;
+    std::cout << "test_global_styles passed." << std::endl;
 }
 
 int main() {
-    test_style_blocks();
+    test_global_styles();
     return 0;
 }

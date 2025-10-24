@@ -1,9 +1,11 @@
 #pragma once
 
-#include "../CHTLParser/AST.h"
+#include "../../SharedCore/Document.h"
 #include <string>
 
 class Generator {
 public:
-    std::string generate(const Node& node);
+    std::string generate(Document& doc);
+private:
+    std::string generateNode(const Node& node);
 };

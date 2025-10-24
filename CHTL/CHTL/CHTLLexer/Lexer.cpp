@@ -22,8 +22,16 @@ Token Lexer::nextToken() {
         case ';': return {TokenType::Semicolon, ";", line, start};
         case '=': return {TokenType::Equals, "=", line, start};
         case '#':
-            while (peek() != '\n' && !isAtEnd()) advance();
-            return {TokenType::GeneratorComment, source.substr(start, current - start), line, start};
+        case '.':
+            if (isalpha(peek())) {
+                while (isalnum(peek()) || peek() == '_' || peek() == '-') advance();
+                return {TokenType::Identifier, source.substr(start, current - start), line, start};
+            }
+            if (c == '#') { // if it's a standalone #, it's a generator comment
+                 while (peek() != '\n' && !isAtEnd()) advance();
+                 return {TokenType::GeneratorComment, source.substr(start, current - start), line, start};
+            }
+            break;
         case '/':
             if (peek() == '/') {
                 while (peek() != '\n' && !isAtEnd()) advance();

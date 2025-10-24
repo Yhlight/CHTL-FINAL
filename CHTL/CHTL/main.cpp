@@ -4,7 +4,7 @@
 #include "CHTLGenerator/Generator.h"
 
 int main() {
-    std::string source = "html { body { h1 { text: \"Hello, CHTL!\"; } } }";
+    std::string source = "html { head {} body { h1 { class: \"title\"; style { color: \"blue\"; .title { font-size: \"24px\"; } } } } }";
 
     // Lexer
     Lexer lexer(source);
@@ -12,11 +12,11 @@ int main() {
 
     // Parser
     Parser parser(tokens);
-    std::unique_ptr<Node> ast = parser.parse();
+    Document doc = parser.parse();
 
     // Generator
     Generator generator;
-    std::string html = generator.generate(*ast);
+    std::string html = generator.generate(doc);
 
     std::cout << html << std::endl;
 

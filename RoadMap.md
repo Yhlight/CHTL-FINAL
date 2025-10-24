@@ -17,7 +17,7 @@ This document outlines the development roadmap for the CHTL project.
 
 - [x] Local Style Blocks (`style {}`)
 - [x] Inline Styles
-- [ ] Automatic class/id generation
+- [x] Automatic class/id generation
 - [ ] Contextual `&` selector
 - [ ] Attribute arithmetic (+, -, *, /, %, **)
 - [ ] Attribute referencing

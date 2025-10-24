@@ -18,10 +18,10 @@ void test_attributes_and_comments() {
     std::vector<Token> tokens = lexer.tokenize();
 
     Parser parser(tokens);
-    std::unique_ptr<Node> root = parser.parse();
+    Document doc = parser.parse();
 
     Generator generator;
-    std::string html = generator.generate(*root);
+    std::string html = generator.generate(doc);
 
     std::string expected_html = "<div class=\"container\" id=\"main\"></div>";
     assert(html == expected_html);

@@ -93,7 +93,7 @@ namespace CHTLJS
 
                 if (end_pos != std::string::npos)
                 {
-                    output << " [__CHTLJS__] " << input.substr(start_pos, end_pos - start_pos) << " [__CHTLJSEND__] ";
+                    output << "[__CHTLJS__]" << input.substr(start_pos, end_pos - start_pos) << "[__CHTLJSEND__]";
                     current_pos = end_pos;
                 }
                 else

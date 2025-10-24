@@ -80,8 +80,8 @@ void Generator::visit(const RawJSNode &node) {
         }
     };
 
-    remove_substring(content, " [__CHTLJS__] ");
-    remove_substring(content, " [__CHTLJSEND__] ");
+    remove_substring(content, "[__CHTLJS__]");
+    remove_substring(content, "[__CHTLJSEND__]");
 
     output_ += content;
 }

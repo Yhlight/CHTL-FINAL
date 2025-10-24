@@ -57,6 +57,21 @@ namespace CHTLJS
         tok.line = m_line;
         tok.column = m_column;
 
+        if (m_input.rfind("[__CHTLJS__]", m_position) == m_position)
+        {
+            size_t start_pos = m_position + 12;
+            size_t end_pos = m_input.find("[__CHTLJSEND__]", start_pos);
+            if (end_pos != std::string::npos)
+            {
+                tok.type = TokenType::RAW_JS;
+                tok.literal = m_input.substr(start_pos, end_pos - start_pos);
+                m_readPosition = end_pos + 14;
+                m_position = m_readPosition - 1;
+                readChar();
+                return tok;
+            }
+        }
+
         if (m_char == '{' && peekChar() == '{')
         {
             readChar(); // consume first '{'

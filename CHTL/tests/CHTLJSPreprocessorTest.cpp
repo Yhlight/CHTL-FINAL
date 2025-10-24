@@ -8,7 +8,7 @@ TEST_CASE("CHTLJS Preprocessor correctly wraps CHTL JS blocks", "[preprocessor]"
     SECTION("Simple CHTLJS block")
     {
         std::string input = "Listen { click: () => {} };";
-        std::string expected = " [__CHTLJS__] Listen { click: () => {} }; [__CHTLJSEND__] ";
+        std::string expected = "[__CHTLJS__]Listen { click: () => {} };[__CHTLJSEND__]";
         REQUIRE(CHTLJS::Preprocessor::Process(input) == expected);
     }
 
@@ -18,7 +18,7 @@ TEST_CASE("CHTLJS Preprocessor correctly wraps CHTL JS blocks", "[preprocessor]"
                             "{{button}}->Listen { click: () => {} };\n"
                             "var x = 10;";
         std::string expected = "console.log('hello');\n"
-                               " [__CHTLJS__] {{button}}->Listen { click: () => {} }; [__CHTLJSEND__] \n"
+                               "[__CHTLJS__]{{button}}->Listen { click: () => {} };[__CHTLJSEND__]\n"
                                "var x = 10;";
         REQUIRE(CHTLJS::Preprocessor::Process(input) == expected);
     }
@@ -28,9 +28,9 @@ TEST_CASE("CHTLJS Preprocessor correctly wraps CHTL JS blocks", "[preprocessor]"
         std::string input = "Animate { duration: 100 };\n"
                             "console.log('between');\n"
                             "Vir myVir = Listen { };";
-        std::string expected = " [__CHTLJS__] Animate { duration: 100 }; [__CHTLJSEND__] \n"
+        std::string expected = "[__CHTLJS__]Animate { duration: 100 };[__CHTLJSEND__]\n"
                                "console.log('between');\n"
-                               " [__CHTLJS__] Vir myVir = Listen { }; [__CHTLJSEND__] ";
+                               "[__CHTLJS__]Vir myVir = Listen { };[__CHTLJSEND__]";
         REQUIRE(CHTLJS::Preprocessor::Process(input) == expected);
     }
 }
@@ -48,12 +48,12 @@ TEST_CASE("CHTLJS Preprocessor correctly wraps CHTL JS blocks", "[preprocessor]"
 
 //     SECTION("Lexer handles mixed content")
 //     {
-//         std::string input = "var x = 10; [__CHTLJS__]{{button}}->click();[__CHTLJSEND__] console.log('done');";
+//         std::string input = "var x = 10;[__CHTLJS__]{{button}}->click();[__CHTLJSEND__]console.log('done');";
 //         CHTLJS::Lexer lexer(input);
 
 //         CHTLJS::Token token1 = lexer.NextToken();
 //         REQUIRE(token1.type == CHTLJS::TokenType::RAW_JS);
-//         REQUIRE(token1.literal == "var x = 10; ");
+//         REQUIRE(token1.literal == "var x = 10;");
 
 //         CHTLJS::Token token2 = lexer.NextToken();
 //         REQUIRE(token2.type == CHTLJS::TokenType::RAW_JS);
@@ -61,6 +61,6 @@ TEST_CASE("CHTLJS Preprocessor correctly wraps CHTL JS blocks", "[preprocessor]"
 
 //         CHTLJS::Token token3 = lexer.NextToken();
 //         REQUIRE(token3.type == CHTLJS::TokenType::RAW_JS);
-//         REQUIRE(token3.literal == " console.log('done');");
+//         REQUIRE(token3.literal == "console.log('done');");
 //     }
 // }

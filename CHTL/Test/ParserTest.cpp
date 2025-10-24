@@ -16,6 +16,10 @@ public:
         }
     }
 
+    void visit(const CHTL::StyleNode& node) override {
+        // Not used in this test
+    }
+
     bool visitedTextNode = false;
     std::string text;
 };

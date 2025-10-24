@@ -10,12 +10,14 @@ namespace CHTL {
 
 class TextNode;
 class ElementNode;
+class StyleNode;
 
 class ASTVisitor {
 public:
     virtual ~ASTVisitor() = default;
     virtual void visit(const TextNode& node) = 0;
     virtual void visit(const ElementNode& node) = 0;
+    virtual void visit(const StyleNode& node) = 0;
 };
 
 class ASTNode {
@@ -38,12 +40,18 @@ private:
     std::string m_text;
 };
 
+struct Attribute {
+    std::string key;
+    std::string value;
+};
+
 class ElementNode : public ASTNode {
 public:
-    ElementNode(std::string tagName, std::vector<std::unique_ptr<ASTNode>> children)
-        : m_tagName(std::move(tagName)), m_children(std::move(children)) {}
+    ElementNode(std::string tagName, std::vector<Attribute> attributes, std::vector<std::unique_ptr<ASTNode>> children)
+        : m_tagName(std::move(tagName)), m_attributes(std::move(attributes)), m_children(std::move(children)) {}
 
     const std::string& getTagName() const { return m_tagName; }
+    const std::vector<Attribute>& getAttributes() const { return m_attributes; }
     const std::vector<std::unique_ptr<ASTNode>>& getChildren() const { return m_children; }
 
     void accept(ASTVisitor& visitor) const override {
@@ -52,7 +60,22 @@ public:
 
 private:
     std::string m_tagName;
+    std::vector<Attribute> m_attributes;
     std::vector<std::unique_ptr<ASTNode>> m_children;
+};
+
+class StyleNode : public ASTNode {
+public:
+    explicit StyleNode(std::vector<Attribute> properties) : m_properties(std::move(properties)) {}
+
+    const std::vector<Attribute>& getProperties() const { return m_properties; }
+
+    void accept(ASTVisitor& visitor) const override {
+        visitor.visit(*this);
+    }
+
+private:
+    std::vector<Attribute> m_properties;
 };
 
 } // namespace CHTL

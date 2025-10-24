@@ -13,6 +13,7 @@ public:
 
     void visit(const TextNode& node) override;
     void visit(const ElementNode& node) override;
+    void visit(const StyleNode& node) override;
 
 private:
     std::stringstream m_output;

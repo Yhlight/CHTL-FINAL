@@ -17,6 +17,7 @@ std::vector<Token> Lexer::scanTokens() {
     while (!isAtEnd()) {
         m_start = m_current;
         Token token = scanToken();
+        // Skip unknown tokens for now, can be used for error reporting later
         if (token.type != TokenType::Unknown) {
             tokens.push_back(token);
         }
@@ -32,25 +33,39 @@ Token Lexer::scanToken() {
     m_start = m_current;
     char c = advance();
 
+    if (isalpha(c)) return identifier();
+
     switch (c) {
         case '{': return {TokenType::OpenBrace, "{", m_line, m_column};
         case '}': return {TokenType::CloseBrace, "}", m_line, m_column};
         case ';': return {TokenType::Semicolon, ";", m_line, m_column};
         case ':': return {TokenType::Colon, ":", m_line, m_column};
         case '=': return {TokenType::Equals, "=", m_line, m_column};
-        case '"': return string();
+        case '"': return string('"');
+        case '\'': return string('\'');
+        case '#':
+            while (peek() != '\n' && !isAtEnd()) {
+                advance();
+            }
+            // We capture the comment content, excluding the '#'
+            return {TokenType::GeneratorComment, m_source.substr(m_start + 1, m_current - m_start - 1), m_line, m_column};
     }
 
-    if (isalpha(c)) {
-        return identifier();
+    // If it's none of the above, it's treated as an UnquotedLiteral
+    // This will catch values like `red`, `100px`, `HelloWorld`, etc.
+    // The parser will be responsible for interpreting them in context.
+    const std::string terminators = " \t\r\n{};:='\"#";
+    while (!isAtEnd() && terminators.find(peek()) == std::string::npos) {
+        advance();
     }
-
-    return {TokenType::Unknown, std::string(1, c), m_line, m_column};
+    return {TokenType::UnquotedLiteral, m_source.substr(m_start, m_current - m_start), m_line, m_column};
 }
 
 char Lexer::advance() {
-    m_current++;
-    m_column++;
+    if (!isAtEnd()) {
+        m_current++;
+        m_column++;
+    }
     return m_source[m_current - 1];
 }
 
@@ -78,12 +93,31 @@ void Lexer::skipWhitespaceAndComments() {
                 advance();
                 break;
             case '/':
-                if (m_current + 1 < m_source.length() && m_source[m_current + 1] == '/') {
-                    while (peek() != '\n' && !isAtEnd()) {
-                        advance();
+                if (m_current + 1 < m_source.length()) {
+                    if (m_source[m_current + 1] == '/') { // Single-line comment
+                        while (peek() != '\n' && !isAtEnd()) advance();
+                    } else if (m_source[m_current + 1] == '*') { // Multi-line comment
+                        advance(); // consume /
+                        advance(); // consume *
+                        while (!isAtEnd()) {
+                            if (peek() == '*' && m_current + 1 < m_source.length() && m_source[m_current + 1] == '/') {
+                                break;
+                            }
+                            if (peek() == '\n') {
+                                m_line++;
+                                m_column = 0;
+                            }
+                            advance();
+                        }
+                        if (!isAtEnd()) {
+                            advance(); // consume *
+                            advance(); // consume /
+                        }
+                    } else {
+                        return; // Not a comment, just a slash
                     }
                 } else {
-                    return;
+                     return; // End of file
                 }
                 break;
             default:
@@ -92,8 +126,8 @@ void Lexer::skipWhitespaceAndComments() {
     }
 }
 
-Token Lexer::string() {
-    while (peek() != '"' && !isAtEnd()) {
+Token Lexer::string(char delimiter) {
+    while (peek() != delimiter && !isAtEnd()) {
         if (peek() == '\n') {
             m_line++;
             m_column = 0;
@@ -105,14 +139,14 @@ Token Lexer::string() {
         throw std::runtime_error("Unterminated string.");
     }
 
-    advance(); // The closing ".
+    advance(); // The closing delimiter.
 
     std::string value = m_source.substr(m_start + 1, m_current - m_start - 2);
     return {TokenType::String, value, m_line, m_column};
 }
 
 Token Lexer::identifier() {
-    while (isalnum(peek())) {
+    while (isalnum(peek()) || peek() == '-') { // Allow hyphens in identifiers
         advance();
     }
 

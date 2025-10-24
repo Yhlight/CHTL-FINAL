@@ -27,6 +27,7 @@ set(TEST_SOURCES
     CHTL/Test/sample_test.cpp
     CHTL/Test/LexerTest.cpp
     CHTL/Test/ParserTest.cpp
+    CHTL/Test/FeatureTest.cpp
     # Add new test files here
 )
 
@@ -48,6 +49,7 @@ target_link_libraries(run_tests
   compiler_lib
 )
 target_include_directories(run_tests PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(run_tests PRIVATE CHTL_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 
 include(GoogleTest)

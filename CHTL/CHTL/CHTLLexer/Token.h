@@ -21,10 +21,12 @@ enum class TokenType {
     // Literals
     String,
     Identifier,
+    UnquotedLiteral,
     Number,
 
     // Other
     Comment,
+    GeneratorComment, // #
     EndOfFile,
     Unknown
 };

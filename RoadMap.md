@@ -9,9 +9,9 @@ This document outlines the planned development phases for the CHTL programming l
 - [x] Develop a robust testing framework (TDD).
 
 ## Phase 2: Basic CHTL Features
-- [ ] Implement core syntax: comments, text nodes, and literals.
-- [ ] Implement element nodes and attributes.
-- [ ] Implement basic `style` blocks for inline styles.
+- [x] Implement core syntax: comments, text nodes, and literals.
+- [x] Implement element nodes and attributes.
+- [x] Implement basic `style` blocks for inline styles.
 
 ## Phase 3: Advanced CHTL Styling
 - [ ] Implement automated class/id generation from `style` blocks.

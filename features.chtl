@@ -1,0 +1,24 @@
+# This is a generator comment and should be ignored by the parser.
+
+/*
+  This is a multi-line comment.
+  It should also be ignored.
+*/
+
+div {
+  id: main-content;
+  class = 'container'; // Using = instead of :
+
+  h1 {
+    style {
+      color: red;
+      font-size: 24px;
+    }
+    text { "Welcome to CHTL" }
+  }
+
+  p {
+    // This is a single-line comment.
+    text { "This is a paragraph with some 'single-quoted' text." }
+  }
+}

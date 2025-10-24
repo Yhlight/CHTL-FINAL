@@ -18,8 +18,9 @@ private:
     bool isAtEnd();
     char peek();
     void skipWhitespaceAndComments();
-    Token string();
+    Token string(char delimiter);
     Token identifier();
+    Token unquotedLiteral();
 
     const std::string m_source;
     int m_start = 0;

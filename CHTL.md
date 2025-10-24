@@ -811,7 +811,7 @@ body
 原始嵌入是CHTL的兼容处理机制，避免CHTL考虑不到的极端问题  
 原始嵌入允许在任意节点中被解析  
 原始嵌入是直接把内容进行输出，绝对不会进行处理  
-原始嵌入的类型无作用，仅提供标识，不要根据类型将其包装在不同的标签中  
+原始嵌入的类型无作用，仅提供标识，不要根据类型将其包装在不同的标签中
 
 ### 嵌入HTML代码
 ```chtl
@@ -1304,6 +1304,31 @@ ScriptMain是CHTL JS的入口，只能用于编写纯CHTL JS语法，不兼容JS
 
 ScriptMain会直接传递那些JS代码，仅仅只处理纯CHTL JS代码  
 只有CHTL项目真正实现混合语法处理后，ScriptMain将被标记为弃用  
+
+```
+ScriptMain
+{
+    {{box}}->Listen {
+        click: () => {
+
+        },
+
+        mouseenter: mouseEnterEvent,  // 已经存在的函数
+
+        mousemove: function() {
+
+        }
+    };
+}
+```
+
+### ScriptMain
+ScriptMain是CHTL JS的入口，只能用于编写纯CHTL JS语法，不兼容JS语法
+这是早期阶段的一种妥协，是实现实现混合CHTL JS和JS支持前的一种选择
+此功能将一直保留，将用于那些希望独立使用CHTL JS的开发者
+
+ScriptMain会直接传递那些JS代码，仅仅只处理纯CHTL JS代码
+只有CHTL项目真正实现混合语法处理后，ScriptMain将被标记为弃用
 
 ```
 ScriptMain

@@ -19,6 +19,7 @@ enum class TokenType {
     Equals,        // =
     Dot,           // .
     Hash,          // #
+    Ampersand,     // &
 
     // Literals
     String,

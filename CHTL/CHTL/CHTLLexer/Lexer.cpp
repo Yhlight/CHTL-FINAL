@@ -52,6 +52,7 @@ Token Lexer::scanToken() {
                 return {TokenType::GeneratorComment, m_source.substr(m_start + 2, m_current - m_start - 2), m_line, m_column};
             }
             return {TokenType::Hash, "#", m_line, m_column};
+        case '&': return {TokenType::Ampersand, "&", m_line, m_column};
     }
 
     // If it's none of the above, it's treated as an UnquotedLiteral

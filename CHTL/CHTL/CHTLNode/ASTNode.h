@@ -47,7 +47,7 @@ struct Attribute {
 };
 
 struct Selector {
-    enum class Type { Class, Id };
+    enum class Type { Class, Id, Context };
     Type type;
     std::string name;
     std::vector<Attribute> properties;

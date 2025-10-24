@@ -71,12 +71,34 @@ void HTMLGenerator::visit(const ElementNode& node) {
 }
 
 void HTMLGenerator::visit(const StyleNode& node) {
+    // Determine the context for '&' selectors. The CHTL spec says this is the
+    // first class or ID selector in the style block.
+    std::string context_selector_str;
+    for (const auto& selector : node.getSelectors()) {
+        if (selector.type == Selector::Type::Class) {
+            context_selector_str = "." + selector.name;
+            break;
+        }
+        if (selector.type == Selector::Type::Id) {
+            context_selector_str = "#" + selector.name;
+            break;
+        }
+    }
+
     // Generate CSS rules for selectors and add them to the global stylesheet
     for (const auto& selector : node.getSelectors()) {
         if (selector.type == Selector::Type::Class) {
             m_global_css << "." << selector.name;
-        } else {
+        } else if (selector.type == Selector::Type::Id) {
             m_global_css << "#" << selector.name;
+        } else if (selector.type == Selector::Type::Context) {
+            if (context_selector_str.empty()) {
+                // This could be a user error, but we'll handle it gracefully.
+                 std::cerr << "Warning: Context selector '&' used without a class or id context." << std::endl;
+                 m_global_css << selector.name; // e.g., just output ':hover'
+            } else {
+                m_global_css << context_selector_str << selector.name;
+            }
         }
         m_global_css << " { ";
         for (const auto& prop : selector.properties) {
@@ -84,7 +106,6 @@ void HTMLGenerator::visit(const StyleNode& node) {
         }
         m_global_css << "}\n";
     }
-    // Inline properties are handled by the ElementNode visitor, so they are not processed here.
 }
 
 } // namespace CHTL

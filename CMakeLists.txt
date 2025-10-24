@@ -29,6 +29,7 @@ set(TEST_SOURCES
     CHTL/Test/ParserTest.cpp
     CHTL/Test/FeatureTest.cpp
     CHTL/Test/StylingTest.cpp
+    CHTL/Test/ContextSelectorTest.cpp
     CHTL/Test/TestUtils.cpp
     # Add new test files here
 )

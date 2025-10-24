@@ -1,0 +1,14 @@
+button {
+  style {
+    .btn {
+      padding: 10px 20px;
+      background-color: blue;
+      color: white;
+    }
+
+    &:hover {
+      background-color: darkblue;
+    }
+  }
+  text { "Click Me" }
+}

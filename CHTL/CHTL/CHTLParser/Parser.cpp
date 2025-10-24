@@ -97,13 +97,31 @@ std::unique_ptr<ASTNode> Parser::styleNode() {
     std::vector<Selector> selectors;
 
     while (!check(TokenType::CloseBrace) && !isAtEnd()) {
-        if (check(TokenType::Dot) || check(TokenType::Hash)) {
-            Selector::Type type = advance().type == TokenType::Dot ? Selector::Type::Class : Selector::Type::Id;
-            Token name = consume(TokenType::Identifier, "Expect selector name after '.' or '#'.");
-            consume(TokenType::OpenBrace, "Expect '{' after selector name.");
-            std::vector<Attribute> properties = attributes();
-            consume(TokenType::CloseBrace, "Expect '}' after selector block.");
-            selectors.push_back({type, name.lexeme, std::move(properties)});
+        if (check(TokenType::Dot) || check(TokenType::Hash) || check(TokenType::Ampersand)) {
+            Token type_token = advance();
+            Selector::Type type;
+            std::string name_str;
+
+            if (type_token.type == TokenType::Ampersand) {
+                type = Selector::Type::Context;
+                // The "name" is the rest of the selector (e.g., ":hover")
+                // We'll consume tokens until we hit the opening brace.
+                while(!check(TokenType::OpenBrace) && !isAtEnd()) {
+                    name_str += advance().lexeme;
+                }
+            } else {
+                type = type_token.type == TokenType::Dot ? Selector::Type::Class : Selector::Type::Id;
+                name_str = consume(TokenType::Identifier, "Expect selector name after '.' or '#'.").lexeme;
+            }
+
+            if (match(TokenType::OpenBrace)) {
+                std::vector<Attribute> properties = attributes();
+                consume(TokenType::CloseBrace, "Expect '}' after selector block.");
+                selectors.push_back({type, name_str, std::move(properties)});
+            } else {
+                // This could be a syntax error, or a more complex selector not yet supported
+                throw std::runtime_error("Expect '{' after selector.");
+            }
         } else if (check(TokenType::Identifier)) {
             auto parsed_props = attributes();
             inline_properties.insert(inline_properties.end(), std::make_move_iterator(parsed_props.begin()), std::make_move_iterator(parsed_props.end()));
@@ -115,6 +133,7 @@ std::unique_ptr<ASTNode> Parser::styleNode() {
     consume(TokenType::CloseBrace, "Expect '}' after style block.");
     return std::make_unique<StyleNode>(std::move(inline_properties), std::move(selectors));
 }
+
 
 std::unique_ptr<ASTNode> Parser::textNode() {
     consume(TokenType::OpenBrace, "Expect '{' after 'text' keyword.");

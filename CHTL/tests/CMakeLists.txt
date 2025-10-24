@@ -29,8 +29,10 @@ add_chkl_test(SerializationTest SerializationTest.cpp)
 add_chkl_test(ModuleTest ModuleTest.cpp)
 add_chkl_test(CJMODAPITest CJMODAPITest.cpp)
 add_chkl_test(ValidatorTest ValidatorTest.cpp)
+add_chkl_test(CHTLJSPreprocessorTest CHTLJSPreprocessorTest.cpp)
 
 # Add extra include directories for JS tests
+target_include_directories(CHTLJSPreprocessorTest PRIVATE ../CHTLJS/include)
 target_include_directories(CHTLJSGeneratorTest PRIVATE ../CHTLJS/include)
 target_include_directories(SerializationTest PRIVATE ../CHTLJS/include)
 target_include_directories(ModuleTest PRIVATE ../CHTLJS/include)

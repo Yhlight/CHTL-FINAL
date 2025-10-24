@@ -25,6 +25,7 @@ file(GLOB_RECURSE CHTL_SOURCES
     "CHTLJS/src/lexer/*.cpp"
     "CHTLJS/src/nodes/*.cpp"
     "CHTLJS/src/parser/*.cpp"
+    "CHTLJS/src/preprocessor/*.cpp"
     "CHTLJS/src/CJMODSystem/*.cpp"
 )
 

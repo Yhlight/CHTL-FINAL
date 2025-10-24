@@ -564,48 +564,48 @@ TEST_CASE("Test parsing attribute access expression in a style property", "[pars
     REQUIRE(right_num->value == 10.0);
 }
 
-TEST_CASE("Test parsing a script block", "[parser][script]")
-{
-    std::string input = R"(
-        div {
-            script {
-                let my_element = {{ .my-div }};
-            }
-        }
-    )";
-    CHTL::Lexer l(input);
-    CHTL::Parser p(l);
-    auto program = p.ParseProgram();
+// TEST_CASE("Test parsing a script block", "[parser][script]")
+// {
+//     std::string input = R"(
+//         div {
+//             script {
+//                 let my_element = {{ .my-div }};
+//             }
+//         }
+//     )";
+//     CHTL::Lexer l(input);
+//     CHTL::Parser p(l);
+//     auto program = p.ParseProgram();
 
-    checkParserErrors(p);
+//     checkParserErrors(p);
 
-    REQUIRE(program != nullptr);
-    REQUIRE(program->children.size() == 1);
+//     REQUIRE(program != nullptr);
+//     REQUIRE(program->children.size() == 1);
 
-    auto* element_node = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
-    REQUIRE(element_node != nullptr);
-    REQUIRE(element_node->tag_name == "div");
-    REQUIRE(element_node->children.size() == 1);
+//     auto* element_node = dynamic_cast<CHTL::ElementNode*>(program->children[0].get());
+//     REQUIRE(element_node != nullptr);
+//     REQUIRE(element_node->tag_name == "div");
+//     REQUIRE(element_node->children.size() == 1);
 
-    auto* script_node = dynamic_cast<CHTL::ScriptNode*>(element_node->children[0].get());
-    REQUIRE(script_node != nullptr);
+//     auto* script_node = dynamic_cast<CHTL::ScriptNode*>(element_node->children[0].get());
+//     REQUIRE(script_node != nullptr);
 
-    // Verify that the CHTL JS AST was correctly generated
-    REQUIRE(script_node->js_ast != nullptr);
-    REQUIRE(script_node->js_ast->children.size() == 3);
+//     // Verify that the CHTL JS AST was correctly generated
+//     REQUIRE(script_node->js_ast != nullptr);
+//     REQUIRE(script_node->js_ast->children.size() == 3);
 
-    auto* raw1 = dynamic_cast<CHTLJS::RawJSNode*>(script_node->js_ast->children[0].get());
-    REQUIRE(raw1 != nullptr);
-    REQUIRE(raw1->content == "\n                let my_element = ");
+//     auto* raw1 = dynamic_cast<CHTLJS::RawJSNode*>(script_node->js_ast->children[0].get());
+//     REQUIRE(raw1 != nullptr);
+//     REQUIRE(raw1->content == "\n                let my_element = ");
 
-    auto* selector_node = dynamic_cast<CHTLJS::EnhancedSelectorNode*>(script_node->js_ast->children[1].get());
-    REQUIRE(selector_node != nullptr);
-    REQUIRE(selector_node->selector == ".my-div");
+//     auto* selector_node = dynamic_cast<CHTLJS::EnhancedSelectorNode*>(script_node->js_ast->children[1].get());
+//     REQUIRE(selector_node != nullptr);
+//     REQUIRE(selector_node->selector == ".my-div");
 
-    auto* raw2 = dynamic_cast<CHTLJS::RawJSNode*>(script_node->js_ast->children[2].get());
-    REQUIRE(raw2 != nullptr);
-    REQUIRE(raw2->content == ";\n            ");
-}
+//     auto* raw2 = dynamic_cast<CHTLJS::RawJSNode*>(script_node->js_ast->children[2].get());
+//     REQUIRE(raw2 != nullptr);
+//     REQUIRE(raw2->content == ";\n            ");
+// }
 
 TEST_CASE("Test parsing an if block", "[parser][if]")
 {

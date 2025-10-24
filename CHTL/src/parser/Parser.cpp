@@ -1,6 +1,7 @@
 #include "parser/Parser.h"
 #include "CHTLJS/include/lexer/Lexer.h"
 #include "CHTLJS/include/parser/Parser.h"
+#include "CHTLJS/src/preprocessor/Preprocessor.h"
 #include "loader/Loader.h"
 #include <algorithm>
 #include <filesystem>
@@ -1610,8 +1611,11 @@ std::unique_ptr<ScriptNode> Parser::parseScriptNode() {
   }
   m_peekToken = m_lexer.NextToken(); // And the one after that
 
+  // Preprocess the script content before parsing
+  std::string processed_content = CHTLJS::Preprocessor::Process(script_content);
+
   // Now, parse the collected script content with the CHTLJS parser
-  CHTLJS::Lexer js_lexer(script_content);
+  CHTLJS::Lexer js_lexer(processed_content);
   CHTLJS::Parser js_parser(js_lexer);
   js_parser.SetBridge(m_bridge);
   node->js_ast = js_parser.ParseProgram();

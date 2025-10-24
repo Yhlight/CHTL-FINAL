@@ -19,7 +19,7 @@ This document outlines the development roadmap for the CHTL project.
 - [x] Inline Styles
 - [x] Automatic class/id generation
 - [x] Contextual `&` selector
-- [ ] Attribute arithmetic (+, -, *, /, %, **)
+- [x] Attribute arithmetic (+, -, *, /, %, **)
 - [ ] Attribute referencing
 - [ ] Attribute conditional expressions
 

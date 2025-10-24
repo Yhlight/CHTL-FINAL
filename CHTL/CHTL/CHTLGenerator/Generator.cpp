@@ -1,4 +1,5 @@
 #include "Generator.h"
+#include <stdexcept>
 
 std::string Generator::generate(Document& doc) {
     std::string style_string;
@@ -7,7 +8,7 @@ std::string Generator::generate(Document& doc) {
         for (const auto& rule : doc.globalStyles) {
             style_string += rule.selector + " {";
             for (const auto& prop : rule.properties) {
-                style_string += prop.first + ": " + prop.second + ";";
+                style_string += prop.first + ": " + evaluateExpression(*prop.second) + ";";
             }
             style_string += "}";
         }
@@ -52,7 +53,7 @@ std::string Generator::generateNode(const Node& node) {
         if (!element->styles.empty()) {
             html += " style=\"";
             for (const auto& style : element->styles) {
-                html += style.first + ": " + style.second + ";";
+                html += style.first + ": " + evaluateExpression(*style.second) + ";";
             }
             html += "\"";
         }
@@ -65,4 +66,36 @@ std::string Generator::generateNode(const Node& node) {
         html += text->text;
     }
     return html;
+}
+
+std::string Generator::evaluateExpression(const Expression& expr) {
+    if (const StringLiteral* s = dynamic_cast<const StringLiteral*>(&expr)) {
+        return s->value;
+    }
+    if (const NumberLiteral* num = dynamic_cast<const NumberLiteral*>(&expr)) {
+        return std::to_string(num->value) + num->unit;
+    }
+    if (const BinaryExpr* bin = dynamic_cast<const BinaryExpr*>(&expr)) {
+        const NumberLiteral* left_num = dynamic_cast<const NumberLiteral*>(bin->left.get());
+        const NumberLiteral* right_num = dynamic_cast<const NumberLiteral*>(bin->right.get());
+
+        if (!left_num || !right_num) {
+            throw std::runtime_error("Invalid expression: binary operations can only be performed on numbers.");
+        }
+
+        if (left_num->unit != right_num->unit && !left_num->unit.empty() && !right_num->unit.empty()) {
+            throw std::runtime_error("Incompatible units in expression.");
+        }
+
+        double result = 0;
+        switch (bin->op) {
+            case Operator::Add: result = left_num->value + right_num->value; break;
+            case Operator::Subtract: result = left_num->value - right_num->value; break;
+            case Operator::Multiply: result = left_num->value * right_num->value; break;
+            case Operator::Divide: result = left_num->value / right_num->value; break;
+        }
+
+        return std::to_string(result) + (left_num->unit.empty() ? right_num->unit : left_num->unit);
+    }
+    return "";
 }

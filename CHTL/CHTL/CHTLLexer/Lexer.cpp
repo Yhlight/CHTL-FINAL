@@ -22,17 +22,9 @@ Token Lexer::nextToken() {
         case ';': return {TokenType::Semicolon, ";", line, start};
         case '=': return {TokenType::Equals, "=", line, start};
         case '&': return {TokenType::Ampersand, "&", line, start};
-        case '#':
-        case '.':
-            if (isalpha(peek())) {
-                while (isalnum(peek()) || peek() == '_' || peek() == '-') advance();
-                return {TokenType::Identifier, source.substr(start, current - start), line, start};
-            }
-            if (c == '#') { // if it's a standalone #, it's a generator comment
-                 while (peek() != '\n' && !isAtEnd()) advance();
-                 return {TokenType::GeneratorComment, source.substr(start, current - start), line, start};
-            }
-            break;
+        case '+': return {TokenType::Plus, "+", line, start};
+        case '-': return {TokenType::Minus, "-", line, start};
+        case '*': return {TokenType::Star, "*", line, start};
         case '/':
             if (peek() == '/') {
                 while (peek() != '\n' && !isAtEnd()) advance();
@@ -46,6 +38,18 @@ Token Lexer::nextToken() {
                 advance(); // consume '*'
                 advance(); // consume '/'
                 return {TokenType::MultiLineComment, source.substr(start, current - start), line, start};
+            } else {
+                return {TokenType::Slash, "/", line, start};
+            }
+        case '#':
+        case '.':
+            if (isalpha(peek())) {
+                while (isalnum(peek()) || peek() == '_' || peek() == '-') advance();
+                return {TokenType::Identifier, source.substr(start, current - start), line, start};
+            }
+            if (c == '#') { // if it's a standalone #, it's a generator comment
+                 while (peek() != '\n' && !isAtEnd()) advance();
+                 return {TokenType::GeneratorComment, source.substr(start, current - start), line, start};
             }
             break;
         case '"':
@@ -61,6 +65,11 @@ Token Lexer::nextToken() {
         case '\r':
         case '\t':
             return nextToken();
+    }
+
+    if (isdigit(c)) {
+        while (isdigit(peek())) advance();
+        return {TokenType::Number, source.substr(start, current - start), line, start};
     }
 
     if (isalpha(c) || c == '_') {

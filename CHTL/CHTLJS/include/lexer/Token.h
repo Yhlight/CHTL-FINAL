@@ -11,6 +11,10 @@ namespace CHTLJS
         RAW_JS,       // 原生 JS 内容
         END_OF_FILE,  // 文件结束符
 
+        // CHTL JS 预处理器标记
+        CHTLJS_START, // [__CHTLJS__]
+        CHTLJS_END,   // [__CHTLJSEND__]
+
         // 增强选择器
         LBRACE_BRACE,   // {{
         RBRACE_BRACE,   // }}

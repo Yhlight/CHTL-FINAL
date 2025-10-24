@@ -1,4 +1,6 @@
 #include "CHTLJS/include/parser/Parser.h"
+#include <algorithm>
+#include <cctype>
 #include "CHTLJS/include/nodes/AstNode.h"
 #include "CHTLJS/include/nodes/RawJSNode.h"
 #include "CHTLJS/include/nodes/ScriptLoaderNode.h"
@@ -26,10 +28,45 @@ namespace CHTLJS
     std::unique_ptr<ProgramNode> Parser::ParseProgram()
     {
         auto program = std::make_unique<ProgramNode>();
+        bool in_chtl_js_block = false;
 
         while (m_currentToken.type != TokenType::END_OF_FILE)
         {
-            auto stmt = parseStatement();
+            if (m_currentToken.type == TokenType::CHTLJS_START)
+            {
+                in_chtl_js_block = true;
+                nextToken(); // Consume CHTLJS_START
+                continue;
+            }
+            if (m_currentToken.type == TokenType::CHTLJS_END)
+            {
+                in_chtl_js_block = false;
+                nextToken(); // Consume CHTLJS_END
+                continue;
+            }
+
+            std::unique_ptr<AstNode> stmt = nullptr;
+            if (in_chtl_js_block)
+            {
+                stmt = parseStatement();
+            }
+            else
+            {
+                if (m_currentToken.type == TokenType::RAW_JS)
+                {
+                    if (std::all_of(m_currentToken.literal.begin(), m_currentToken.literal.end(), isspace)) {
+                        nextToken();
+                        continue;
+                    }
+                    auto node = std::make_unique<RawJSNode>();
+                    node->content = m_currentToken.literal;
+                    nextToken();
+                    stmt = std::move(node);
+                } else {
+                     nextToken();
+                }
+            }
+
             if (stmt)
             {
                 program->children.push_back(std::move(stmt));
@@ -53,6 +90,10 @@ namespace CHTLJS
         } else if (m_currentToken.literal == "Vir") {
             return parseVir();
         } else if (m_currentToken.type == TokenType::RAW_JS) {
+            if (std::all_of(m_currentToken.literal.begin(), m_currentToken.literal.end(), isspace)) {
+                nextToken();
+                return nullptr;
+            }
             auto node = std::make_unique<RawJSNode>();
             node->content = m_currentToken.literal;
             nextToken();

@@ -57,6 +57,17 @@ namespace CHTLJS
         tok.line = m_line;
         tok.column = m_column;
 
+        if (m_input.substr(m_position, 12) == "[__CHTLJS__]") {
+            for (int i = 0; i < 12; ++i) readChar();
+            tok = {TokenType::CHTLJS_START, "[__CHTLJS__]", tok.line, tok.column};
+            return tok;
+        } else if (m_input.substr(m_position, 15) == "[__CHTLJSEND__]") {
+            for (int i = 0; i < 15; ++i) readChar();
+            tok = {TokenType::CHTLJS_END, "[__CHTLJSEND__]", tok.line, tok.column};
+            return tok;
+        }
+
+
         if (m_char == '{' && peekChar() == '{')
         {
             readChar(); // consume first '{'
@@ -79,7 +90,11 @@ namespace CHTLJS
         else
         {
             size_t start_pos = m_position;
-            while (m_char != 0 && !(m_char == '{' && peekChar() == '{') && !(m_char == '}' && peekChar() == '}'))
+            while (m_char != 0 &&
+                   m_input.substr(m_position, 12) != "[__CHTLJS__]" &&
+                   m_input.substr(m_position, 15) != "[__CHTLJSEND__]" &&
+                   !(m_char == '{' && peekChar() == '{') &&
+                   !(m_char == '}' && peekChar() == '}'))
             {
                 readChar();
             }

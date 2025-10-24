@@ -18,6 +18,8 @@ namespace CHTLJS
         Animate,
         Vir,
         EventBind,
+        Router,
+        ReactiveValue,
         // ... 其他 CHTL JS 节点类型
     };
 

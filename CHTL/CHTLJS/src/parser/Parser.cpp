@@ -6,6 +6,9 @@
 #include "CHTLJS/include/nodes/DelegateNode.h"
 #include "CHTLJS/include/nodes/AnimateNode.h"
 #include "CHTLJS/include/nodes/VirNode.h"
+#include "CHTLJS/include/nodes/EventBindNode.h"
+#include "CHTLJS/include/nodes/RouterNode.h"
+#include "CHTLJS/include/nodes/ReactiveValueNode.h"
 #include "CHTLJS/include/lexer/Token.h"
 
 namespace CHTLJS
@@ -40,9 +43,23 @@ namespace CHTLJS
 
     std::unique_ptr<AstNode> Parser::parseStatement()
     {
+        // 检查响应式值
+        if (m_currentToken.type == TokenType::DOLLAR) {
+            return parseReactiveValue();
+        }
+        
+        // 检查增强选择器
         if (m_currentToken.type == TokenType::LBRACE_BRACE) {
-            return parseEnhancedSelector();
-        } else if (m_currentToken.literal == "ScriptLoader") {
+            auto selector = parseEnhancedSelector();
+            // 检查是否后跟事件绑定操作符
+            if (m_currentToken.type == TokenType::BIND_OP) {
+                return parseEventBind();
+            }
+            return selector;
+        }
+        
+        // 检查CHTL JS关键字
+        if (m_currentToken.literal == "ScriptLoader") {
             return parseScriptLoader();
         } else if (m_currentToken.literal == "Listen") {
             return parseListen();
@@ -52,6 +69,8 @@ namespace CHTLJS
             return parseAnimate();
         } else if (m_currentToken.literal == "Vir") {
             return parseVir();
+        } else if (m_currentToken.literal == "Router") {
+            return parseRouter();
         } else if (m_currentToken.type == TokenType::RAW_JS) {
             auto node = std::make_unique<RawJSNode>();
             node->content = m_currentToken.literal;
@@ -347,5 +366,221 @@ namespace CHTLJS
         }
 
         return node;
+    }
+
+    std::unique_ptr<AstNode> Parser::parseEventBind()
+    {
+        // 前置条件: 已经解析了增强选择器，当前token是 BIND_OP (&->)
+        auto node = std::make_unique<EventBindNode>();
+        
+        // 回退一个token获取目标选择器（这需要重新设计，先简化处理）
+        // 这里假设我们已经有了目标，暂时返回空实现
+        
+        nextToken(); // consume &->
+        
+        // 检查是否是块形式
+        if (m_currentToken.type == TokenType::LBRACE) {
+            node->isBlock = true;
+            nextToken(); // consume '{'
+            
+            while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE) {
+                std::vector<std::string> events;
+                
+                // 解析事件名(可能多个，用逗号分隔)
+                do {
+                    events.push_back(m_currentToken.literal);
+                    nextToken();
+                    if (m_currentToken.type == TokenType::COMMA) {
+                        nextToken();
+                    } else {
+                        break;
+                    }
+                } while (m_currentToken.type != TokenType::COLON);
+                
+                if (m_currentToken.type != TokenType::COLON) {
+                    m_errors.push_back("Expected ':' after event name(s).");
+                    return nullptr;
+                }
+                nextToken(); // consume ':'
+                
+                // 解析处理函数
+                std::string handler;
+                while (m_currentToken.type != TokenType::COMMA && 
+                       m_currentToken.type != TokenType::RBRACE && 
+                       m_currentToken.type != TokenType::END_OF_FILE) {
+                    handler += m_currentToken.literal;
+                    nextToken();
+                }
+                
+                node->blockEvents.push_back({events, handler});
+                
+                if (m_currentToken.type == TokenType::COMMA) {
+                    nextToken();
+                }
+            }
+            
+            if (m_currentToken.type != TokenType::RBRACE) {
+                m_errors.push_back("Expected '}' to close event bind block.");
+                return nullptr;
+            }
+            nextToken(); // consume '}'
+        } else {
+            // 单个或多个事件的简单形式
+            do {
+                node->eventNames.push_back(m_currentToken.literal);
+                nextToken();
+                if (m_currentToken.type == TokenType::COMMA) {
+                    nextToken();
+                } else {
+                    break;
+                }
+            } while (m_currentToken.type != TokenType::COLON);
+            
+            if (m_currentToken.type != TokenType::COLON) {
+                m_errors.push_back("Expected ':' after event name(s).");
+                return nullptr;
+            }
+            nextToken(); // consume ':'
+            
+            // 解析处理函数
+            while (m_currentToken.type != TokenType::SEMICOLON && 
+                   m_currentToken.type != TokenType::COMMA &&
+                   m_currentToken.type != TokenType::END_OF_FILE) {
+                node->handler += m_currentToken.literal;
+                nextToken();
+            }
+        }
+        
+        return node;
+    }
+
+    std::unique_ptr<AstNode> Parser::parseRouter()
+    {
+        auto node = std::make_unique<RouterNode>();
+        nextToken(); // consume 'Router'
+        
+        if (m_currentToken.type != TokenType::LBRACE) {
+            m_errors.push_back("Expected '{' for Router block.");
+            return nullptr;
+        }
+        nextToken(); // consume '{'
+        
+        while (m_currentToken.type != TokenType::RBRACE && m_currentToken.type != TokenType::END_OF_FILE) {
+            std::string key = m_currentToken.literal;
+            nextToken();
+            
+            if (m_currentToken.type != TokenType::COLON) {
+                m_errors.push_back("Expected ':' after key in Router block.");
+                return nullptr;
+            }
+            nextToken(); // consume ':'
+            
+            if (key == "url") {
+                // 可能是单个URL或多个URL
+                std::vector<std::string> urls;
+                do {
+                    urls.push_back(m_currentToken.literal);
+                    nextToken();
+                    if (m_currentToken.type == TokenType::COMMA) {
+                        nextToken();
+                    } else {
+                        break;
+                    }
+                } while (true);
+                
+                // 现在应该是page键
+                if (m_currentToken.literal == "page") {
+                    nextToken(); // consume 'page'
+                    if (m_currentToken.type != TokenType::COLON) {
+                        m_errors.push_back("Expected ':' after 'page'.");
+                        return nullptr;
+                    }
+                    nextToken(); // consume ':'
+                    
+                    // 解析页面选择器
+                    for (const auto& url : urls) {
+                        std::string page = m_currentToken.literal;
+                        node->urlPageMappings.push_back({url, page});
+                        nextToken();
+                        if (m_currentToken.type == TokenType::COMMA) {
+                            nextToken();
+                        }
+                    }
+                }
+            } else if (key == "page") {
+                // 独立的page定义
+                std::string page = m_currentToken.literal;
+                nextToken();
+            } else if (key == "root") {
+                node->rootPath = m_currentToken.literal;
+                nextToken();
+            } else if (key == "mode") {
+                node->mode = m_currentToken.literal;
+                nextToken();
+            } else {
+                // 跳过未知键
+                nextToken();
+            }
+            
+            if (m_currentToken.type == TokenType::COMMA) {
+                nextToken();
+            }
+        }
+        
+        if (m_currentToken.type != TokenType::RBRACE) {
+            m_errors.push_back("Expected '}' to close Router block.");
+            return nullptr;
+        }
+        nextToken(); // consume '}'
+        
+        return node;
+    }
+
+    std::unique_ptr<AstNode> Parser::parseReactiveValue()
+    {
+        // 当前token是 $
+        nextToken(); // consume '$'
+        
+        if (m_currentToken.type != TokenType::IDENT) {
+            m_errors.push_back("Expected identifier after '$'.");
+            return nullptr;
+        }
+        
+        auto node = std::make_unique<ReactiveValueNode>(m_currentToken.literal);
+        nextToken(); // consume identifier
+        
+        if (m_currentToken.type != TokenType::DOLLAR) {
+            m_errors.push_back("Expected '$' to close reactive value.");
+            return nullptr;
+        }
+        nextToken(); // consume closing '$'
+        
+        return node;
+    }
+
+    // Helper functions
+    bool Parser::expectToken(TokenType type)
+    {
+        if (m_currentToken.type == type) {
+            nextToken();
+            return true;
+        }
+        return false;
+    }
+
+    bool Parser::peekTokenIs(TokenType type) const
+    {
+        return m_peekToken.type == type;
+    }
+
+    std::string Parser::parseStringOrIdent()
+    {
+        if (m_currentToken.type == TokenType::STRING || m_currentToken.type == TokenType::IDENT) {
+            std::string value = m_currentToken.literal;
+            nextToken();
+            return value;
+        }
+        m_errors.push_back("Expected string or identifier.");
+        return "";
     }
 }

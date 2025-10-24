@@ -29,6 +29,9 @@ namespace CHTLJS
         IDENT,
         ARROW,        // ->
         BIND_OP,      // &->
+        DOLLAR,       // $ (响应式值边界)
+        STRING,       // 字符串字面量
+        NUMBER,       // 数字字面量
 
         // ... 其他 CHTL JS 的 token 将在这里添加
     };

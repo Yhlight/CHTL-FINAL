@@ -51,7 +51,14 @@ namespace CHTLJS
         std::unique_ptr<AstNode> parseDelegate();
         std::unique_ptr<AstNode> parseAnimate();
         std::unique_ptr<AstNode> parseVir();
+        std::unique_ptr<AstNode> parseEventBind();
+        std::unique_ptr<AstNode> parseRouter();
+        std::unique_ptr<AstNode> parseReactiveValue();
 
+        // Helper functions
+        bool expectToken(TokenType type);
+        bool peekTokenIs(TokenType type) const;
+        std::string parseStringOrIdent();
 
         Lexer& m_lexer;
         Token m_currentToken;

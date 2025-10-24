@@ -8,6 +8,9 @@
 #include "CHTLJS/include/nodes/DelegateNode.h"
 #include "CHTLJS/include/nodes/AnimateNode.h"
 #include "CHTLJS/include/nodes/VirNode.h"
+#include "CHTLJS/include/nodes/EventBindNode.h"
+#include "CHTLJS/include/nodes/RouterNode.h"
+#include "CHTLJS/include/nodes/ReactiveValueNode.h"
 #include "bridge/SaltBridge.h"
 #include <string>
 #include <memory>
@@ -42,6 +45,9 @@ namespace CHTLJS {
         void visit(const DelegateNode& node);
         void visit(const AnimateNode& node);
         void visit(const VirNode& node);
+        void visit(const EventBindNode& node);
+        void visit(const RouterNode& node);
+        void visit(const ReactiveValueNode& node);
 
         std::shared_ptr<CHTL::SaltBridge> bridge_;
         std::string output_;

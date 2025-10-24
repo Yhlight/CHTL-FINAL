@@ -54,8 +54,8 @@ Token Lexer::nextToken() {
             return nextToken();
     }
 
-    if (isalpha(c)) {
-        while (isalnum(peek())) advance();
+    if (isalpha(c) || c == '_') {
+        while (isalnum(peek()) || peek() == '_' || peek() == '-') advance();
         return {TokenType::Identifier, source.substr(start, current - start), line, start};
     }
 

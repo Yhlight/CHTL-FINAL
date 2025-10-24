@@ -44,3 +44,13 @@ set(PARSER_FEATURES_TEST_SOURCES
 
 add_executable(parser_features_test ${PARSER_FEATURES_TEST_SOURCES})
 target_include_directories(parser_features_test PUBLIC ${CMAKE_SOURCE_DIR})
+
+set(PARSER_STYLE_TEST_SOURCES
+    CHTL/Test/CHTLParser/ParserStyleTest.cpp
+    CHTL/CHTL/CHTLLexer/Lexer.cpp
+    CHTL/CHTL/CHTLParser/Parser.cpp
+    CHTL/CHTL/CHTLGenerator/Generator.cpp
+)
+
+add_executable(parser_style_test ${PARSER_STYLE_TEST_SOURCES})
+target_include_directories(parser_style_test PUBLIC ${CMAKE_SOURCE_DIR})

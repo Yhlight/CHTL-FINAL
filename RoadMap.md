@@ -15,8 +15,8 @@ This document outlines the development roadmap for the CHTL project.
 
 ## Phase 2: Advanced Styling and Expressions
 
-- [ ] Local Style Blocks (`style {}`)
-- [ ] Inline Styles
+- [x] Local Style Blocks (`style {}`)
+- [x] Inline Styles
 - [ ] Automatic class/id generation
 - [ ] Contextual `&` selector
 - [ ] Attribute arithmetic (+, -, *, /, %, **)

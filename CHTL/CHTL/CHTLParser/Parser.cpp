@@ -35,7 +35,9 @@ std::unique_ptr<Node> Parser::parseElement() {
             skipComments();
             if (current >= tokens.size() || tokens[current].type == TokenType::CloseBrace) break;
 
-            if (current + 1 < tokens.size() && (tokens[current+1].type == TokenType::Colon || tokens[current+1].type == TokenType::Equals)) {
+            if (tokens[current].type == TokenType::Identifier && tokens[current].value == "style") {
+                parseStyleBlock(element.get());
+            } else if (current + 1 < tokens.size() && (tokens[current+1].type == TokenType::Colon || tokens[current+1].type == TokenType::Equals)) {
                 if (tokens[current].type == TokenType::Identifier && tokens[current].value == "text") {
                     current++; // consume 'text'
                     current++; // consume ':' or '='
@@ -78,6 +80,21 @@ void Parser::parseAttributes(ElementNode* element) {
 
     if (current < tokens.size() && tokens[current].type == TokenType::Semicolon) {
         current++; // consume ';'
+    }
+}
+
+void Parser::parseStyleBlock(ElementNode* element) {
+    current++; // consume 'style'
+    if (tokens[current].type == TokenType::OpenBrace) {
+        current++; // consume '{'
+        while (tokens[current].type != TokenType::CloseBrace) {
+            std::string key = tokens[current++].value;
+            current++; // consume ':' or '='
+            std::string value = tokens[current++].value;
+            element->styles[key] = value;
+            current++; // consume ';'
+        }
+        current++; // consume '}'
     }
 }
 

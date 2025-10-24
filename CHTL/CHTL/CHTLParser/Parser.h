@@ -12,6 +12,7 @@ private:
     void skipComments();
     std::unique_ptr<Node> parseElement();
     void parseAttributes(ElementNode* element);
+    void parseStyleBlock(ElementNode* element);
     std::unique_ptr<Node> parseText();
 
     const std::vector<Token>& tokens;

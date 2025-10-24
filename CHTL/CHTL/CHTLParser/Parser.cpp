@@ -25,10 +25,12 @@ std::unique_ptr<ASTNode> Parser::declaration() {
 
     if (isAtEnd()) return nullptr;
 
-    if (match(TokenType::Text)) {
+    if (check(TokenType::Text)) {
+        advance();
         return textNode();
     }
-    if (match(TokenType::Style)) {
+    if (check(TokenType::Style)) {
+        advance();
         return styleNode();
     }
     if (check(TokenType::Identifier)) {
@@ -36,29 +38,31 @@ std::unique_ptr<ASTNode> Parser::declaration() {
     }
 
     // If we have an unhandled token, we'll advance past it to avoid infinite loops.
-    // This is a simple error recovery strategy. A more robust parser would
-    // synchronize to the next valid declaration.
     std::cerr << "Warning: Unexpected token '" << peek().lexeme << "' at line "
               << peek().line << ", column " << peek().column << ". Skipping." << std::endl;
     advance();
-    return nullptr; // Will be filtered out later
+    return nullptr;
 }
 
 std::unique_ptr<ASTNode> Parser::element() {
     Token identifier = consume(TokenType::Identifier, "Expect element name.");
     consume(TokenType::OpenBrace, "Expect '{' after element name.");
 
-    std::vector<Attribute> attrs = attributes();
+    std::vector<Attribute> attrs;
     std::vector<std::unique_ptr<ASTNode>> children;
 
     while (!check(TokenType::CloseBrace) && !isAtEnd()) {
-        children.push_back(declaration());
+        // Peek ahead to see if the next token is an attribute or a child node
+        if (check(TokenType::Identifier) && m_tokens[m_current + 1].type == TokenType::Colon || m_tokens[m_current+1].type == TokenType::Equals) {
+            auto parsed_attrs = attributes();
+            attrs.insert(attrs.end(), std::make_move_iterator(parsed_attrs.begin()), std::make_move_iterator(parsed_attrs.end()));
+        } else {
+            auto child = declaration();
+            if(child) children.push_back(std::move(child));
+        }
     }
 
     consume(TokenType::CloseBrace, "Expect '}' after element block.");
-
-    // Filter out nullptrs from skipped tokens
-    children.erase(std::remove(children.begin(), children.end(), nullptr), children.end());
 
     return std::make_unique<ElementNode>(identifier.lexeme, std::move(attrs), std::move(children));
 }
@@ -68,16 +72,17 @@ std::vector<Attribute> Parser::attributes() {
     while (check(TokenType::Identifier)) {
         Token key = advance();
         if (match(TokenType::Colon) || match(TokenType::Equals)) {
-            Token value;
-            if (check(TokenType::String) || check(TokenType::UnquotedLiteral) || check(TokenType::Identifier)) {
-                value = advance();
-            } else {
-                 throw std::runtime_error("Expect string, unquoted literal, or identifier as attribute value.");
+            std::string value_str;
+            while (!check(TokenType::Semicolon) && !isAtEnd()) {
+                value_str += advance().lexeme + " ";
+            }
+            // trim trailing space
+            if (!value_str.empty()) {
+                value_str.pop_back();
             }
             consume(TokenType::Semicolon, "Expect ';' after attribute value.");
-            attrs.push_back({key.lexeme, value.lexeme});
+            attrs.push_back({key.lexeme, value_str});
         } else {
-            // If there's no ':' or '=', it's not an attribute, so we backtrack.
             m_current--;
             break;
         }
@@ -87,13 +92,31 @@ std::vector<Attribute> Parser::attributes() {
 
 std::unique_ptr<ASTNode> Parser::styleNode() {
     consume(TokenType::OpenBrace, "Expect '{' after 'style' keyword.");
-    std::vector<Attribute> properties = attributes();
+
+    std::vector<Attribute> inline_properties;
+    std::vector<Selector> selectors;
+
+    while (!check(TokenType::CloseBrace) && !isAtEnd()) {
+        if (check(TokenType::Dot) || check(TokenType::Hash)) {
+            Selector::Type type = advance().type == TokenType::Dot ? Selector::Type::Class : Selector::Type::Id;
+            Token name = consume(TokenType::Identifier, "Expect selector name after '.' or '#'.");
+            consume(TokenType::OpenBrace, "Expect '{' after selector name.");
+            std::vector<Attribute> properties = attributes();
+            consume(TokenType::CloseBrace, "Expect '}' after selector block.");
+            selectors.push_back({type, name.lexeme, std::move(properties)});
+        } else if (check(TokenType::Identifier)) {
+            auto parsed_props = attributes();
+            inline_properties.insert(inline_properties.end(), std::make_move_iterator(parsed_props.begin()), std::make_move_iterator(parsed_props.end()));
+        } else {
+            throw std::runtime_error("Unexpected token '" + peek().lexeme + "' in style block.");
+        }
+    }
+
     consume(TokenType::CloseBrace, "Expect '}' after style block.");
-    return std::make_unique<StyleNode>(std::move(properties));
+    return std::make_unique<StyleNode>(std::move(inline_properties), std::move(selectors));
 }
 
 std::unique_ptr<ASTNode> Parser::textNode() {
-    // The 'text' keyword is already consumed by declaration()
     consume(TokenType::OpenBrace, "Expect '{' after 'text' keyword.");
     Token stringToken = consume(TokenType::String, "Expect string literal inside text block.");
     consume(TokenType::CloseBrace, "Expect '}' after text block.");

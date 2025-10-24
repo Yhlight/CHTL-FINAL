@@ -17,6 +17,8 @@ enum class TokenType {
     Semicolon,     // ;
     Colon,         // :
     Equals,        // =
+    Dot,           // .
+    Hash,          // #
 
     // Literals
     String,

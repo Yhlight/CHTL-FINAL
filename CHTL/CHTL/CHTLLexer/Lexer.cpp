@@ -43,12 +43,15 @@ Token Lexer::scanToken() {
         case '=': return {TokenType::Equals, "=", m_line, m_column};
         case '"': return string('"');
         case '\'': return string('\'');
+        case '.': return {TokenType::Dot, ".", m_line, m_column};
         case '#':
-            while (peek() != '\n' && !isAtEnd()) {
-                advance();
+            if (peek() == ' ') { // It's a generator comment if followed by a space
+                 while (peek() != '\n' && !isAtEnd()) {
+                    advance();
+                }
+                return {TokenType::GeneratorComment, m_source.substr(m_start + 2, m_current - m_start - 2), m_line, m_column};
             }
-            // We capture the comment content, excluding the '#'
-            return {TokenType::GeneratorComment, m_source.substr(m_start + 1, m_current - m_start - 1), m_line, m_column};
+            return {TokenType::Hash, "#", m_line, m_column};
     }
 
     // If it's none of the above, it's treated as an UnquotedLiteral

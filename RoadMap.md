@@ -14,7 +14,7 @@ This document outlines the planned development phases for the CHTL programming l
 - [x] Implement basic `style` blocks for inline styles.
 
 ## Phase 3: Advanced CHTL Styling
-- [ ] Implement automated class/id generation from `style` blocks.
+- [x] Implement automated class/id generation from `style` blocks.
 - [ ] Implement context deduction (`&`) for selectors.
 - [ ] Implement attribute arithmetic (`+`, `-`, `*`, `/`, `%`, `**`).
 - [ ] Implement referenced attributes (e.g., `width: #box.width + 10px;`).

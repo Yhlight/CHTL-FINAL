@@ -1,10 +1,17 @@
 #include "HTMLGenerator.h"
 #include <iostream>
+#include <map>
+
 namespace CHTL {
 
 std::string HTMLGenerator::generate(const ASTNode& root) {
+    std::stringstream final_output;
     root.accept(*this);
-    return m_output.str();
+
+    final_output << "<html><head><style>" << m_global_css.str() << "</style></head><body>"
+                 << m_output.str() << "</body></html>";
+
+    return final_output.str();
 }
 
 void HTMLGenerator::visit(const TextNode& node) {
@@ -21,47 +28,63 @@ void HTMLGenerator::visit(const ElementNode& node) {
 
     m_output << "<" << node.getTagName();
 
-    std::string style_string;
+    // Collect attributes from the node itself
+    std::map<std::string, std::string> attributes;
+    for(const auto& attr : node.getAttributes()){
+        attributes[attr.key] = attr.value;
+    }
+
+    // Process style nodes to auto-add attributes and collect styles
+    std::stringstream inline_style_stream;
     for (const auto& child : node.getChildren()) {
-        if (dynamic_cast<StyleNode*>(child.get())) {
-            std::stringstream ss;
-            const auto& properties = dynamic_cast<StyleNode*>(child.get())->getProperties();
-            for (const auto& prop : properties) {
-                ss << prop.key << ": " << prop.value << ";";
+        if (auto* style_node = dynamic_cast<const StyleNode*>(child.get())) {
+            for(const auto& prop : style_node->getInlineProperties()) {
+                inline_style_stream << prop.key << ":" << prop.value << ";";
             }
-            style_string = ss.str();
+            for(const auto& selector : style_node->getSelectors()) {
+                if (selector.type == Selector::Type::Class) {
+                    attributes["class"] += (attributes["class"].empty() ? "" : " ") + selector.name;
+                } else if (selector.type == Selector::Type::Id) {
+                    attributes["id"] = selector.name; // ID should be unique
+                }
+            }
         }
     }
 
-
-    bool has_style_attr = false;
-    for (const auto& attr : node.getAttributes()) {
-        m_output << " " << attr.key << "=\"" << attr.value;
-         if (attr.key == "style") {
-            has_style_attr = true;
-            m_output << style_string;
-        }
-        m_output << "\"";
+    if (inline_style_stream.tellp() > 0) {
+        attributes["style"] += inline_style_stream.str();
     }
 
-    if (!style_string.empty() && !has_style_attr) {
-         m_output << " style=\"" << style_string << "\"";
+    // Write out the collected attributes
+    for(const auto& [key, value] : attributes) {
+        m_output << " " << key << "=\"" << value << "\"";
     }
-
 
     m_output << ">";
 
+    // Visit non-style children to generate their content
     for (const auto& child : node.getChildren()) {
-        if (!dynamic_cast<StyleNode*>(child.get())) {
-            child->accept(*this);
-        }
+        child->accept(*this);
     }
 
     m_output << "</" << node.getTagName() << ">";
 }
 
 void HTMLGenerator::visit(const StyleNode& node) {
-    // Handled by the ElementNode visitor, so this does nothing.
+    // Generate CSS rules for selectors and add them to the global stylesheet
+    for (const auto& selector : node.getSelectors()) {
+        if (selector.type == Selector::Type::Class) {
+            m_global_css << "." << selector.name;
+        } else {
+            m_global_css << "#" << selector.name;
+        }
+        m_global_css << " { ";
+        for (const auto& prop : selector.properties) {
+            m_global_css << prop.key << ": " << prop.value << "; ";
+        }
+        m_global_css << "}\n";
+    }
+    // Inline properties are handled by the ElementNode visitor, so they are not processed here.
 }
 
 } // namespace CHTL

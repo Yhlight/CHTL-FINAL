@@ -15,8 +15,12 @@ public:
     void visit(const ElementNode& node) override;
     void visit(const StyleNode& node) override;
 
+public:
+    std::string getGlobalCSS() const { return m_global_css.str(); }
+
 private:
     std::stringstream m_output;
+    std::stringstream m_global_css;
 };
 
 } // namespace CHTL

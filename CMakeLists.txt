@@ -28,6 +28,8 @@ set(TEST_SOURCES
     CHTL/Test/LexerTest.cpp
     CHTL/Test/ParserTest.cpp
     CHTL/Test/FeatureTest.cpp
+    CHTL/Test/StylingTest.cpp
+    CHTL/Test/TestUtils.cpp
     # Add new test files here
 )
 

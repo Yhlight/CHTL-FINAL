@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <variant>
 #include "../CHTLLexer/Token.h"
 
 namespace CHTL {
@@ -45,6 +46,13 @@ struct Attribute {
     std::string value;
 };
 
+struct Selector {
+    enum class Type { Class, Id };
+    Type type;
+    std::string name;
+    std::vector<Attribute> properties;
+};
+
 class ElementNode : public ASTNode {
 public:
     ElementNode(std::string tagName, std::vector<Attribute> attributes, std::vector<std::unique_ptr<ASTNode>> children)
@@ -66,16 +74,19 @@ private:
 
 class StyleNode : public ASTNode {
 public:
-    explicit StyleNode(std::vector<Attribute> properties) : m_properties(std::move(properties)) {}
+    explicit StyleNode(std::vector<Attribute> inline_properties, std::vector<Selector> selectors)
+    : m_inline_properties(std::move(inline_properties)), m_selectors(std::move(selectors)) {}
 
-    const std::vector<Attribute>& getProperties() const { return m_properties; }
+    const std::vector<Attribute>& getInlineProperties() const { return m_inline_properties; }
+    const std::vector<Selector>& getSelectors() const { return m_selectors; }
 
     void accept(ASTVisitor& visitor) const override {
         visitor.visit(*this);
     }
 
 private:
-    std::vector<Attribute> m_properties;
+    std::vector<Attribute> m_inline_properties;
+    std::vector<Selector> m_selectors;
 };
 
 } // namespace CHTL

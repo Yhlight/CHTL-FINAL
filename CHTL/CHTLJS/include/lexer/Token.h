@@ -27,6 +27,8 @@ namespace CHTLJS
         SEMICOLON,
         ASSIGN,
         IDENT,
+        ARROW,        // ->
+        BIND_OP,      // &->
 
         // ... 其他 CHTL JS 的 token 将在这里添加
     };

@@ -17,6 +17,7 @@ namespace CHTLJS
         Delegate,
         Animate,
         Vir,
+        EventBind,
         // ... 其他 CHTL JS 节点类型
     };
 

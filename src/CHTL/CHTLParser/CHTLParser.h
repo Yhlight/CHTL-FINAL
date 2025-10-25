@@ -4,6 +4,7 @@
 #include "../CHTLLexer/CHTLLexer.h"
 #include "ASTNode.h"
 #include <memory>
+#include <vector>
 
 class CHTLParser {
 public:
@@ -25,6 +26,7 @@ private:
     std::unique_ptr<ElementNode> parseElementNode();
     void parseAttributes(ElementNode& element);
     std::unique_ptr<ValueNode> parseValue();
+    std::unique_ptr<VarTemplateNode> parseVarTemplate();
 };
 
 #endif //CHTL_PARSER_H

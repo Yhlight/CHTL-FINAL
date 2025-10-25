@@ -165,34 +165,8 @@ std::unique_ptr<ASTNode> CHTLParser::parseTopLevelStatement() {
                             }
                         }
                     }
-                } else if (currentToken.value == "Var") {
-                    advance();
-                    if (currentToken.type == TokenType::IDENTIFIER) {
-                        auto varTemplate = std::make_unique<VarTemplateNode>(currentToken.value);
-                        advance();
-                        if (currentToken.type == TokenType::LBRACE) {
-                            advance();
-                            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-                                if (currentToken.type == TokenType::IDENTIFIER) {
-                                    std::string key = currentToken.value;
-                                    advance();
-                                    if (currentToken.type == TokenType::COLON) {
-                                        advance();
-                                        varTemplate->addVariable(key, parseValue());
-                                        if (currentToken.type == TokenType::SEMICOLON) {
-                                            advance();
-                                        }
-                                    }
-                                } else {
-                                    advance();
-                                }
-                            }
-                            if (currentToken.type == TokenType::RBRACE) {
-                                advance();
-                                return varTemplate;
-                            }
-                        }
-                    }
+                } else if (currentToken.type == TokenType::VAR) {
+                    return parseVarTemplate();
                 }
             } else if (blockType == "Custom") {
                 if (currentToken.value == "Style") {
@@ -365,4 +339,35 @@ std::unique_ptr<ProgramNode> CHTLParser::parse() {
         programNode->addStatement(parseStatement());
     }
     return programNode;
+}
+
+std::unique_ptr<VarTemplateNode> CHTLParser::parseVarTemplate() {
+    advance(); // consume 'Var'
+    if (currentToken.type == TokenType::IDENTIFIER) {
+        auto varTemplate = std::make_unique<VarTemplateNode>(currentToken.value);
+        advance();
+        if (currentToken.type == TokenType::LBRACE) {
+            advance();
+            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    std::string key = currentToken.value;
+                    advance();
+                    if (currentToken.type == TokenType::COLON) {
+                        advance();
+                        varTemplate->addVariable(key, parseValue());
+                        if (currentToken.type == TokenType::SEMICOLON) {
+                            advance();
+                        }
+                    }
+                } else {
+                    advance();
+                }
+            }
+            if (currentToken.type == TokenType::RBRACE) {
+                advance();
+                return varTemplate;
+            }
+        }
+    }
+    return nullptr;
 }

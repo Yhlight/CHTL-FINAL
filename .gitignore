@@ -1,1 +1,13 @@
-third-party/
+# CMake
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+
+# Binaries
+*.exe
+*.out
+*.so
+*.dll
+chtl

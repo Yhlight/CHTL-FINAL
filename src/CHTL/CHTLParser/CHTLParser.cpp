@@ -88,6 +88,9 @@ std::unique_ptr<ASTNode> CHTLParser::parseElementUsage() {
                 if (currentToken.type == TokenType::SEMICOLON) {
                     advance();
                 }
+                Token peeked = lexer.peekToken();
+                if(peeked.type == TokenType::LBRACE)
+                    return std::make_unique<CustomElementUsageNode>(name, std::vector<std::unique_ptr<ASTNode>>());
                 return std::make_unique<ElementTemplateUsageNode>(name);
             }
         }
@@ -125,105 +128,192 @@ std::unique_ptr<StyleNode> CHTLParser::parseStyleNode() {
 std::unique_ptr<ASTNode> CHTLParser::parseTopLevelStatement() {
     advance(); // consume '['
     std::string blockType = currentToken.value;
-    advance();
-    if (currentToken.type == TokenType::RBRACKET) {
-        advance();
+    advance(); // consume blockType
+    if (currentToken.type != TokenType::RBRACKET) {
+        // Error handling: expected ']'
+        return nullptr;
+    }
+    advance(); // consume ']'
+
+    if (blockType == "Import") {
+        std::string importType;
+        if (currentToken.type == TokenType::LBRACKET) {
+            advance(); // consume [
+            importType += "[" + currentToken.value + "]";
+            advance(); // consume Custom/Template
+            if (currentToken.type == TokenType::RBRACKET) {
+                advance(); // consume ]
+            }
+        }
+
         if (currentToken.type == TokenType::AT) {
+            advance(); // consume @
+            if (!importType.empty()) importType += " ";
+            importType += "@" + currentToken.value;
+            advance(); // consume Type
+        }
+
+        if (currentToken.type == TokenType::IDENTIFIER) {
+            if (!importType.empty()) importType += " ";
+            importType += currentToken.value;
+            advance(); // consume name
+        }
+
+        std::string path;
+        if (currentToken.type == TokenType::FROM) {
             advance();
-            if (blockType == "Template") {
-                 if (currentToken.value == "Style") {
+            if (currentToken.type == TokenType::STRING) {
+                path = currentToken.value;
+                advance();
+            }
+        }
+
+        std::string alias;
+        if (currentToken.type == TokenType::AS) {
+            advance();
+            if (currentToken.type == TokenType::IDENTIFIER) {
+                alias = currentToken.value;
+                advance();
+            }
+        }
+
+        if (currentToken.type == TokenType::SEMICOLON) {
+            advance();
+        }
+        return std::make_unique<ImportNode>(importType, path, alias);
+    }
+
+    if (currentToken.type == TokenType::AT) {
+        advance(); // consume '@'
+        if (blockType == "Template") {
+            if (currentToken.value == "Style") {
+                advance();
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    std::string name = currentToken.value;
                     advance();
-                    if (currentToken.type == TokenType::IDENTIFIER) {
-                        std::string name = currentToken.value;
+                    if (currentToken.type == TokenType::LBRACE) {
                         advance();
-                        if (currentToken.type == TokenType::LBRACE) {
+                        auto styleNode = parseStyleNode();
+                        if (currentToken.type == TokenType::RBRACE) {
                             advance();
-                            auto styleNode = parseStyleNode();
-                            if (currentToken.type == TokenType::RBRACE) {
-                                advance();
-                                return std::make_unique<StyleTemplateNode>(name, std::move(styleNode));
-                            }
+                            return std::make_unique<StyleTemplateNode>(name, std::move(styleNode));
                         }
                     }
-                } else if (currentToken.value == "Element") {
+                }
+            } else if (currentToken.value == "Element") {
+                advance();
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    std::string name = currentToken.value;
                     advance();
-                    if (currentToken.type == TokenType::IDENTIFIER) {
-                        std::string name = currentToken.value;
+                    if (currentToken.type == TokenType::LBRACE) {
                         advance();
-                        if (currentToken.type == TokenType::LBRACE) {
+                        std::vector<std::unique_ptr<ASTNode>> body;
+                        while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                            body.push_back(parseStatement());
+                        }
+                        if (currentToken.type == TokenType::RBRACE) {
                             advance();
-                            std::vector<std::unique_ptr<ASTNode>> body;
-                            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-                                body.push_back(parseStatement());
-                            }
-                            if (currentToken.type == TokenType::RBRACE) {
-                                advance();
-                                return std::make_unique<ElementTemplateNode>(name, std::move(body));
-                            }
+                            return std::make_unique<ElementTemplateNode>(name, std::move(body));
                         }
                     }
-                } else if (currentToken.value == "Var") {
+                }
+            } else if (currentToken.value == "Var") {
+                advance();
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    auto varTemplate = std::make_unique<VarTemplateNode>(currentToken.value);
                     advance();
-                    if (currentToken.type == TokenType::IDENTIFIER) {
-                        auto varTemplate = std::make_unique<VarTemplateNode>(currentToken.value);
+                    if (currentToken.type == TokenType::LBRACE) {
                         advance();
-                        if (currentToken.type == TokenType::LBRACE) {
-                            advance();
-                            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-                                if (currentToken.type == TokenType::IDENTIFIER) {
-                                    std::string key = currentToken.value;
+                        while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                            if (currentToken.type == TokenType::IDENTIFIER) {
+                                std::string key = currentToken.value;
+                                advance();
+                                if (currentToken.type == TokenType::COLON) {
                                     advance();
-                                    if (currentToken.type == TokenType::COLON) {
+                                    varTemplate->addVariable(key, parseValue());
+                                    if (currentToken.type == TokenType::SEMICOLON) {
                                         advance();
-                                        varTemplate->addVariable(key, parseValue());
-                                        if (currentToken.type == TokenType::SEMICOLON) {
-                                            advance();
-                                        }
                                     }
-                                } else {
-                                    advance();
                                 }
-                            }
-                            if (currentToken.type == TokenType::RBRACE) {
+                            } else {
                                 advance();
-                                return varTemplate;
                             }
+                        }
+                        if (currentToken.type == TokenType::RBRACE) {
+                            advance();
+                            return varTemplate;
                         }
                     }
                 }
-            } else if (blockType == "Custom") {
-                if (currentToken.value == "Style") {
+            }
+        } else if (blockType == "Custom") {
+            if (currentToken.value == "Style") {
+                advance();
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    std::string name = currentToken.value;
                     advance();
-                    if (currentToken.type == TokenType::IDENTIFIER) {
-                        std::string name = currentToken.value;
+                    if (currentToken.type == TokenType::LBRACE) {
                         advance();
-                        if (currentToken.type == TokenType::LBRACE) {
+                        auto styleNode = parseStyleNode();
+                        if (currentToken.type == TokenType::RBRACE) {
                             advance();
-                            auto styleNode = parseStyleNode();
-                            if (currentToken.type == TokenType::RBRACE) {
-                                advance();
-                                return std::make_unique<CustomStyleTemplateNode>(name, std::move(styleNode));
-                            }
-                        }
-                    }
-                } else if (currentToken.value == "Element") {
-                    advance();
-                    if (currentToken.type == TokenType::IDENTIFIER) {
-                        std::string name = currentToken.value;
-                        advance();
-                        if (currentToken.type == TokenType::LBRACE) {
-                            advance();
-                            std::vector<std::unique_ptr<ASTNode>> body;
-                            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-                                body.push_back(parseStatement());
-                            }
-                            if (currentToken.type == TokenType::RBRACE) {
-                                advance();
-                                return std::make_unique<CustomElementNode>(name, std::move(body));
-                            }
+                            return std::make_unique<CustomStyleTemplateNode>(name, std::move(styleNode));
                         }
                     }
                 }
+            } else if (currentToken.value == "Element") {
+                advance();
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    std::string name = currentToken.value;
+                    advance();
+                    if (currentToken.type == TokenType::LBRACE) {
+                        advance();
+                        std::vector<std::unique_ptr<ASTNode>> body;
+                        while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                            body.push_back(parseStatement());
+                        }
+                        if (currentToken.type == TokenType::RBRACE) {
+                            advance();
+                            return std::make_unique<CustomElementNode>(name, std::move(body));
+                        }
+                    }
+                }
+            } else if (blockType == "Import") {
+                std::string importType;
+                if (currentToken.type == TokenType::LBRACKET) {
+                    advance();
+                    importType = "[" + currentToken.value + "]";
+                    advance();
+                    if (currentToken.type == TokenType::RBRACKET) {
+                        advance();
+                    }
+                }
+                importType += " @" + currentToken.value;
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    importType += " " + currentToken.value;
+                }
+                advance();
+
+                std::string path;
+                if (currentToken.type == TokenType::FROM) {
+                    advance();
+                    if (currentToken.type == TokenType::STRING) {
+                        path = currentToken.value;
+                        advance();
+                    }
+                }
+                std::string alias;
+                if (currentToken.type == TokenType::AS) {
+                    advance();
+                    if (currentToken.type == TokenType::IDENTIFIER) {
+                        alias = currentToken.value;
+                        advance();
+                    }
+                }
+                if (currentToken.type == TokenType::SEMICOLON) {
+                    advance();
+                }
+                return std::make_unique<ImportNode>(importType, path, alias);
             }
         }
     }
@@ -264,8 +354,6 @@ std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
 std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     if (currentToken.type == TokenType::LBRACKET) {
         return parseTopLevelStatement();
-    } else if (currentToken.type == TokenType::IMPORT) {
-        return parseImportStatement();
     } else if (currentToken.value == "text") {
         return parseTextNode();
     } else if (currentToken.value == "style") {
@@ -291,27 +379,6 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
 
     if (currentToken.type != TokenType::END_OF_FILE) {
         advance();
-    }
-    return nullptr;
-}
-
-std::unique_ptr<ASTNode> CHTLParser::parseImportStatement() {
-    advance(); // consume 'import'
-    if (currentToken.type == TokenType::STRING) {
-        std::string path = currentToken.value;
-        advance();
-        std::string alias;
-        if (currentToken.type == TokenType::AS) {
-            advance();
-            if (currentToken.type == TokenType::IDENTIFIER) {
-                alias = currentToken.value;
-                advance();
-            }
-        }
-        if (currentToken.type == TokenType::SEMICOLON) {
-            advance();
-        }
-        return std::make_unique<ImportNode>(path, alias);
     }
     return nullptr;
 }

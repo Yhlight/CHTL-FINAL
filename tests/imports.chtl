@@ -1,2 +1,3 @@
-import "module1.chtl";
-import "module2.chtl" as myModule;
+[Import] @Html from "path/to/file.html" as myHtml;
+[Import] [Custom] @Element MyElement from "path/to/file.chtl";
+[Import] [Template] @Style MyStyle from "path/to/another.chtl" as myStyle;

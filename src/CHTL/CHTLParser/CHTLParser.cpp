@@ -88,9 +88,6 @@ std::unique_ptr<ASTNode> CHTLParser::parseElementUsage() {
                 if (currentToken.type == TokenType::SEMICOLON) {
                     advance();
                 }
-                Token peeked = lexer.peekToken();
-                if(peeked.type == TokenType::LBRACE)
-                    return std::make_unique<CustomElementUsageNode>(name, std::vector<std::unique_ptr<ASTNode>>());
                 return std::make_unique<ElementTemplateUsageNode>(name);
             }
         }

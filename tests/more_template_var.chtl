@@ -1,0 +1,39 @@
+[Template] @Var ThemeColor
+{
+    tableColor: "rgb(255, 192, 203)";
+    textColor: "black";
+    fontSize: 16px;
+}
+
+[Template] @Var Spacing
+{
+    padding: 10px;
+    margin: 20px;
+}
+
+[Template] @Element Box
+{
+    div
+    {
+        style
+        {
+            color: ThemeColor(textColor);
+            font-size: ThemeColor(fontSize);
+            padding: Spacing(padding);
+            margin: Spacing(margin);
+        }
+    }
+}
+
+body
+{
+    @Element Box;
+
+    div
+    {
+        style
+        {
+            background-color: ThemeColor(tableColor);
+        }
+    }
+}

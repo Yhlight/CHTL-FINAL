@@ -1,37 +1,16 @@
-import subprocess
+import unittest
+import sys
+import os
 
-def run_test():
-    """Runs the test for the attribute parser."""
-    try:
-        # Build the project first to ensure the executable is up-to-date
-        build_result = subprocess.run(['python3', 'build.py', 'build'], capture_output=True, text=True)
-        if build_result.returncode != 0:
-            print("Build failed!")
-            print(build_result.stdout)
-            print(build_result.stderr)
-            return
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-        # Run the CHTL compiler on the attributes.chtl file
-        result = subprocess.run(
-            ['./build/chtl', 'tests/attributes.chtl'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+from build import build_and_run
 
-        # Check if the output is correct
-        expected_output = "ProgramNode({ElementNode(div, attributes={class: LiteralValueNode(\"container\"), id: LiteralValueNode(\"main\"), }, children={ElementNode(h1, attributes={}, children={TextNode(\"Welcome!\"), }), }), })\n"
+class TestAttributeParser(unittest.TestCase):
+    def test_attribute_parser(self):
+        output = build_and_run("tests/attributes.chtl")
+        expected_output = """ProgramNode({ElementNode(div, attributes={class: LiteralValueNode("container"), id: LiteralValueNode("main"), }, children={ElementNode(h1, attributes={}, children={TextNode("Welcome!"), }), }), })"""
+        self.assertEqual(output.strip(), expected_output.strip())
 
-        if result.stdout.strip() == expected_output.strip():
-            print("Test passed!")
-        else:
-            print(f"Test failed: Expected '{expected_output}', but got '{result.stdout}'")
-
-    except FileNotFoundError:
-        print("Error: 'build/chtl' not found. Please build the project first.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error running chtl compiler: {e}")
-        print(f"Stderr: {e.stderr}")
-
-if __name__ == "__main__":
-    run_test()
+if __name__ == '__main__':
+    unittest.main()

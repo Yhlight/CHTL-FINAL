@@ -1,37 +1,16 @@
-import subprocess
+import unittest
+import sys
+import os
 
-def run_test():
-    """Runs the test for the style template parser."""
-    try:
-        # Build the project first to ensure the executable is up-to-date
-        build_result = subprocess.run(['python3', 'build.py', 'build'], capture_output=True, text=True)
-        if build_result.returncode != 0:
-            print("Build failed!")
-            print(build_result.stdout)
-            print(build_result.stderr)
-            return
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-        # Run the CHTL compiler on the template_style.chtl file
-        result = subprocess.run(
-            ['./build/chtl', 'tests/template_style.chtl'],
-            capture_output=True,
-            text=True,
-            check=True
-        )
+from build import build_and_run
 
-        # Check if the output is correct
-        expected_output = "ProgramNode({StyleTemplateNode(DefaultText, StyleNode({StylePropertyNode(color: LiteralValueNode(\"black\")), StylePropertyNode(line-height: LiteralValueNode(1.6)), })), ElementNode(div, attributes={}, children={StyleNode({StyleTemplateUsageNode(DefaultText), }), }), })\n"
+class TestTemplateStyleParser(unittest.TestCase):
+    def test_template_style_parser(self):
+        output = build_and_run("tests/template_style.chtl")
+        expected_output = """ProgramNode({StyleTemplateNode(DefaultText, StyleNode({StylePropertyNode(color: LiteralValueNode("black")), StylePropertyNode(line-height: LiteralValueNode(1.6)), })), ElementNode(div, attributes={}, children={StyleNode({StyleTemplateUsageNode(DefaultText), }), }), })"""
+        self.assertEqual(output.strip(), expected_output.strip())
 
-        if result.stdout.strip() == expected_output.strip():
-            print("Test passed!")
-        else:
-            print(f"Test failed: Expected '{expected_output}', but got '{result.stdout}'")
-
-    except FileNotFoundError:
-        print("Error: 'build/chtl' not found. Please build the project first.")
-    except subprocess.CalledProcessError as e:
-        print(f"Error running chtl compiler: {e}")
-        print(f"Stderr: {e.stderr}")
-
-if __name__ == "__main__":
-    run_test()
+if __name__ == '__main__':
+    unittest.main()

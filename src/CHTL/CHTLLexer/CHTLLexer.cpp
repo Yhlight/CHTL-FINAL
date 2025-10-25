@@ -25,6 +25,8 @@ Token CHTLLexer::parseIdentifier() {
         value += currentChar;
         advance();
     }
+    if (value == "import") return Token(TokenType::IMPORT, "import");
+    if (value == "as") return Token(TokenType::AS, "as");
     return Token(TokenType::IDENTIFIER, value);
 }
 

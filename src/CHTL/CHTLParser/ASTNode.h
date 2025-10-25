@@ -276,4 +276,19 @@ private:
     std::vector<std::unique_ptr<ASTNode>> statements;
 };
 
+class ImportNode : public ASTNode {
+public:
+    ImportNode(std::string path, std::string alias) : path(std::move(path)), alias(std::move(alias)) {}
+    std::string toString() const override {
+        if (alias.empty()) {
+            return "ImportNode(\"" + path + "\")";
+        }
+        return "ImportNode(\"" + path + "\" as " + alias + ")";
+    }
+
+private:
+    std::string path;
+    std::string alias;
+};
+
 #endif //CHTL_ASTNODE_H

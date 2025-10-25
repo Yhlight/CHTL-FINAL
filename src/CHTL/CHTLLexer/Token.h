@@ -18,6 +18,8 @@ enum class TokenType {
     SEMICOLON,  // ;
     COLON,      // :
     EQUALS,     // =
+    IMPORT,     // import
+    AS,         // as
     END_OF_FILE,
     UNKNOWN
 };
@@ -43,6 +45,8 @@ struct Token {
             case TokenType::SEMICOLON: return "SEMICOLON";
             case TokenType::COLON: return "COLON";
             case TokenType::EQUALS: return "EQUALS";
+            case TokenType::IMPORT: return "IMPORT";
+            case TokenType::AS: return "AS";
             case TokenType::END_OF_FILE: return "END_OF_FILE";
             case TokenType::UNKNOWN: return "UNKNOWN";
         }

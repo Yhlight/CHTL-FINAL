@@ -19,10 +19,10 @@
   - [x] Parse Style Group Templates
   - [x] Parse Element Templates
   - [x] Parse Variable Group Templates
-- [ ] Custom components
+- [x] Custom components
   - [x] Parse Custom Style Group Templates
   - [x] Parse Custom Element Templates
-- [ ] Imports and namespaces
+- [x] Imports and namespaces
 
 ## Phase 3: CHTL JS Integration
 

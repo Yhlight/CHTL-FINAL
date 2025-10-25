@@ -67,7 +67,7 @@ std::unique_ptr<ASTNode> CHTLParser::parseStyleTemplateUsage() {
     return nullptr;
 }
 
-std::unique_ptr<ASTNode> CHTLParser::parseCustomElementUsage() {
+std::unique_ptr<ASTNode> CHTLParser::parseElementUsage() {
     advance(); // consume '@'
     if (currentToken.value == "Element") {
         advance(); // consume 'Element'
@@ -84,23 +84,12 @@ std::unique_ptr<ASTNode> CHTLParser::parseCustomElementUsage() {
                     advance();
                 }
                 return std::make_unique<CustomElementUsageNode>(name, std::move(body));
+            } else {
+                if (currentToken.type == TokenType::SEMICOLON) {
+                    advance();
+                }
+                return std::make_unique<ElementTemplateUsageNode>(name);
             }
-        }
-    }
-    return nullptr;
-}
-
-std::unique_ptr<ElementTemplateUsageNode> CHTLParser::parseElementTemplateUsage() {
-    advance(); // consume '@'
-    if (currentToken.value == "Element") {
-        advance(); // consume 'Element'
-        if (currentToken.type == TokenType::IDENTIFIER) {
-            std::string name = currentToken.value;
-            advance();
-            if (currentToken.type == TokenType::SEMICOLON) {
-                advance();
-            }
-            return std::make_unique<ElementTemplateUsageNode>(name);
         }
     }
     return nullptr;
@@ -275,6 +264,8 @@ std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
 std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     if (currentToken.type == TokenType::LBRACKET) {
         return parseTopLevelStatement();
+    } else if (currentToken.type == TokenType::IMPORT) {
+        return parseImportStatement();
     } else if (currentToken.value == "text") {
         return parseTextNode();
     } else if (currentToken.value == "style") {
@@ -292,7 +283,7 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     } else if (currentToken.type == TokenType::AT) {
         Token peeked = lexer.peekToken();
         if (peeked.value == "Element") {
-            return parseCustomElementUsage();
+            return parseElementUsage();
         } else if (peeked.value == "Style") {
             return parseStyleTemplateUsage();
         }
@@ -304,16 +295,35 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     return nullptr;
 }
 
-std::unique_ptr<ValueNode> CHTLParser::parseValue() {
+std::unique_ptr<ASTNode> CHTLParser::parseImportStatement() {
+    advance(); // consume 'import'
     if (currentToken.type == TokenType::STRING) {
-        std::string value = currentToken.value;
+        std::string path = currentToken.value;
         advance();
-        return std::make_unique<LiteralValueNode>(value, true);
-    } else if (currentToken.type == TokenType::IDENTIFIER) {
-        std::string name = currentToken.value;
-        advance();
-        if (currentToken.type == TokenType::LPAREN) {
+        std::string alias;
+        if (currentToken.type == TokenType::AS) {
             advance();
+            if (currentToken.type == TokenType::IDENTIFIER) {
+                alias = currentToken.value;
+                advance();
+            }
+        }
+        if (currentToken.type == TokenType::SEMICOLON) {
+            advance();
+        }
+        return std::make_unique<ImportNode>(path, alias);
+    }
+    return nullptr;
+}
+
+std::unique_ptr<ValueNode> CHTLParser::parseValue() {
+    // Handle template var usage first, as it starts with an identifier
+    if (currentToken.type == TokenType::IDENTIFIER) {
+        Token peeked = lexer.peekToken();
+        if (peeked.type == TokenType::LPAREN) {
+            std::string name = currentToken.value;
+            advance(); // consume name
+            advance(); // consume '('
             if (currentToken.type == TokenType::IDENTIFIER) {
                 std::string varName = currentToken.value;
                 advance();
@@ -323,8 +333,26 @@ std::unique_ptr<ValueNode> CHTLParser::parseValue() {
                 }
             }
         }
-        return std::make_unique<LiteralValueNode>(name);
     }
+
+    // Handle single string literal
+    if (currentToken.type == TokenType::STRING) {
+        std::string value = currentToken.value;
+        advance();
+        return std::make_unique<LiteralValueNode>(value, true);
+    }
+
+    // Handle other values (concatenated identifiers, numbers, etc.)
+    std::string value;
+    while (currentToken.type != TokenType::SEMICOLON && currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+        value += currentToken.value; // Concatenate without space
+        advance();
+    }
+
+    if (!value.empty()) {
+        return std::make_unique<LiteralValueNode>(value);
+    }
+
     return nullptr;
 }
 

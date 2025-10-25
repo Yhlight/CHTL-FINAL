@@ -10,7 +10,7 @@ int main(int argc, char* argv[]) {
 
     CHTLLexer lexer(argv[1]);
     CHTLParser parser(lexer);
-    std::unique_ptr<ASTNode> ast = parser.parse();
+    std::unique_ptr<ProgramNode> ast = parser.parse();
 
     if (ast) {
         std::cout << ast->toString() << std::endl;

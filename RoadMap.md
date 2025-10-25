@@ -7,7 +7,7 @@
 - [ ] Lexer and Parser for basic syntax (text nodes, element nodes, attributes)
   - [x] Implement Tokenizer
   - [x] Implement Parser for text nodes
-  - [ ] Implement Parser for element nodes
+  - [x] Implement Parser for element nodes
   - [ ] Implement Parser for attributes
 
 ## Phase 2: Advanced Features

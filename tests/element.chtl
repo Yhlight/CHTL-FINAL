@@ -1,0 +1,8 @@
+div {
+    h1 {
+        text { "Hello, CHTL!" }
+    }
+    p {
+        text { "This is a test." }
+    }
+}

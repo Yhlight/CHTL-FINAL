@@ -2,8 +2,10 @@
 #define CHTL_ASTNODE_H
 
 #include <string>
+#include <utility>
 #include <vector>
 #include <memory>
+#include <sstream>
 
 class ASTNode {
 public:
@@ -20,6 +22,47 @@ public:
 
 private:
     std::string text;
+};
+
+class ElementNode : public ASTNode {
+public:
+    explicit ElementNode(std::string tag) : tag_name(std::move(tag)) {}
+    std::string toString() const override {
+        std::stringstream ss;
+        ss << "ElementNode(" << tag_name << ", {";
+        for (const auto& child : children) {
+            ss << child->toString() << ", ";
+        }
+        ss << "})";
+        return ss.str();
+    }
+    void addChild(std::unique_ptr<ASTNode> child) {
+        children.push_back(std::move(child));
+    }
+
+private:
+    std::string tag_name;
+    std::vector<std::unique_ptr<ASTNode>> children;
+};
+
+class ProgramNode : public ASTNode {
+public:
+    ProgramNode() = default;
+    std::string toString() const override {
+        std::stringstream ss;
+        ss << "ProgramNode({";
+        for (const auto& stmt : statements) {
+            ss << stmt->toString() << ", ";
+        }
+        ss << "})";
+        return ss.str();
+    }
+    void addStatement(std::unique_ptr<ASTNode> stmt) {
+        statements.push_back(std::move(stmt));
+    }
+
+private:
+    std::vector<std::unique_ptr<ASTNode>> statements;
 };
 
 #endif //CHTL_ASTNODE_H

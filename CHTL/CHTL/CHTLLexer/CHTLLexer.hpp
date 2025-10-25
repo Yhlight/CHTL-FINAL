@@ -6,6 +6,16 @@
 
 enum class TokenType {
     COMMENT,
+    MULTI_LINE_COMMENT,
+    GENERATOR_COMMENT,
+    IDENTIFIER,
+    STRING_LITERAL,
+    LEFT_BRACE,
+    RIGHT_BRACE,
+    COLON,
+    SEMICOLON,
+    EQUALS,
+    UNKNOWN,
     // Add other token types here
 };
 
@@ -20,6 +30,14 @@ public:
     std::vector<Token> tokenize();
 
 private:
+    void skipWhitespace();
+    Token tokenizeComment();
+    Token tokenizeMultiLineComment();
+    Token tokenizeGeneratorComment();
+    Token tokenizeIdentifier();
+    Token tokenizeStringLiteral();
+    Token tokenizePunctuation();
+
     std::string input_;
     size_t position_ = 0;
 };

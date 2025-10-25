@@ -2,17 +2,15 @@
 
 ## Phase 1: Core Compiler Implementation
 
-- [x] **Lexer:** Implement the lexical analyzer to tokenize the CHTL source code.
-- [x] **Parser:** Implement the parser to build an Abstract Syntax Tree (AST) from the token stream.
-- [x] **Generator:** Implement the code generator to produce HTML and CSS from the AST.
-- [x] **Testing:** Set up a comprehensive test suite to ensure the correctness of the compiler.
+- [ ] **Lexer:** Implement the lexical analyzer to tokenize the CHTL source code.
+- [ ] **Parser:** Implement the parser to build an Abstract Syntax Tree (AST) from the token stream.
+- [ ] **Generator:** Implement the code generator to produce HTML and CSS from the AST.
+- [ ] **Testing:** Set up a comprehensive test suite to ensure the correctness of the compiler.
 
 ## Phase 2: CHTL JS Integration
 
 - [ ] **Local Script Blocks:** Implement support for `script` blocks within CHTL elements.
-  - [x] Extend the parser to recognize `script` blocks.
-  - [x] Extend the generator to extract and output script content.
-- [ ] **CHTL JS Lexer:** Implement the lexer for CHTL JS syntax.
+- [ ] **CHTL JS Lexer:** Implement the lexer for CHTL JS syntax. (In Progress)
 - [ ] **CHTL JS Parser:** Implement the parser for CHTL JS to extend the AST.
 - [ ] **CHTL JS Generator:** Implement the generator for CHTL JS to produce JavaScript.
 - [ ] **Salt Bridge:** Develop the "Salt Bridge" communication layer between the CHTL and CHTL JS compilers.

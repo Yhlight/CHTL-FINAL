@@ -1,5 +1,5 @@
-#include "catch.hpp"
+#include "CustomTestFramework.hpp"
 
-int main(int argc, char* argv[]) {
-    return Catch::TestRegistry::instance().run_all_tests();
+int main() {
+    return CustomTestFramework::instance().runAllTests();
 }

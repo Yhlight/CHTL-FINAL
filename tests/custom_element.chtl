@@ -1,0 +1,11 @@
+[Custom] @Element MyComponent {
+    div {
+        p {
+            text { "Hello" }
+        }
+    }
+}
+
+MyComponent {
+
+}

@@ -11,3 +11,7 @@ Makefile
 *.so
 *.dll
 chtl
+
+# Python
+__pycache__/
+*.pyc

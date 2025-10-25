@@ -21,11 +21,20 @@ void CHTLLexer::skipWhitespace() {
 
 Token CHTLLexer::parseIdentifier() {
     std::string value;
-    while (!file.eof() && (isalnum(currentChar) || currentChar == '_' || currentChar == '-' || currentChar == '.')) {
+    while (!file.eof() && (isalnum(currentChar) || currentChar == '_' || currentChar == '-')) {
         value += currentChar;
         advance();
     }
     return Token(TokenType::IDENTIFIER, value);
+}
+
+Token CHTLLexer::parseNumber() {
+    std::string value;
+    while (!file.eof() && (isdigit(currentChar) || currentChar == '.')) {
+        value += currentChar;
+        advance();
+    }
+    return Token(TokenType::NUMBER, value);
 }
 
 Token CHTLLexer::parseString() {
@@ -59,8 +68,12 @@ Token CHTLLexer::getNextTokenInternal() {
     while (!file.eof()) {
         skipWhitespace();
 
-        if (isalnum(currentChar) || currentChar == '_') {
+        if (isalpha(currentChar) || currentChar == '_') {
             return parseIdentifier();
+        }
+
+        if (isdigit(currentChar)) {
+            return parseNumber();
         }
 
         if (currentChar == '"') {

@@ -21,6 +21,7 @@ private:
     std::unique_ptr<StyleNode> parseStyleNode();
     std::unique_ptr<ASTNode> parseStyleTemplateUsage();
     std::unique_ptr<ElementTemplateUsageNode> parseElementTemplateUsage();
+    std::unique_ptr<ASTNode> parseCustomElementUsage();
     std::unique_ptr<ElementNode> parseElementNode();
     void parseAttributes(ElementNode& element);
     std::unique_ptr<ValueNode> parseValue();

@@ -7,6 +7,7 @@
 enum class TokenType {
     IDENTIFIER,
     STRING,
+    NUMBER,
     LBRACE,     // {
     RBRACE,     // }
     LBRACKET,   // [
@@ -31,6 +32,7 @@ struct Token {
         switch (t) {
             case TokenType::IDENTIFIER: return "IDENTIFIER";
             case TokenType::STRING: return "STRING";
+            case TokenType::NUMBER: return "NUMBER";
             case TokenType::LBRACE: return "LBRACE";
             case TokenType::RBRACE: return "RBRACE";
             case TokenType::LBRACKET: return "LBRACKET";

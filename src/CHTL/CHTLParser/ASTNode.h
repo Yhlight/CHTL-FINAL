@@ -170,10 +170,14 @@ private:
 
 class ElementNode : public ASTNode {
 public:
-    explicit ElementNode(std::string tag) : tag_name(std::move(tag)) {}
+    explicit ElementNode(std::string tag, int index = -1) : tag_name(std::move(tag)), index(index) {}
     std::string toString() const override {
         std::stringstream ss;
-        ss << "ElementNode(" << tag_name << ", attributes={";
+        ss << "ElementNode(" << tag_name;
+        if (index != -1) {
+            ss << "[" << index << "]";
+        }
+        ss << ", attributes={";
         for (const auto& attr : attributes) {
             ss << attr.first << ": " << attr.second->toString() << ", ";
         }
@@ -193,8 +197,45 @@ public:
 
 private:
     std::string tag_name;
+    int index;
     std::map<std::string, std::unique_ptr<ValueNode>> attributes;
     std::vector<std::unique_ptr<ASTNode>> children;
+};
+
+class CustomElementNode : public ASTNode {
+public:
+    CustomElementNode(std::string name, std::vector<std::unique_ptr<ASTNode>> body) : name(std::move(name)), body(std::move(body)) {}
+    std::string toString() const override {
+        std::stringstream ss;
+        ss << "CustomElementNode(" << name << ", {";
+        for (const auto& child : body) {
+            ss << child->toString() << ", ";
+        }
+        ss << "})";
+        return ss.str();
+    }
+
+private:
+    std::string name;
+    std::vector<std::unique_ptr<ASTNode>> body;
+};
+
+class CustomElementUsageNode : public ASTNode {
+public:
+    CustomElementUsageNode(std::string name, std::vector<std::unique_ptr<ASTNode>> body) : name(std::move(name)), body(std::move(body)) {}
+    std::string toString() const override {
+        std::stringstream ss;
+        ss << "CustomElementUsageNode(" << name << ", {";
+        for (const auto& child : body) {
+            ss << child->toString() << ", ";
+        }
+        ss << "})";
+        return ss.str();
+    }
+
+private:
+    std::string name;
+    std::vector<std::unique_ptr<ASTNode>> body;
 };
 
 class ElementTemplateNode : public ASTNode {

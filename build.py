@@ -25,9 +25,30 @@ def run(filepath):
         build()
 
     if os.path.exists("build/chtl"):
-        run_command(f"build/chtl {filepath}")
+        return run_command(f"build/chtl {filepath}")
     else:
         print("Failed to build CHTL compiler.")
+        return 1
+
+def build_and_run(filepath):
+    """Builds and runs the CHTL compiler on a file, capturing the output."""
+    build()
+    # Check if the compiler exists after building
+    if not os.path.exists("build/chtl"):
+        print("Failed to build CHTL compiler.")
+        return "Build failed"
+
+    # Run the compiler and capture the output
+    try:
+        result = subprocess.run(
+            ["build/chtl", filepath],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        return result.stdout
+    except subprocess.CalledProcessError as e:
+        return f"Execution failed: {e.stderr}"
 
 if __name__ == "__main__":
     import sys

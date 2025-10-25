@@ -21,6 +21,7 @@ private:
     void skipWhitespace();
     Token parseIdentifier();
     Token parseString();
+    Token parseNumber();
     Token getNextTokenInternal();
 };
 

@@ -19,12 +19,16 @@ add_executable(test_runner
     Test/test_lexer.cpp
     Test/test_parser.cpp
     Test/test_generator.cpp
+    Test/test_evaluator.cpp
     CHTL/CHTLLexer/CHTLLexer.cpp
     CHTL/CHTLParser/CHTLParser.cpp
+    CHTL/CHTLEvaluator/Evaluator.cpp
     CHTL/CHTLNode/ElementNode.cpp
     CHTL/CHTLNode/TextNode.cpp
     CHTL/CHTLNode/PropertyNode.cpp
     CHTL/CHTLNode/RuleNode.cpp
+    CHTL/CHTLNode/LiteralNode.cpp
+    CHTL/CHTLNode/BinaryOpNode.cpp
     CHTL/CHTLGenerator/CHTLGenerator.cpp
 )
 

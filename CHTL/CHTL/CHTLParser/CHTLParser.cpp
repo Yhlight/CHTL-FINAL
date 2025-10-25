@@ -3,6 +3,8 @@
 #include "CHTLNode/TextNode.hpp"
 #include "CHTLNode/StyleNode.hpp"
 #include "CHTLNode/PropertyNode.hpp"
+#include "CHTLNode/LiteralNode.hpp"
+#include "CHTLNode/BinaryOpNode.hpp"
 
 CHTLParser::CHTLParser(const std::vector<Token>& tokens) : tokens_(tokens) {}
 
@@ -120,14 +122,11 @@ std::unique_ptr<AstNode> CHTLParser::parseStyleNode() {
                 position_++; // consume identifier
                 position_++; // consume colon
 
-                std::string value = "";
-                while (position_ < tokens_.size() && tokens_[position_].type != TokenType::SEMICOLON) {
-                    value += tokens_[position_].value;
-                    position_++;
-                }
-                position_++; // consume semicolon
+                ruleNode->properties.push_back(std::make_unique<PropertyNode>(key, parseExpression()));
 
-                ruleNode->properties.push_back(std::make_unique<PropertyNode>(key, value));
+                if (tokens_[position_].type == TokenType::SEMICOLON) {
+                    position_++; // consume semicolon
+                }
             }
             position_++; // consume right brace
             styleNode->rules.push_back(std::move(ruleNode));
@@ -136,14 +135,11 @@ std::unique_ptr<AstNode> CHTLParser::parseStyleNode() {
             position_++; // consume identifier
             position_++; // consume colon
 
-            std::string value = "";
-            while (position_ < tokens_.size() && tokens_[position_].type != TokenType::SEMICOLON) {
-                value += tokens_[position_].value;
-                position_++;
-            }
-            position_++; // consume semicolon
+            styleNode->properties.push_back(std::make_unique<PropertyNode>(key, parseExpression()));
 
-            styleNode->properties.push_back(std::make_unique<PropertyNode>(key, value));
+            if (tokens_[position_].type == TokenType::SEMICOLON) {
+                position_++; // consume semicolon
+            }
         }
     }
 
@@ -153,4 +149,30 @@ std::unique_ptr<AstNode> CHTLParser::parseStyleNode() {
     position_++;
 
     return styleNode;
+}
+
+std::unique_ptr<ExpressionNode> CHTLParser::parseExpression() {
+    std::string value = "";
+    if (tokens_[position_].type == TokenType::NUMBER) {
+        value += tokens_[position_].value;
+        position_++;
+        if (tokens_[position_].type == TokenType::IDENTIFIER) {
+            value += tokens_[position_].value;
+            position_++;
+        }
+    } else if (tokens_[position_].type == TokenType::IDENTIFIER) {
+        value += tokens_[position_].value;
+        position_++;
+    }
+
+    auto left = std::make_unique<LiteralNode>(value);
+
+    if (position_ >= tokens_.size() || tokens_[position_].type == TokenType::SEMICOLON) {
+        return left;
+    }
+
+    std::string op = tokens_[position_].value;
+    position_++;
+
+    return std::make_unique<BinaryOpNode>(std::move(left), op, parseExpression());
 }

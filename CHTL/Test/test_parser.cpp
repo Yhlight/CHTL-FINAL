@@ -5,6 +5,9 @@
 #include "CHTLNode/StyleNode.hpp"
 #include "CHTLNode/PropertyNode.hpp"
 #include "CHTLNode/RuleNode.hpp"
+#include "CHTLNode/ExpressionNode.hpp"
+#include "CHTLNode/LiteralNode.hpp"
+#include "CHTLNode/BinaryOpNode.hpp"
 
 TEST_CASE(ParserCanParseSimpleElement, "Parser can parse a simple element") {
     std::string input = "div {}";
@@ -99,7 +102,9 @@ TEST_CASE(ParserCanParseStyleBlocks, "Parser can parse style blocks") {
     REQUIRE(style != nullptr);
     REQUIRE(style->properties.size() == 1);
     REQUIRE(style->properties[0]->key == "width");
-    REQUIRE(style->properties[0]->value == "100px");
+    LiteralNode* literal = dynamic_cast<LiteralNode*>(style->properties[0]->value.get());
+    REQUIRE(literal != nullptr);
+    REQUIRE(literal->value == "100px");
 }
 
 TEST_CASE(ParserCanParseCssRules, "Parser can parse CSS rules") {
@@ -119,5 +124,36 @@ TEST_CASE(ParserCanParseCssRules, "Parser can parse CSS rules") {
     REQUIRE(style->rules[0]->selector == ".box");
     REQUIRE(style->rules[0]->properties.size() == 1);
     REQUIRE(style->rules[0]->properties[0]->key == "color");
-    REQUIRE(style->rules[0]->properties[0]->value == "red");
+    LiteralNode* literal = dynamic_cast<LiteralNode*>(style->rules[0]->properties[0]->value.get());
+    REQUIRE(literal != nullptr);
+    REQUIRE(literal->value == "red");
+}
+
+TEST_CASE(ParserCanParseExpressions, "Parser can parse expressions") {
+    std::string input = "div { style { width: 100px + 50px; } }";
+    CHTLLexer lexer(input);
+    CHTLParser parser(lexer.tokenize());
+    std::unique_ptr<AstNode> root = parser.parse();
+
+    REQUIRE(root != nullptr);
+    ElementNode* div = dynamic_cast<ElementNode*>(root.get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+
+    StyleNode* style = dynamic_cast<StyleNode*>(div->children[0].get());
+    REQUIRE(style != nullptr);
+    REQUIRE(style->properties.size() == 1);
+    REQUIRE(style->properties[0]->key == "width");
+
+    BinaryOpNode* binOp = dynamic_cast<BinaryOpNode*>(style->properties[0]->value.get());
+    REQUIRE(binOp != nullptr);
+    REQUIRE(binOp->op == "+");
+
+    LiteralNode* left = dynamic_cast<LiteralNode*>(binOp->left.get());
+    REQUIRE(left != nullptr);
+    REQUIRE(left->value == "100px");
+
+    LiteralNode* right = dynamic_cast<LiteralNode*>(binOp->right.get());
+    REQUIRE(right != nullptr);
+    REQUIRE(right->value == "50px");
 }

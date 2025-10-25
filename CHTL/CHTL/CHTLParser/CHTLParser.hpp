@@ -4,6 +4,7 @@
 #include "CHTLLexer/CHTLLexer.hpp"
 #include "CHTLNode/AstNode.hpp"
 #include "CHTLNode/ElementNode.hpp"
+#include "CHTLNode/ExpressionNode.hpp"
 #include <vector>
 #include <memory>
 
@@ -16,6 +17,7 @@ private:
     std::unique_ptr<AstNode> parseElement();
     std::string parseTextNode();
     std::unique_ptr<AstNode> parseStyleNode();
+    std::unique_ptr<ExpressionNode> parseExpression();
     void parseAttributes(ElementNode* element);
 
     std::vector<Token> tokens_;

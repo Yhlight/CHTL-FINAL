@@ -5,6 +5,7 @@
 #include "CHTLNode/ElementNode.hpp"
 #include "CHTLNode/TextNode.hpp"
 #include "CHTLNode/RuleNode.hpp"
+#include "CHTLEvaluator/Evaluator.hpp"
 #include <string>
 #include "Document.hpp"
 
@@ -20,6 +21,7 @@ private:
 
     std::string html_;
     std::string css_;
+    Evaluator evaluator_;
 };
 
 #endif // CHTL_GENERATOR_HPP

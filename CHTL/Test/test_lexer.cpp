@@ -92,6 +92,19 @@ TEST_CASE(LexerCanTokenizeCssSelectors, "Lexer can tokenize CSS selectors") {
     REQUIRE(tokens[4].type == TokenType::AMPERSAND);
 }
 
+TEST_CASE(LexerCanTokenizeArithmeticOperators, "Lexer can tokenize arithmetic operators") {
+    std::string input = "+ - * / % **";
+    CHTLLexer lexer(input);
+    std::vector<Token> tokens = lexer.tokenize();
+    REQUIRE(tokens.size() == 6);
+    REQUIRE(tokens[0].type == TokenType::PLUS);
+    REQUIRE(tokens[1].type == TokenType::MINUS);
+    REQUIRE(tokens[2].type == TokenType::STAR);
+    REQUIRE(tokens[3].type == TokenType::SLASH);
+    REQUIRE(tokens[4].type == TokenType::PERCENT);
+    REQUIRE(tokens[5].type == TokenType::POWER);
+}
+
 TEST_CASE(LexerCanTokenizeUnadornedLiteral, "Lexer can tokenize an unadorned literal") {
     std::string input = "color: red;";
     CHTLLexer lexer(input);

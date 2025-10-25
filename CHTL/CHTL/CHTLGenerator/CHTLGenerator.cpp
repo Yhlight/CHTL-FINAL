@@ -1,6 +1,9 @@
 #include "CHTLGenerator.hpp"
 #include "CHTLNode/StyleNode.hpp"
 #include "CHTLNode/RuleNode.hpp"
+#include "CHTLNode/ExpressionNode.hpp"
+#include "CHTLNode/LiteralNode.hpp"
+#include "CHTLNode/BinaryOpNode.hpp"
 
 Document CHTLGenerator::generate(const AstNode& root) {
     visit(root);
@@ -33,7 +36,7 @@ void CHTLGenerator::visitElementNode(const ElementNode& node) {
         for (const auto& child : node.children) {
             if (const StyleNode* style_node = dynamic_cast<const StyleNode*>(child.get())) {
                 for (const auto& prop : style_node->properties) {
-                    style_string += prop->key + ":" + prop->value + ";";
+                    style_string += prop->key + ":" + evaluator_.evaluate(*prop->value) + ";";
                 }
                 for (const auto& rule : style_node->rules) {
                     if (rule->selector[0] == '.') {
@@ -68,7 +71,7 @@ void CHTLGenerator::visitTextNode(const TextNode& node) {
 void CHTLGenerator::visitRuleNode(const RuleNode& node) {
     css_ += node.selector + "{";
     for (const auto& prop : node.properties) {
-        css_ += prop->key + ":" + prop->value + ";";
+        css_ += prop->key + ":" + evaluator_.evaluate(*prop->value) + ";";
     }
     css_ += "}";
 }

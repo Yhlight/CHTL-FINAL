@@ -19,6 +19,12 @@ enum class TokenType {
     DOT,
     HASH,
     AMPERSAND,
+    PLUS,
+    MINUS,
+    STAR,
+    SLASH,
+    PERCENT,
+    POWER,
     UNKNOWN,
     // Add other token types here
 };

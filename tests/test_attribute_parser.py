@@ -1,7 +1,7 @@
 import subprocess
 
 def run_test():
-    """Runs the test for the element parser."""
+    """Runs the test for the attribute parser."""
     try:
         # Build the project first to ensure the executable is up-to-date
         build_result = subprocess.run(['python3', 'build.py', 'build'], capture_output=True, text=True)
@@ -11,16 +11,16 @@ def run_test():
             print(build_result.stderr)
             return
 
-        # Run the CHTL compiler on the element.chtl file
+        # Run the CHTL compiler on the attributes.chtl file
         result = subprocess.run(
-            ['./build/chtl', 'tests/element.chtl'],
+            ['./build/chtl', 'tests/attributes.chtl'],
             capture_output=True,
             text=True,
             check=True
         )
 
         # Check if the output is correct
-        expected_output = "ProgramNode({ElementNode(div, attributes={}, children={ElementNode(h1, attributes={}, children={TextNode(\"Hello, CHTL!\"), }), ElementNode(p, attributes={}, children={TextNode(\"This is a test.\"), }), }), })\n"
+        expected_output = "ProgramNode({ElementNode(div, attributes={class: \"container\", id: \"main\", }, children={ElementNode(h1, attributes={}, children={TextNode(\"Welcome!\"), }), }), })\n"
 
         if result.stdout.strip() == expected_output.strip():
             print("Test passed!")

@@ -4,11 +4,11 @@
 
 - [x] Basic project structure and build system
 - [x] "Hello, World!" compilation
-- [ ] Lexer and Parser for basic syntax (text nodes, element nodes, attributes)
+- [x] Lexer and Parser for basic syntax (text nodes, element nodes, attributes)
   - [x] Implement Tokenizer
   - [x] Implement Parser for text nodes
   - [x] Implement Parser for element nodes
-  - [ ] Implement Parser for attributes
+  - [x] Implement Parser for attributes
 
 ## Phase 2: Advanced Features
 

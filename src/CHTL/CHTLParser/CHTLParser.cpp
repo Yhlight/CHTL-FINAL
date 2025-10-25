@@ -7,6 +7,30 @@ void CHTLParser::advance() {
     currentToken = lexer.getNextToken();
 }
 
+void CHTLParser::parseAttributes(ElementNode& element) {
+    while (currentToken.type == TokenType::IDENTIFIER) {
+        // Lookahead to see if this is an attribute or a child element.
+        Token peeked = lexer.peekToken();
+        if (peeked.type == TokenType::COLON || peeked.type == TokenType::EQUALS) {
+            std::string key = currentToken.value;
+            advance(); // consume key
+            advance(); // consume ':' or '='
+            if (currentToken.type == TokenType::STRING || currentToken.type == TokenType::IDENTIFIER) {
+                element.addAttribute(key, currentToken.value);
+                advance(); // consume value
+                if (currentToken.type == TokenType::SEMICOLON) {
+                    advance(); // consume ';'
+                } else {
+                    // This is an error, but for now we'll just continue.
+                }
+            }
+        } else {
+            // Not an attribute, so break out of the loop.
+            break;
+        }
+    }
+}
+
 std::unique_ptr<ASTNode> CHTLParser::parseTextNode() {
     if (currentToken.value == "text") {
         advance(); // consume 'text'
@@ -32,6 +56,7 @@ std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
         auto elementNode = std::make_unique<ElementNode>(tag);
         if (currentToken.type == TokenType::LBRACE) {
             advance(); // consume '{'
+            parseAttributes(*elementNode);
             while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
                 elementNode->addChild(parseStatement());
             }
@@ -51,7 +76,9 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
         return parseElementNode();
     }
     // In the future, we will handle other statement types here.
-    advance(); // Move past unexpected tokens for now
+    if (currentToken.type != TokenType::END_OF_FILE) {
+        advance(); // Move past unexpected tokens for now
+    }
     return nullptr;
 }
 

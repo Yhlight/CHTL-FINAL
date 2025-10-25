@@ -1,7 +1,7 @@
 #include "CHTLLexer.h"
 #include <iostream>
 
-CHTLLexer::CHTLLexer(const std::string& filepath) : file(filepath) {
+CHTLLexer::CHTLLexer(const std::string& filepath) : file(filepath), lookahead(nullptr) {
     if (!file.is_open()) {
         std::cerr << "Error: Could not open file " << filepath << std::endl;
         exit(1);
@@ -40,6 +40,22 @@ Token CHTLLexer::parseString() {
 }
 
 Token CHTLLexer::getNextToken() {
+    if (lookahead) {
+        Token token = *lookahead;
+        lookahead.reset();
+        return token;
+    }
+    return getNextTokenInternal();
+}
+
+Token CHTLLexer::peekToken() {
+    if (!lookahead) {
+        lookahead = std::make_unique<Token>(getNextTokenInternal());
+    }
+    return *lookahead;
+}
+
+Token CHTLLexer::getNextTokenInternal() {
     while (!file.eof()) {
         skipWhitespace();
 

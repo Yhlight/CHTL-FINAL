@@ -18,6 +18,7 @@ private:
     std::unique_ptr<ASTNode> parseStatement();
     std::unique_ptr<ASTNode> parseTextNode();
     std::unique_ptr<ElementNode> parseElementNode();
+    void parseAttributes(ElementNode& element);
 };
 
 #endif //CHTL_PARSER_H

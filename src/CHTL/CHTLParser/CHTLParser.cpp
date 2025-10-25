@@ -42,6 +42,34 @@ std::unique_ptr<ASTNode> CHTLParser::parseTextNode() {
     return nullptr;
 }
 
+std::unique_ptr<ASTNode> CHTLParser::parseNamespaceStatement() {
+    advance(); // consume '['
+    advance(); // consume 'Namespace'
+    advance(); // consume ']'
+
+    if (currentToken.type != TokenType::IDENTIFIER) {
+        return nullptr;
+    }
+    std::string name = currentToken.value;
+    advance();
+
+    if (currentToken.type != TokenType::LBRACE) {
+        return nullptr;
+    }
+    advance(); // consume '{'
+
+    std::vector<std::unique_ptr<ASTNode>> body;
+    while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+        body.push_back(parseStatement());
+    }
+
+    if (currentToken.type == TokenType::RBRACE) {
+        advance();
+    }
+
+    return std::make_unique<NamespaceNode>(name, std::move(body));
+}
+
 std::unique_ptr<ASTNode> CHTLParser::parseStyleTemplateUsage() {
     advance(); // consume '@'
     if (currentToken.value == "Style") {
@@ -49,18 +77,26 @@ std::unique_ptr<ASTNode> CHTLParser::parseStyleTemplateUsage() {
         if (currentToken.type == TokenType::IDENTIFIER) {
             std::string name = currentToken.value;
             advance();
+            std::string from;
+            if (currentToken.type == TokenType::FROM) {
+                advance();
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    from = currentToken.value;
+                    advance();
+                }
+            }
             if (currentToken.type == TokenType::LBRACE) {
                 advance();
                 auto styleNode = parseStyleNode();
                 if (currentToken.type == TokenType::RBRACE) {
                     advance();
                 }
-                return std::make_unique<CustomStyleUsageNode>(name, std::move(styleNode));
+                return std::make_unique<CustomStyleUsageNode>(name, std::move(styleNode), from);
             } else {
                 if (currentToken.type == TokenType::SEMICOLON) {
                     advance();
                 }
-                return std::make_unique<StyleTemplateUsageNode>(name);
+                return std::make_unique<StyleTemplateUsageNode>(name, from);
             }
         }
     }
@@ -74,6 +110,14 @@ std::unique_ptr<ASTNode> CHTLParser::parseElementUsage() {
         if (currentToken.type == TokenType::IDENTIFIER) {
             std::string name = currentToken.value;
             advance();
+            std::string from;
+            if (currentToken.type == TokenType::FROM) {
+                advance();
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    from = currentToken.value;
+                    advance();
+                }
+            }
             if (currentToken.type == TokenType::LBRACE) {
                 advance();
                 std::vector<std::unique_ptr<ASTNode>> body;
@@ -83,15 +127,12 @@ std::unique_ptr<ASTNode> CHTLParser::parseElementUsage() {
                 if (currentToken.type == TokenType::RBRACE) {
                     advance();
                 }
-                return std::make_unique<CustomElementUsageNode>(name, std::move(body));
+                return std::make_unique<CustomElementUsageNode>(name, std::move(body), from);
             } else {
                 if (currentToken.type == TokenType::SEMICOLON) {
                     advance();
                 }
-                Token peeked = lexer.peekToken();
-                if(peeked.type == TokenType::LBRACE)
-                    return std::make_unique<CustomElementUsageNode>(name, std::vector<std::unique_ptr<ASTNode>>());
-                return std::make_unique<ElementTemplateUsageNode>(name);
+                return std::make_unique<ElementTemplateUsageNode>(name, from);
             }
         }
     }
@@ -243,6 +284,8 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
         Token peeked = lexer.peekToken();
         if (peeked.value == "Import") {
             return parseImportStatement();
+        } else if (peeked.type == TokenType::NAMESPACE) {
+            return parseNamespaceStatement();
         }
         return parseTopLevelStatement();
     } else if (currentToken.value == "text") {

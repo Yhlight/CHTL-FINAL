@@ -1,0 +1,18 @@
+[Namespace] space
+{
+    [Template] @Element Box
+    {
+        div
+        {
+            text
+            {
+                "Hello from namespace!"
+            }
+        }
+    }
+}
+
+body
+{
+    @Element Box from space;
+}

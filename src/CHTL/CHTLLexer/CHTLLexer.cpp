@@ -29,6 +29,7 @@ Token CHTLLexer::parseIdentifier() {
     if (value == "as") return Token(TokenType::AS, "as");
     if (value == "Var") return Token(TokenType::VAR, "Var");
     if (value == "from") return Token(TokenType::FROM, "from");
+    if (value == "Namespace") return Token(TokenType::NAMESPACE, "Namespace");
     return Token(TokenType::IDENTIFIER, value);
 }
 

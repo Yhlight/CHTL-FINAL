@@ -27,6 +27,7 @@ private:
     void parseAttributes(ElementNode& element);
     std::unique_ptr<ValueNode> parseValue();
     std::unique_ptr<VarTemplateNode> parseVarTemplate();
+    std::unique_ptr<ASTNode> parseNamespaceStatement();
 };
 
 #endif //CHTL_PARSER_H

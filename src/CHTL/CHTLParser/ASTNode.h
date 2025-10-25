@@ -92,23 +92,35 @@ private:
 
 class StyleTemplateUsageNode : public ASTNode {
 public:
-    explicit StyleTemplateUsageNode(std::string name) : name(std::move(name)) {}
+    explicit StyleTemplateUsageNode(std::string name, std::string from = "") : name(std::move(name)), from(std::move(from)) {}
     std::string toString() const override {
-        return "StyleTemplateUsageNode(" + name + ")";
+        if (from.empty()) {
+            return "StyleTemplateUsageNode(" + name + ")";
+        }
+        return "StyleTemplateUsageNode(" + name + " from " + from + ")";
     }
     const std::string& getName() const {
         return name;
     }
+    const std::string& getFrom() const {
+        return from;
+    }
 
 private:
     std::string name;
+    std::string from;
 };
 
 class CustomStyleUsageNode : public ASTNode {
 public:
-    CustomStyleUsageNode(std::string name, std::unique_ptr<ASTNode> body) : name(std::move(name)), body(std::move(body)) {}
+    CustomStyleUsageNode(std::string name, std::unique_ptr<ASTNode> body, std::string from = "") : name(std::move(name)), body(std::move(body)), from(std::move(from)) {}
     std::string toString() const override {
-        return "CustomStyleUsageNode(" + name + ", " + body->toString() + ")";
+        std::string result = "CustomStyleUsageNode(" + name;
+        if (!from.empty()) {
+            result += " from " + from;
+        }
+        result += ", " + body->toString() + ")";
+        return result;
     }
     const std::string& getName() const {
         return name;
@@ -116,24 +128,35 @@ public:
     const ASTNode* getBody() const {
         return body.get();
     }
+    const std::string& getFrom() const {
+        return from;
+    }
 
 private:
     std::string name;
     std::unique_ptr<ASTNode> body;
+    std::string from;
 };
 
 class ElementTemplateUsageNode : public ASTNode {
 public:
-    explicit ElementTemplateUsageNode(std::string name) : name(std::move(name)) {}
+    explicit ElementTemplateUsageNode(std::string name, std::string from = "") : name(std::move(name)), from(std::move(from)) {}
     std::string toString() const override {
-        return "ElementTemplateUsageNode(" + name + ")";
+        if (from.empty()) {
+            return "ElementTemplateUsageNode(" + name + ")";
+        }
+        return "ElementTemplateUsageNode(" + name + " from " + from + ")";
     }
     const std::string& getName() const {
         return name;
     }
+    const std::string& getFrom() const {
+        return from;
+    }
 
 private:
     std::string name;
+    std::string from;
 };
 
 class StyleNode : public ASTNode {
@@ -291,10 +314,14 @@ private:
 
 class CustomElementUsageNode : public ASTNode {
 public:
-    CustomElementUsageNode(std::string name, std::vector<std::unique_ptr<ASTNode>> body) : name(std::move(name)), body(std::move(body)) {}
+    CustomElementUsageNode(std::string name, std::vector<std::unique_ptr<ASTNode>> body, std::string from = "") : name(std::move(name)), body(std::move(body)), from(std::move(from)) {}
     std::string toString() const override {
         std::stringstream ss;
-        ss << "CustomElementUsageNode(" << name << ", {";
+        ss << "CustomElementUsageNode(" << name;
+        if (!from.empty()) {
+            ss << " from " << from;
+        }
+        ss << ", {";
         for (const auto& child : body) {
             ss << child->toString() << ", ";
         }
@@ -307,10 +334,14 @@ public:
     const std::vector<std::unique_ptr<ASTNode>>& getBody() const {
         return body;
     }
+    const std::string& getFrom() const {
+        return from;
+    }
 
 private:
     std::string name;
     std::vector<std::unique_ptr<ASTNode>> body;
+    std::string from;
 };
 
 class ElementTemplateNode : public ASTNode {
@@ -376,6 +407,30 @@ private:
     std::string type;
     std::string path;
     std::string alias;
+};
+
+class NamespaceNode : public ASTNode {
+public:
+    NamespaceNode(std::string name, std::vector<std::unique_ptr<ASTNode>> body) : name(std::move(name)), body(std::move(body)) {}
+    std::string toString() const override {
+        std::stringstream ss;
+        ss << "NamespaceNode(" << name << ", {";
+        for (const auto& child : body) {
+            ss << child->toString() << ", ";
+        }
+        ss << "})";
+        return ss.str();
+    }
+    const std::string& getName() const {
+        return name;
+    }
+    const std::vector<std::unique_ptr<ASTNode>>& getBody() const {
+        return body;
+    }
+
+private:
+    std::string name;
+    std::vector<std::unique_ptr<ASTNode>> body;
 };
 
 #endif //CHTL_ASTNODE_H

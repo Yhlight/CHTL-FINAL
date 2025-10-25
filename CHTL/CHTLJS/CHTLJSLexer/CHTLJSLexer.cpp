@@ -53,7 +53,7 @@ std::vector<CHTLJSToken> CHTLJSLexer::tokenize() {
             } else if (value == "ScriptLoader") {
                 tokens.push_back({CHTLJSTokenType::KEYWORD_SCRIPTLOADER, value, start, position_});
             } else {
-                tokens.push_back({CHTLJSTokenType::UNKNOWN, value, start, position_});
+                tokens.push_back({CHTLJSTokenType::IDENTIFIER, value, start, position_});
             }
         } else {
             position_++;

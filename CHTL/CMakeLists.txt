@@ -20,13 +20,23 @@ add_executable(test_runner
     ../Test/CHTLJS/test_chtljs_lexer_bind.cpp
     ../Test/CHTLJS/test_chtljs_lexer_reactive.cpp
     ../Test/CHTLJS/test_chtljs_lexer_listen.cpp
+    ../Test/CHTLJS/test_chtljs_parser.cpp
+    ../Test/CHTLJS/test_chtljs_parser_reactive.cpp
+    ../Test/CHTLJS/test_chtljs_parser_method_call.cpp
     ../CHTLJS/CHTLJSLexer/CHTLJSLexer.cpp
+    ../CHTLJS/CHTLJSParser/CHTLJSParser.cpp
+    ../CHTLJS/CHTLJSNode/EnhancedSelectorNode.cpp
+    ../CHTLJS/CHTLJSNode/ReactiveValueNode.cpp
+    ../CHTLJS/CHTLJSNode/MethodCallNode.cpp
 )
 
 target_include_directories(test_runner PUBLIC
     ${PROJECT_SOURCE_DIR}/Test
     ${PROJECT_SOURCE_DIR}/CHTL
     ${PROJECT_SOURCE_DIR}
+    ${PROJECT_SOURCE_DIR}/CHTLJS
+    ${PROJECT_SOURCE_DIR}/CHTLJS/CHTLJSParser
+    ${PROJECT_SOURCE_DIR}/CHTLJS/CHTLJSNode
 )
 
 add_test(NAME AllTests COMMAND test_runner)

@@ -10,8 +10,8 @@
 ## Phase 2: CHTL JS Integration
 
 - [ ] **Local Script Blocks:** Implement support for `script` blocks within CHTL elements.
-- [ ] **CHTL JS Lexer:** Implement the lexer for CHTL JS syntax. (In Progress)
-- [ ] **CHTL JS Parser:** Implement the parser for CHTL JS to extend the AST.
+- [x] **CHTL JS Lexer:** Implement the lexer for CHTL JS syntax.
+- [ ] **CHTL JS Parser:** Implement the parser for CHTL JS to extend the AST. (In Progress)
 - [ ] **CHTL JS Generator:** Implement the generator for CHTL JS to produce JavaScript.
 - [ ] **Salt Bridge:** Develop the "Salt Bridge" communication layer between the CHTL and CHTL JS compilers.
 

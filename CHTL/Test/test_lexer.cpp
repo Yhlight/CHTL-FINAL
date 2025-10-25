@@ -78,6 +78,20 @@ TEST_CASE(LexerCanTokenizeCssValues, "Lexer can tokenize CSS values") {
     REQUIRE(tokens[1].value == "px");
 }
 
+TEST_CASE(LexerCanTokenizeCssSelectors, "Lexer can tokenize CSS selectors") {
+    std::string input = ".class #id &";
+    CHTLLexer lexer(input);
+    std::vector<Token> tokens = lexer.tokenize();
+    REQUIRE(tokens.size() == 5);
+    REQUIRE(tokens[0].type == TokenType::DOT);
+    REQUIRE(tokens[1].type == TokenType::IDENTIFIER);
+    REQUIRE(tokens[1].value == "class");
+    REQUIRE(tokens[2].type == TokenType::HASH);
+    REQUIRE(tokens[3].type == TokenType::IDENTIFIER);
+    REQUIRE(tokens[3].value == "id");
+    REQUIRE(tokens[4].type == TokenType::AMPERSAND);
+}
+
 TEST_CASE(LexerCanTokenizeUnadornedLiteral, "Lexer can tokenize an unadorned literal") {
     std::string input = "color: red;";
     CHTLLexer lexer(input);

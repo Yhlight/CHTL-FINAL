@@ -8,9 +8,10 @@ TEST_CASE(GeneratorCanGenerateSimpleElement, "Generator can generate a simple el
     CHTLParser parser(lexer.tokenize());
     std::unique_ptr<AstNode> root = parser.parse();
     CHTLGenerator generator;
-    std::string html = generator.generate(*root);
+    Document doc = generator.generate(*root);
 
-    REQUIRE(html == "<div></div>");
+    REQUIRE(doc.html == "<div></div>");
+    REQUIRE(doc.css == "");
 }
 
 TEST_CASE(GeneratorCanGenerateNestedElements, "Generator can generate nested elements") {
@@ -19,9 +20,10 @@ TEST_CASE(GeneratorCanGenerateNestedElements, "Generator can generate nested ele
     CHTLParser parser(lexer.tokenize());
     std::unique_ptr<AstNode> root = parser.parse();
     CHTLGenerator generator;
-    std::string html = generator.generate(*root);
+    Document doc = generator.generate(*root);
 
-    REQUIRE(html == "<div><span></span></div>");
+    REQUIRE(doc.html == "<div><span></span></div>");
+    REQUIRE(doc.css == "");
 }
 
 TEST_CASE(GeneratorCanGenerateTextNodes, "Generator can generate text nodes") {
@@ -30,9 +32,10 @@ TEST_CASE(GeneratorCanGenerateTextNodes, "Generator can generate text nodes") {
     CHTLParser parser(lexer.tokenize());
     std::unique_ptr<AstNode> root = parser.parse();
     CHTLGenerator generator;
-    std::string html = generator.generate(*root);
+    Document doc = generator.generate(*root);
 
-    REQUIRE(html == "<div>hello</div>");
+    REQUIRE(doc.html == "<div>hello</div>");
+    REQUIRE(doc.css == "");
 }
 
 TEST_CASE(GeneratorCanGenerateAttributes, "Generator can generate attributes") {
@@ -41,9 +44,10 @@ TEST_CASE(GeneratorCanGenerateAttributes, "Generator can generate attributes") {
     CHTLParser parser(lexer.tokenize());
     std::unique_ptr<AstNode> root = parser.parse();
     CHTLGenerator generator;
-    std::string html = generator.generate(*root);
+    Document doc = generator.generate(*root);
 
-    REQUIRE(html == "<div id=\"box\"></div>");
+    REQUIRE(doc.html == "<div id=\"box\"></div>");
+    REQUIRE(doc.css == "");
 }
 
 TEST_CASE(GeneratorCanGenerateInlineStyles, "Generator can generate inline styles") {
@@ -52,7 +56,20 @@ TEST_CASE(GeneratorCanGenerateInlineStyles, "Generator can generate inline style
     CHTLParser parser(lexer.tokenize());
     std::unique_ptr<AstNode> root = parser.parse();
     CHTLGenerator generator;
-    std::string html = generator.generate(*root);
+    Document doc = generator.generate(*root);
 
-    REQUIRE(html == "<div style=\"width:100px;\"></div>");
+    REQUIRE(doc.html == "<div style=\"width:100px;\"></div>");
+    REQUIRE(doc.css == "");
+}
+
+TEST_CASE(GeneratorCanGenerateGlobalStyles, "Generator can generate global styles") {
+    std::string input = "div { style { .box { color: red; } } }";
+    CHTLLexer lexer(input);
+    CHTLParser parser(lexer.tokenize());
+    std::unique_ptr<AstNode> root = parser.parse();
+    CHTLGenerator generator;
+    Document doc = generator.generate(*root);
+
+    REQUIRE(doc.html == "<div class=\"box\"></div>");
+    REQUIRE(doc.css == ".box{color:red;}");
 }

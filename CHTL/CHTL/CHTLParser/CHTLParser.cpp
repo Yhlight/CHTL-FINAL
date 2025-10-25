@@ -106,18 +106,45 @@ std::unique_ptr<AstNode> CHTLParser::parseStyleNode() {
     auto styleNode = std::make_unique<StyleNode>();
 
     while (position_ < tokens_.size() && tokens_[position_].type != TokenType::RIGHT_BRACE) {
-        std::string key = tokens_[position_].value;
-        position_++; // consume identifier
-        position_++; // consume colon
+        if (tokens_[position_].type == TokenType::DOT || tokens_[position_].type == TokenType::HASH) {
+            std::string selector = tokens_[position_].value;
+            position_++; // consume dot or hash
+            selector += tokens_[position_].value;
+            position_++; // consume identifier
+            position_++; // consume left brace
 
-        std::string value = "";
-        while (position_ < tokens_.size() && tokens_[position_].type != TokenType::SEMICOLON) {
-            value += tokens_[position_].value;
-            position_++;
+            auto ruleNode = std::make_unique<RuleNode>(selector);
+
+            while (position_ < tokens_.size() && tokens_[position_].type != TokenType::RIGHT_BRACE) {
+                std::string key = tokens_[position_].value;
+                position_++; // consume identifier
+                position_++; // consume colon
+
+                std::string value = "";
+                while (position_ < tokens_.size() && tokens_[position_].type != TokenType::SEMICOLON) {
+                    value += tokens_[position_].value;
+                    position_++;
+                }
+                position_++; // consume semicolon
+
+                ruleNode->properties.push_back(std::make_unique<PropertyNode>(key, value));
+            }
+            position_++; // consume right brace
+            styleNode->rules.push_back(std::move(ruleNode));
+        } else {
+            std::string key = tokens_[position_].value;
+            position_++; // consume identifier
+            position_++; // consume colon
+
+            std::string value = "";
+            while (position_ < tokens_.size() && tokens_[position_].type != TokenType::SEMICOLON) {
+                value += tokens_[position_].value;
+                position_++;
+            }
+            position_++; // consume semicolon
+
+            styleNode->properties.push_back(std::make_unique<PropertyNode>(key, value));
         }
-        position_++; // consume semicolon
-
-        styleNode->properties.push_back(std::make_unique<PropertyNode>(key, value));
     }
 
     if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::RIGHT_BRACE) {

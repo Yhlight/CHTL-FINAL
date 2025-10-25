@@ -9,12 +9,14 @@
   - [x] Text nodes
   - [x] Attributes
   - [x] Inline style blocks
+  - [x] CSS rules
 - [ ] **Generator:** Implement the code generator to produce HTML and CSS from the AST. (In Progress)
   - [x] Basic element generation
   - [x] Nested elements
   - [x] Text nodes
   - [x] Attributes
   - [x] Inline styles
+  - [x] Global styles
 - [ ] **Testing:** Set up a comprehensive test suite to ensure the correctness of the compiler.
 
 ## Phase 2: CHTL JS Integration

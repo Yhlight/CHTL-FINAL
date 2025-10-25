@@ -4,6 +4,7 @@
 #include "CHTLNode/TextNode.hpp"
 #include "CHTLNode/StyleNode.hpp"
 #include "CHTLNode/PropertyNode.hpp"
+#include "CHTLNode/RuleNode.hpp"
 
 TEST_CASE(ParserCanParseSimpleElement, "Parser can parse a simple element") {
     std::string input = "div {}";
@@ -99,4 +100,24 @@ TEST_CASE(ParserCanParseStyleBlocks, "Parser can parse style blocks") {
     REQUIRE(style->properties.size() == 1);
     REQUIRE(style->properties[0]->key == "width");
     REQUIRE(style->properties[0]->value == "100px");
+}
+
+TEST_CASE(ParserCanParseCssRules, "Parser can parse CSS rules") {
+    std::string input = "div { style { .box { color: red; } } }";
+    CHTLLexer lexer(input);
+    CHTLParser parser(lexer.tokenize());
+    std::unique_ptr<AstNode> root = parser.parse();
+
+    REQUIRE(root != nullptr);
+    ElementNode* div = dynamic_cast<ElementNode*>(root.get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+
+    StyleNode* style = dynamic_cast<StyleNode*>(div->children[0].get());
+    REQUIRE(style != nullptr);
+    REQUIRE(style->rules.size() == 1);
+    REQUIRE(style->rules[0]->selector == ".box");
+    REQUIRE(style->rules[0]->properties.size() == 1);
+    REQUIRE(style->rules[0]->properties[0]->key == "color");
+    REQUIRE(style->rules[0]->properties[0]->value == "red");
 }

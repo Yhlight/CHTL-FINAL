@@ -98,6 +98,9 @@ Token CHTLLexer::tokenizePunctuation() {
         case ':': return {TokenType::COLON, ":"};
         case ';': return {TokenType::SEMICOLON, ";"};
         case '=': return {TokenType::EQUALS, "="};
+        case '.': return {TokenType::DOT, "."};
+        case '#': return {TokenType::HASH, "#"};
+        case '&': return {TokenType::AMPERSAND, "&"};
         default: return {TokenType::UNKNOWN, std::string(1, p)};
     }
 }

@@ -24,6 +24,7 @@ add_executable(test_runner
     CHTL/CHTLNode/ElementNode.cpp
     CHTL/CHTLNode/TextNode.cpp
     CHTL/CHTLNode/PropertyNode.cpp
+    CHTL/CHTLNode/RuleNode.cpp
     CHTL/CHTLGenerator/CHTLGenerator.cpp
 )
 

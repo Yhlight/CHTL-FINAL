@@ -16,6 +16,9 @@ enum class TokenType {
     SEMICOLON,
     EQUALS,
     NUMBER,
+    DOT,
+    HASH,
+    AMPERSAND,
     UNKNOWN,
     // Add other token types here
 };

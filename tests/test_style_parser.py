@@ -20,7 +20,7 @@ def run_test():
         )
 
         # Check if the output is correct
-        expected_output = "ProgramNode({ElementNode(div, attributes={}, children={StyleNode({StylePropertyNode(color: red), StylePropertyNode(font-size: 16px), }), }), })\n"
+        expected_output = "ProgramNode({ElementNode(div, attributes={}, children={StyleNode({StylePropertyNode(color: LiteralValueNode(red)), StylePropertyNode(font-size: LiteralValueNode(16px)), }), }), })\n"
 
         if result.stdout.strip() == expected_output.strip():
             print("Test passed!")

@@ -15,9 +15,10 @@
 - [ ] Style blocks (inline and global)
   - [x] Parse local style blocks
   - [x] Parse CSS properties
-- [ ] Templates (Style, Element, Var)
+- [x] Templates (Style, Element, Var)
   - [x] Parse Style Group Templates
   - [x] Parse Element Templates
+  - [x] Parse Variable Group Templates
 - [ ] Custom components
 - [ ] Imports and namespaces
 

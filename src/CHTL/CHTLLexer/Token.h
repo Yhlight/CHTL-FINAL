@@ -11,6 +11,8 @@ enum class TokenType {
     RBRACE,     // }
     LBRACKET,   // [
     RBRACKET,   // ]
+    LPAREN,     // (
+    RPAREN,     // )
     AT,         // @
     SEMICOLON,  // ;
     COLON,      // :
@@ -33,6 +35,8 @@ struct Token {
             case TokenType::RBRACE: return "RBRACE";
             case TokenType::LBRACKET: return "LBRACKET";
             case TokenType::RBRACKET: return "RBRACKET";
+            case TokenType::LPAREN: return "LPAREN";
+            case TokenType::RPAREN: return "RPAREN";
             case TokenType::AT: return "AT";
             case TokenType::SEMICOLON: return "SEMICOLON";
             case TokenType::COLON: return "COLON";

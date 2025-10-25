@@ -1,7 +1,7 @@
 import subprocess
 
 def run_test():
-    """Runs the test for the attribute parser."""
+    """Runs the test for the var template parser."""
     try:
         # Build the project first to ensure the executable is up-to-date
         build_result = subprocess.run(['python3', 'build.py', 'build'], capture_output=True, text=True)
@@ -11,16 +11,16 @@ def run_test():
             print(build_result.stderr)
             return
 
-        # Run the CHTL compiler on the attributes.chtl file
+        # Run the CHTL compiler on the template_var.chtl file
         result = subprocess.run(
-            ['./build/chtl', 'tests/attributes.chtl'],
+            ['./build/chtl', 'tests/template_var.chtl'],
             capture_output=True,
             text=True,
             check=True
         )
 
         # Check if the output is correct
-        expected_output = "ProgramNode({ElementNode(div, attributes={class: LiteralValueNode(\"container\"), id: LiteralValueNode(\"main\"), }, children={ElementNode(h1, attributes={}, children={TextNode(\"Welcome!\"), }), }), })\n"
+        expected_output = "ProgramNode({VarTemplateNode(ThemeColor, {tableColor: LiteralValueNode(\"rgb(255, 192, 203)\"), }), ElementNode(div, attributes={}, children={StyleNode({StylePropertyNode(background-color: TemplateVarUsageNode(ThemeColor(tableColor))), }), }), })\n"
 
         if result.stdout.strip() == expected_output.strip():
             print("Test passed!")

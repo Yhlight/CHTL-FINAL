@@ -1,0 +1,12 @@
+[Template] @Var ThemeColor
+{
+    tableColor: "rgb(255, 192, 203)";
+}
+
+div
+{
+    style
+    {
+        background-color: ThemeColor(tableColor);
+    }
+}

@@ -14,12 +14,9 @@ void CHTLParser::parseAttributes(ElementNode& element) {
             std::string key = currentToken.value;
             advance(); // consume key
             advance(); // consume ':' or '='
-            if (currentToken.type == TokenType::STRING || currentToken.type == TokenType::IDENTIFIER) {
-                element.addAttribute(key, currentToken.value);
-                advance(); // consume value
-                if (currentToken.type == TokenType::SEMICOLON) {
-                    advance(); // consume ';'
-                }
+            element.addAttribute(key, parseValue());
+            if (currentToken.type == TokenType::SEMICOLON) {
+                advance(); // consume ';'
             }
         } else {
             break;
@@ -85,14 +82,9 @@ std::unique_ptr<StyleNode> CHTLParser::parseStyleNode() {
             advance();
             if (currentToken.type == TokenType::COLON) {
                 advance();
-                bool isString = currentToken.type == TokenType::STRING;
-                if (currentToken.type == TokenType::IDENTIFIER || currentToken.type == TokenType::STRING) {
-                    std::string value = currentToken.value;
+                styleNode->addItem(std::make_unique<StylePropertyNode>(key, parseValue()));
+                if (currentToken.type == TokenType::SEMICOLON) {
                     advance();
-                    styleNode->addItem(std::make_unique<StylePropertyNode>(key, value, isString));
-                    if (currentToken.type == TokenType::SEMICOLON) {
-                        advance();
-                    }
                 }
             }
         } else if (currentToken.type == TokenType::AT) {
@@ -113,7 +105,7 @@ std::unique_ptr<ASTNode> CHTLParser::parseTemplate() {
             if (currentToken.type == TokenType::AT) {
                 advance(); // consume '@'
                 if (currentToken.value == "Style") {
-                    advance(); // consume 'Style'
+                    advance();
                     if (currentToken.type == TokenType::IDENTIFIER) {
                         std::string name = currentToken.value;
                         advance();
@@ -127,7 +119,7 @@ std::unique_ptr<ASTNode> CHTLParser::parseTemplate() {
                         }
                     }
                 } else if (currentToken.value == "Element") {
-                    advance(); // consume 'Element'
+                    advance();
                     if (currentToken.type == TokenType::IDENTIFIER) {
                         std::string name = currentToken.value;
                         advance();
@@ -140,6 +132,34 @@ std::unique_ptr<ASTNode> CHTLParser::parseTemplate() {
                             if (currentToken.type == TokenType::RBRACE) {
                                 advance();
                                 return std::make_unique<ElementTemplateNode>(name, std::move(body));
+                            }
+                        }
+                    }
+                } else if (currentToken.value == "Var") {
+                    advance();
+                    if (currentToken.type == TokenType::IDENTIFIER) {
+                        auto varTemplate = std::make_unique<VarTemplateNode>(currentToken.value);
+                        advance();
+                        if (currentToken.type == TokenType::LBRACE) {
+                            advance();
+                            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                                if (currentToken.type == TokenType::IDENTIFIER) {
+                                    std::string key = currentToken.value;
+                                    advance();
+                                    if (currentToken.type == TokenType::COLON) {
+                                        advance();
+                                        varTemplate->addVariable(key, parseValue());
+                                        if (currentToken.type == TokenType::SEMICOLON) {
+                                            advance();
+                                        }
+                                    }
+                                } else {
+                                    advance();
+                                }
+                            }
+                            if (currentToken.type == TokenType::RBRACE) {
+                                advance();
+                                return varTemplate;
                             }
                         }
                     }
@@ -176,12 +196,12 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     } else if (currentToken.value == "text") {
         return parseTextNode();
     } else if (currentToken.value == "style") {
-        advance(); // consume 'style'
+        advance();
         if (currentToken.type == TokenType::LBRACE) {
-            advance(); // consume '{'
+            advance();
             auto styleNode = parseStyleNode();
             if (currentToken.type == TokenType::RBRACE) {
-                advance(); // consume '}'
+                advance();
             }
             return styleNode;
         }
@@ -193,6 +213,30 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
 
     if (currentToken.type != TokenType::END_OF_FILE) {
         advance();
+    }
+    return nullptr;
+}
+
+std::unique_ptr<ValueNode> CHTLParser::parseValue() {
+    if (currentToken.type == TokenType::STRING) {
+        std::string value = currentToken.value;
+        advance();
+        return std::make_unique<LiteralValueNode>(value, true);
+    } else if (currentToken.type == TokenType::IDENTIFIER) {
+        std::string name = currentToken.value;
+        advance();
+        if (currentToken.type == TokenType::LPAREN) {
+            advance();
+            if (currentToken.type == TokenType::IDENTIFIER) {
+                std::string varName = currentToken.value;
+                advance();
+                if (currentToken.type == TokenType::RPAREN) {
+                    advance();
+                    return std::make_unique<TemplateVarUsageNode>(name, varName);
+                }
+            }
+        }
+        return std::make_unique<LiteralValueNode>(name);
     }
     return nullptr;
 }

@@ -23,6 +23,7 @@ private:
     std::unique_ptr<ElementTemplateUsageNode> parseElementTemplateUsage();
     std::unique_ptr<ElementNode> parseElementNode();
     void parseAttributes(ElementNode& element);
+    std::unique_ptr<ValueNode> parseValue();
 };
 
 #endif //CHTL_PARSER_H

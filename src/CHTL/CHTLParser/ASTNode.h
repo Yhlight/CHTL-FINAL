@@ -14,6 +14,35 @@ public:
     virtual std::string toString() const = 0;
 };
 
+class ValueNode : public ASTNode {};
+
+class LiteralValueNode : public ValueNode {
+public:
+    explicit LiteralValueNode(std::string value, bool isString = false) : value(std::move(value)), isString(isString) {}
+    std::string toString() const override {
+        if (isString) {
+            return "LiteralValueNode(\"" + value + "\")";
+        }
+        return "LiteralValueNode(" + value + ")";
+    }
+
+private:
+    std::string value;
+    bool isString;
+};
+
+class TemplateVarUsageNode : public ValueNode {
+public:
+    TemplateVarUsageNode(std::string templateName, std::string varName) : templateName(std::move(templateName)), varName(std::move(varName)) {}
+    std::string toString() const override {
+        return "TemplateVarUsageNode(" + templateName + "(" + varName + "))";
+    }
+
+private:
+    std::string templateName;
+    std::string varName;
+};
+
 class TextNode : public ASTNode {
 public:
     explicit TextNode(std::string text) : text(std::move(text)) {}
@@ -27,18 +56,14 @@ private:
 
 class StylePropertyNode : public ASTNode {
 public:
-    StylePropertyNode(std::string key, std::string value, bool isString) : key(std::move(key)), value(std::move(value)), isString(isString) {}
+    StylePropertyNode(std::string key, std::unique_ptr<ValueNode> value) : key(std::move(key)), value(std::move(value)) {}
     std::string toString() const override {
-        if (isString) {
-            return "StylePropertyNode(" + key + ": \"" + value + "\")";
-        }
-        return "StylePropertyNode(" + key + ": " + value + ")";
+        return "StylePropertyNode(" + key + ": " + value->toString() + ")";
     }
 
 private:
     std::string key;
-    std::string value;
-    bool isString;
+    std::unique_ptr<ValueNode> value;
 };
 
 class StyleTemplateUsageNode : public ASTNode {
@@ -95,6 +120,27 @@ private:
     std::unique_ptr<StyleNode> body;
 };
 
+class VarTemplateNode : public ASTNode {
+public:
+    explicit VarTemplateNode(std::string name) : name(std::move(name)) {}
+    std::string toString() const override {
+        std::stringstream ss;
+        ss << "VarTemplateNode(" << name << ", {";
+        for (const auto& var : variables) {
+            ss << var.first << ": " << var.second->toString() << ", ";
+        }
+        ss << "})";
+        return ss.str();
+    }
+    void addVariable(const std::string& key, std::unique_ptr<ValueNode> value) {
+        variables[key] = std::move(value);
+    }
+
+private:
+    std::string name;
+    std::map<std::string, std::unique_ptr<ValueNode>> variables;
+};
+
 class ElementNode : public ASTNode {
 public:
     explicit ElementNode(std::string tag) : tag_name(std::move(tag)) {}
@@ -102,7 +148,7 @@ public:
         std::stringstream ss;
         ss << "ElementNode(" << tag_name << ", attributes={";
         for (const auto& attr : attributes) {
-            ss << attr.first << ": \"" << attr.second << "\", ";
+            ss << attr.first << ": " << attr.second->toString() << ", ";
         }
         ss << "}, children={";
         for (const auto& child : children) {
@@ -114,13 +160,13 @@ public:
     void addChild(std::unique_ptr<ASTNode> child) {
         children.push_back(std::move(child));
     }
-    void addAttribute(const std::string& key, const std::string& value) {
-        attributes[key] = value;
+    void addAttribute(const std::string& key, std::unique_ptr<ValueNode> value) {
+        attributes[key] = std::move(value);
     }
 
 private:
     std::string tag_name;
-    std::map<std::string, std::string> attributes;
+    std::map<std::string, std::unique_ptr<ValueNode>> attributes;
     std::vector<std::unique_ptr<ASTNode>> children;
 };
 

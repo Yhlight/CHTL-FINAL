@@ -72,6 +72,8 @@ Token CHTLLexer::getNextTokenInternal() {
             case '}': advance(); return Token(TokenType::RBRACE, "}");
             case '[': advance(); return Token(TokenType::LBRACKET, "[");
             case ']': advance(); return Token(TokenType::RBRACKET, "]");
+            case '(': advance(); return Token(TokenType::LPAREN, "(");
+            case ')': advance(); return Token(TokenType::RPAREN, ")");
             case '@': advance(); return Token(TokenType::AT, "@");
             case ';': advance(); return Token(TokenType::SEMICOLON, ";");
             case ':': advance(); return Token(TokenType::COLON, ":");

@@ -29,6 +29,7 @@ add_executable(test_runner
     CHTL/CHTLNode/RuleNode.cpp
     CHTL/CHTLNode/LiteralNode.cpp
     CHTL/CHTLNode/BinaryOpNode.cpp
+    CHTL/CHTLNode/ScriptNode.cpp
     CHTL/CHTLGenerator/CHTLGenerator.cpp
 )
 

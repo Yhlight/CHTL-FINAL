@@ -32,6 +32,9 @@ enum class TokenType {
 struct Token {
     TokenType type;
     std::string value;
+    std::string raw_text;
+    size_t start_pos;
+    size_t end_pos;
 };
 
 class CHTLLexer {

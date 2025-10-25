@@ -8,11 +8,11 @@
 #include "CHTLNode/ExpressionNode.hpp"
 #include "CHTLNode/LiteralNode.hpp"
 #include "CHTLNode/BinaryOpNode.hpp"
+#include "CHTLNode/ScriptNode.hpp"
 
 TEST_CASE(ParserCanParseSimpleElement, "Parser can parse a simple element") {
     std::string input = "div {}";
-    CHTLLexer lexer(input);
-    CHTLParser parser(lexer.tokenize());
+    CHTLParser parser(input);
     std::unique_ptr<AstNode> root = parser.parse();
 
     REQUIRE(root != nullptr);
@@ -24,8 +24,7 @@ TEST_CASE(ParserCanParseSimpleElement, "Parser can parse a simple element") {
 
 TEST_CASE(ParserCanParseNestedElements, "Parser can parse nested elements") {
     std::string input = "div { span {} }";
-    CHTLLexer lexer(input);
-    CHTLParser parser(lexer.tokenize());
+    CHTLParser parser(input);
     std::unique_ptr<AstNode> root = parser.parse();
 
     REQUIRE(root != nullptr);
@@ -42,8 +41,7 @@ TEST_CASE(ParserCanParseNestedElements, "Parser can parse nested elements") {
 
 TEST_CASE(ParserCanParseTextNodes, "Parser can parse text nodes") {
     std::string input = "div { text { \"hello\" } }";
-    CHTLLexer lexer(input);
-    CHTLParser parser(lexer.tokenize());
+    CHTLParser parser(input);
     std::unique_ptr<AstNode> root = parser.parse();
 
     REQUIRE(root != nullptr);
@@ -59,8 +57,7 @@ TEST_CASE(ParserCanParseTextNodes, "Parser can parse text nodes") {
 
 TEST_CASE(ParserCanParseAttributes, "Parser can parse attributes") {
     std::string input = "div { id: \"box\"; }";
-    CHTLLexer lexer(input);
-    CHTLParser parser(lexer.tokenize());
+    CHTLParser parser(input);
     std::unique_ptr<AstNode> root = parser.parse();
 
     REQUIRE(root != nullptr);
@@ -74,8 +71,7 @@ TEST_CASE(ParserCanParseAttributes, "Parser can parse attributes") {
 
 TEST_CASE(ParserCanParseUnadornedAttributes, "Parser can parse unadorned attributes") {
     std::string input = "div { class: box; }";
-    CHTLLexer lexer(input);
-    CHTLParser parser(lexer.tokenize());
+    CHTLParser parser(input);
     std::unique_ptr<AstNode> root = parser.parse();
 
     REQUIRE(root != nullptr);
@@ -89,8 +85,7 @@ TEST_CASE(ParserCanParseUnadornedAttributes, "Parser can parse unadorned attribu
 
 TEST_CASE(ParserCanParseStyleBlocks, "Parser can parse style blocks") {
     std::string input = "div { style { width: 100px; } }";
-    CHTLLexer lexer(input);
-    CHTLParser parser(lexer.tokenize());
+    CHTLParser parser(input);
     std::unique_ptr<AstNode> root = parser.parse();
 
     REQUIRE(root != nullptr);
@@ -109,8 +104,7 @@ TEST_CASE(ParserCanParseStyleBlocks, "Parser can parse style blocks") {
 
 TEST_CASE(ParserCanParseCssRules, "Parser can parse CSS rules") {
     std::string input = "div { style { .box { color: red; } } }";
-    CHTLLexer lexer(input);
-    CHTLParser parser(lexer.tokenize());
+    CHTLParser parser(input);
     std::unique_ptr<AstNode> root = parser.parse();
 
     REQUIRE(root != nullptr);
@@ -129,10 +123,24 @@ TEST_CASE(ParserCanParseCssRules, "Parser can parse CSS rules") {
     REQUIRE(literal->value == "red");
 }
 
+TEST_CASE(ParserCanParseScriptBlocks, "Parser can parse script blocks") {
+    std::string input = "div { script { console.log(\"hello\"); } }";
+    CHTLParser parser(input);
+    std::unique_ptr<AstNode> root = parser.parse();
+
+    REQUIRE(root != nullptr);
+    ElementNode* div = dynamic_cast<ElementNode*>(root.get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+
+    ScriptNode* script = dynamic_cast<ScriptNode*>(div->children[0].get());
+    REQUIRE(script != nullptr);
+    REQUIRE(script->content == " console.log(\"hello\"); ");
+}
+
 TEST_CASE(ParserCanParseExpressions, "Parser can parse expressions") {
     std::string input = "div { style { width: 100px + 50px; } }";
-    CHTLLexer lexer(input);
-    CHTLParser parser(lexer.tokenize());
+    CHTLParser parser(input);
     std::unique_ptr<AstNode> root = parser.parse();
 
     REQUIRE(root != nullptr);

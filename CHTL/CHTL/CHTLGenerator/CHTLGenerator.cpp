@@ -7,7 +7,7 @@
 
 Document CHTLGenerator::generate(const AstNode& root) {
     visit(root);
-    return {html_, css_};
+    return {html_, css_, js_};
 }
 
 void CHTLGenerator::visit(const AstNode& node) {
@@ -17,6 +17,8 @@ void CHTLGenerator::visit(const AstNode& node) {
         visitTextNode(*text);
     } else if (const RuleNode* rule = dynamic_cast<const RuleNode*>(&node)) {
         visitRuleNode(*rule);
+    } else if (const ScriptNode* script = dynamic_cast<const ScriptNode*>(&node)) {
+        visitScriptNode(*script);
     }
 }
 
@@ -44,6 +46,8 @@ void CHTLGenerator::visitElementNode(const ElementNode& node) {
                     }
                     visit(*rule);
                 }
+            } else if (const ScriptNode* script_node = dynamic_cast<const ScriptNode*>(child.get())) {
+                visit(*script_node);
             }
         }
         if (!style_string.empty()) {
@@ -56,7 +60,7 @@ void CHTLGenerator::visitElementNode(const ElementNode& node) {
 
         html_ += ">";
         for (const auto& child : node.children) {
-            if (!dynamic_cast<const StyleNode*>(child.get())) {
+            if (!dynamic_cast<const StyleNode*>(child.get()) && !dynamic_cast<const ScriptNode*>(child.get())) {
                 visit(*child);
             }
         }
@@ -74,4 +78,8 @@ void CHTLGenerator::visitRuleNode(const RuleNode& node) {
         css_ += prop->key + ":" + evaluator_.evaluate(*prop->value) + ";";
     }
     css_ += "}";
+}
+
+void CHTLGenerator::visitScriptNode(const ScriptNode& node) {
+    js_ += node.content;
 }

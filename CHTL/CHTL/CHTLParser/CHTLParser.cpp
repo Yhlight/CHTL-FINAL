@@ -5,8 +5,11 @@
 #include "CHTLNode/PropertyNode.hpp"
 #include "CHTLNode/LiteralNode.hpp"
 #include "CHTLNode/BinaryOpNode.hpp"
+#include "CHTLNode/ScriptNode.hpp"
 
-CHTLParser::CHTLParser(const std::vector<Token>& tokens) : tokens_(tokens) {}
+CHTLParser::CHTLParser(const std::string& input) : input_(input), lexer_(input) {
+    tokens_ = lexer_.tokenize();
+}
 
 std::unique_ptr<AstNode> CHTLParser::parse() {
     if (position_ >= tokens_.size()) {
@@ -18,6 +21,8 @@ std::unique_ptr<AstNode> CHTLParser::parse() {
             return std::make_unique<TextNode>(parseTextNode());
         } else if (tokens_[position_].value == "style") {
             return parseStyleNode();
+        } else if (tokens_[position_].value == "script") {
+            return parseScriptNode();
         } else {
             return parseElement();
         }
@@ -149,6 +154,34 @@ std::unique_ptr<AstNode> CHTLParser::parseStyleNode() {
     position_++;
 
     return styleNode;
+}
+
+std::unique_ptr<AstNode> CHTLParser::parseScriptNode() {
+    position_++; // Consume 'script' identifier
+
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::LEFT_BRACE) {
+        return nullptr;
+    }
+    position_++;
+
+    size_t start_pos = tokens_[position_-1].end_pos;
+
+    int brace_level = 1;
+    while (position_ < tokens_.size() && brace_level > 0) {
+        if (tokens_[position_].type == TokenType::LEFT_BRACE) {
+            brace_level++;
+        } else if (tokens_[position_].type == TokenType::RIGHT_BRACE) {
+            brace_level--;
+        }
+        position_++;
+    }
+
+    if (position_ > 0 && tokens_[position_-1].type == TokenType::RIGHT_BRACE) {
+        size_t end_pos = tokens_[position_-1].start_pos;
+        return std::make_unique<ScriptNode>(input_.substr(start_pos, end_pos - start_pos));
+    }
+
+    return nullptr;
 }
 
 std::unique_ptr<ExpressionNode> CHTLParser::parseExpression() {

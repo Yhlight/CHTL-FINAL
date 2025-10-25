@@ -79,7 +79,7 @@ TEST_CASE(LexerCanTokenizeCssValues, "Lexer can tokenize CSS values") {
 }
 
 TEST_CASE(LexerCanTokenizeCssSelectors, "Lexer can tokenize CSS selectors") {
-    std::string input = ".class #id &";
+    std::string input = ".class#id&";
     CHTLLexer lexer(input);
     std::vector<Token> tokens = lexer.tokenize();
     REQUIRE(tokens.size() == 5);
@@ -93,7 +93,7 @@ TEST_CASE(LexerCanTokenizeCssSelectors, "Lexer can tokenize CSS selectors") {
 }
 
 TEST_CASE(LexerCanTokenizeArithmeticOperators, "Lexer can tokenize arithmetic operators") {
-    std::string input = "+ - * / % **";
+    std::string input = "+-*/%**";
     CHTLLexer lexer(input);
     std::vector<Token> tokens = lexer.tokenize();
     REQUIRE(tokens.size() == 6);

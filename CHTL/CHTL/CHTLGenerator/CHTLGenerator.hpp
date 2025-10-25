@@ -5,6 +5,7 @@
 #include "CHTLNode/ElementNode.hpp"
 #include "CHTLNode/TextNode.hpp"
 #include "CHTLNode/RuleNode.hpp"
+#include "CHTLNode/ScriptNode.hpp"
 #include "CHTLEvaluator/Evaluator.hpp"
 #include <string>
 #include "Document.hpp"
@@ -18,9 +19,11 @@ private:
     void visitElementNode(const ElementNode& node);
     void visitTextNode(const TextNode& node);
     void visitRuleNode(const RuleNode& node);
+    void visitScriptNode(const ScriptNode& node);
 
     std::string html_;
     std::string css_;
+    std::string js_;
     Evaluator evaluator_;
 };
 

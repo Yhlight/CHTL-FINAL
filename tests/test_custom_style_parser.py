@@ -8,8 +8,16 @@ from build import build_and_run
 
 class TestCustomStyleParser(unittest.TestCase):
     def test_custom_style_parser(self):
-        output = build_and_run("tests/custom_style.chtl", dump_ast=True)
-        expected_output = """ProgramNode({CustomStyleTemplateNode(TextSet, StyleNode({StylePropertyNode(color), StylePropertyNode(font-size), })), ElementNode(div, attributes={}, children={StyleNode({CustomStyleUsageNode(TextSet, StyleNode({StylePropertyNode(color: LiteralValueNode(red)), StylePropertyNode(font-size: LiteralValueNode(16px)), })), }), }), })"""
+        output = build_and_run("tests/custom_style.chtl")
+        expected_output = """
+<style>
+div {
+  color: red;
+  font-size: 16px;
+}
+</style>
+<div></div>
+"""
         self.assertEqual(output.strip(), expected_output.strip())
 
 if __name__ == '__main__':

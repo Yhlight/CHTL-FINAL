@@ -13,12 +13,16 @@ private:
     std::unique_ptr<ProgramNode> ast;
     std::string css;
     std::map<std::string, StyleTemplateNode*> styleTemplates;
+    std::map<std::string, ElementTemplateNode*> elementTemplates;
+    std::map<std::string, VarTemplateNode*> varTemplates;
+    std::map<std::string, CustomStyleTemplateNode*> customStyleTemplates;
 
     std::string generateNode(ASTNode* node);
     std::string generateElementNode(ElementNode* node);
     std::string generateTextNode(TextNode* node);
     void generateStyleNode(StyleNode* node, const std::string& parentSelector);
     void generateStyleTemplateNode(StyleTemplateNode* node);
+    std::string valueNodeToString(const ValueNode* valueNode);
 };
 
 #endif //CHTL_GENERATOR_H

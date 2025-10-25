@@ -43,6 +43,12 @@ public:
     std::string toString() const override {
         return "TemplateVarUsageNode(" + templateName + "(" + varName + "))";
     }
+    const std::string& getTemplateName() const {
+        return templateName;
+    }
+    const std::string& getVarName() const {
+        return varName;
+    }
 
 private:
     std::string templateName;
@@ -104,6 +110,12 @@ public:
     std::string toString() const override {
         return "CustomStyleUsageNode(" + name + ", " + body->toString() + ")";
     }
+    const std::string& getName() const {
+        return name;
+    }
+    const ASTNode* getBody() const {
+        return body.get();
+    }
 
 private:
     std::string name;
@@ -115,6 +127,9 @@ public:
     explicit ElementTemplateUsageNode(std::string name) : name(std::move(name)) {}
     std::string toString() const override {
         return "ElementTemplateUsageNode(" + name + ")";
+    }
+    const std::string& getName() const {
+        return name;
     }
 
 private:
@@ -168,6 +183,12 @@ public:
     std::string toString() const override {
         return "CustomStyleTemplateNode(" + name + ", " + body->toString() + ")";
     }
+    const std::string& getName() const {
+        return name;
+    }
+    const StyleNode* getBody() const {
+        return body.get();
+    }
 
 private:
     std::string name;
@@ -188,6 +209,12 @@ public:
     }
     void addVariable(const std::string& key, std::unique_ptr<ValueNode> value) {
         variables[key] = std::move(value);
+    }
+    const std::string& getName() const {
+        return name;
+    }
+    const std::map<std::string, std::unique_ptr<ValueNode>>& getVariables() const {
+        return variables;
     }
 
 private:
@@ -250,6 +277,12 @@ public:
         ss << "})";
         return ss.str();
     }
+    const std::string& getName() const {
+        return name;
+    }
+    const std::vector<std::unique_ptr<ASTNode>>& getBody() const {
+        return body;
+    }
 
 private:
     std::string name;
@@ -268,6 +301,12 @@ public:
         ss << "})";
         return ss.str();
     }
+    const std::string& getName() const {
+        return name;
+    }
+    const std::vector<std::unique_ptr<ASTNode>>& getBody() const {
+        return body;
+    }
 
 private:
     std::string name;
@@ -285,6 +324,12 @@ public:
         }
         ss << "})";
         return ss.str();
+    }
+    const std::string& getName() const {
+        return name;
+    }
+    const std::vector<std::unique_ptr<ASTNode>>& getBody() const {
+        return body;
     }
 
 private:

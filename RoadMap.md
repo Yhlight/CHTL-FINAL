@@ -18,7 +18,7 @@
   - [x] Parse CSS properties
 - [ ] Templates (Style, Element, Var)
   - [x] Parse Style Group Templates
-  - [ ] Parse Element Templates
+  - [x] Parse Element Templates
   - [ ] Parse Variable Group Templates
 - [ ] Custom components
   - [x] Parse Custom Style Group Templates

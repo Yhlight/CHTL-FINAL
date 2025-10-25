@@ -1,13 +1,20 @@
 #include "CHTLGenerator.h"
+#include "../CHTLParser/ASTNode.h"
 #include <stdexcept>
 
 CHTLGenerator::CHTLGenerator(std::unique_ptr<ProgramNode> ast) : ast(std::move(ast)) {}
 
 std::string CHTLGenerator::generate() {
-    // First pass to collect all style templates
+    // First pass to collect all templates
     for (const auto& stmt : ast->getStatements()) {
         if (auto* st = dynamic_cast<StyleTemplateNode*>(stmt.get())) {
             styleTemplates[st->getName()] = st;
+        } else if (auto* et = dynamic_cast<ElementTemplateNode*>(stmt.get())) {
+            elementTemplates[et->getName()] = et;
+        } else if (auto* vt = dynamic_cast<VarTemplateNode*>(stmt.get())) {
+            varTemplates[vt->getName()] = vt;
+        } else if (auto* cst = dynamic_cast<CustomStyleTemplateNode*>(stmt.get())) {
+            customStyleTemplates[cst->getName()] = cst;
         }
     }
 
@@ -32,26 +39,49 @@ std::string CHTLGenerator::generateNode(ASTNode* node) {
         generateStyleNode(s, "");
     } else if (auto* st = dynamic_cast<StyleTemplateNode*>(node)) {
         // Already processed, do nothing
+    } else if (auto* cst = dynamic_cast<CustomStyleTemplateNode*>(node)) {
+        // Already processed, do nothing
+    } else if (auto* vt = dynamic_cast<VarTemplateNode*>(node)) {
+        // Already processed, do nothing
+    } else if (auto* et = dynamic_cast<ElementTemplateNode*>(node)) {
+        // Already processed, do nothing
+    } else if (auto* etu = dynamic_cast<ElementTemplateUsageNode*>(node)) {
+        auto it = elementTemplates.find(etu->getName());
+        if (it != elementTemplates.end()) {
+            std::string result;
+            for (const auto& child : it->second->getBody()) {
+                result += generateNode(child.get());
+            }
+            return result;
+        }
     }
     // Other node types will be handled in later steps
     return "";
 }
 
-std::string valueNodeToString(const ValueNode* valueNode) {
+std::string CHTLGenerator::valueNodeToString(const ValueNode* valueNode) {
     if (const auto* literal = dynamic_cast<const LiteralValueNode*>(valueNode)) {
         if (literal->getIsString()) {
             return "\"" + literal->getValue() + "\"";
         }
         return literal->getValue();
+    } else if (const auto* usage = dynamic_cast<const TemplateVarUsageNode*>(valueNode)) {
+        auto it = varTemplates.find(usage->getTemplateName());
+        if (it != varTemplates.end()) {
+            const auto& vars = it->second->getVariables();
+            auto varIt = vars.find(usage->getVarName());
+            if (varIt != vars.end()) {
+                return valueNodeToString(varIt->second.get());
+            }
+        }
     }
-    // Handle other ValueNode types if necessary
     return "";
 }
 
 std::string CHTLGenerator::generateElementNode(ElementNode* node) {
     std::string html = "<" + node->getTagName();
     for (const auto& attr : node->getAttributes()) {
-        html += " " + attr.first + "=\"" + valueNodeToString(attr.second.get()) + "\"";
+        html += " " + attr.first + "=" + this->valueNodeToString(attr.second.get());
     }
     html += ">";
     for (const auto& child : node->getChildren()) {
@@ -73,13 +103,24 @@ void CHTLGenerator::generateStyleNode(StyleNode* node, const std::string& parent
     std::string styles;
     for (const auto& item : node->getItems()) {
         if (auto* prop = dynamic_cast<StylePropertyNode*>(item.get())) {
-            styles += "  " + prop->getKey() + ": " + valueNodeToString(prop->getValue()) + ";\n";
+            styles += "  " + prop->getKey() + ": " + this->valueNodeToString(prop->getValue()) + ";\n";
         } else if (auto* usage = dynamic_cast<StyleTemplateUsageNode*>(item.get())) {
             auto it = styleTemplates.find(usage->getName());
             if (it != styleTemplates.end()) {
                 for (const auto& templateItem : it->second->getBody()->getItems()) {
                     if (auto* templateProp = dynamic_cast<StylePropertyNode*>(templateItem.get())) {
-                        styles += "  " + templateProp->getKey() + ": " + valueNodeToString(templateProp->getValue()) + ";\n";
+                        styles += "  " + templateProp->getKey() + ": " + this->valueNodeToString(templateProp->getValue()) + ";\n";
+                    }
+                }
+            }
+        } else if (auto* usage = dynamic_cast<CustomStyleUsageNode*>(item.get())) {
+            auto it = customStyleTemplates.find(usage->getName());
+            if (it != customStyleTemplates.end()) {
+                if (const auto* body = dynamic_cast<const StyleNode*>(usage->getBody())) {
+                    for (const auto& bodyItem : body->getItems()) {
+                        if (auto* bodyProp = dynamic_cast<StylePropertyNode*>(bodyItem.get())) {
+                            styles += "  " + bodyProp->getKey() + ": " + this->valueNodeToString(bodyProp->getValue()) + ";\n";
+                        }
                     }
                 }
             }

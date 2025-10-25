@@ -17,7 +17,11 @@ enable_testing()
 add_executable(test_runner
     Test/main.cpp
     Test/test_lexer.cpp
+    Test/test_parser.cpp
     CHTL/CHTLLexer/CHTLLexer.cpp
+    CHTL/CHTLParser/CHTLParser.cpp
+    CHTL/CHTLNode/ElementNode.cpp
+    CHTL/CHTLNode/TextNode.cpp
 )
 
 target_include_directories(test_runner PUBLIC

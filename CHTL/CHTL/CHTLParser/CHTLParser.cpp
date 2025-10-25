@@ -1,0 +1,88 @@
+#include "CHTLParser.hpp"
+#include "CHTLNode/ElementNode.hpp"
+#include "CHTLNode/TextNode.hpp"
+
+CHTLParser::CHTLParser(const std::vector<Token>& tokens) : tokens_(tokens) {}
+
+std::unique_ptr<AstNode> CHTLParser::parse() {
+    if (position_ >= tokens_.size()) {
+        return nullptr;
+    }
+    if (tokens_[position_].type == TokenType::IDENTIFIER) {
+        if (tokens_[position_].value == "text") {
+            return parseTextNode();
+        } else {
+            return parseElement();
+        }
+    }
+    return nullptr;
+}
+
+std::unique_ptr<AstNode> CHTLParser::parseElement() {
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::IDENTIFIER) {
+        return nullptr;
+    }
+
+    std::string tag_name = tokens_[position_].value;
+    position_++;
+
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::LEFT_BRACE) {
+        return nullptr;
+    }
+    position_++;
+
+    auto element = std::make_unique<ElementNode>(tag_name);
+
+    while (position_ < tokens_.size() && tokens_[position_].type != TokenType::RIGHT_BRACE) {
+        if (tokens_[position_ + 1].type == TokenType::COLON) {
+            parseAttributes(element.get());
+        } else {
+            element->children.push_back(parse());
+        }
+    }
+
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::RIGHT_BRACE) {
+        return nullptr;
+    }
+    position_++;
+
+    return element;
+}
+
+std::unique_ptr<AstNode> CHTLParser::parseTextNode() {
+    position_++; // Consume 'text' identifier
+
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::LEFT_BRACE) {
+        return nullptr;
+    }
+    position_++;
+
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::STRING_LITERAL) {
+        return nullptr;
+    }
+    std::string text = tokens_[position_].value;
+    position_++;
+
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::RIGHT_BRACE) {
+        return nullptr;
+    }
+    position_++;
+
+    return std::make_unique<TextNode>(text);
+}
+
+void CHTLParser::parseAttributes(ElementNode* element) {
+    std::string key = tokens_[position_].value;
+    position_++; // consume identifier
+    position_++; // consume colon
+
+    if (position_ < tokens_.size() && (tokens_[position_].type == TokenType::STRING_LITERAL || tokens_[position_].type == TokenType::IDENTIFIER)) {
+        std::string value = tokens_[position_].value;
+        position_++; // consume value
+
+        if (position_ < tokens_.size() && tokens_[position_].type == TokenType::SEMICOLON) {
+            position_++; // consume semicolon
+            element->attributes[key] = value;
+        }
+    }
+}

@@ -54,14 +54,29 @@ std::unique_ptr<ASTNode> CHTLParser::parseStyleNode() {
         advance(); // consume 'style'
         if (currentToken.type == TokenType::LBRACE) {
             advance(); // consume '{'
-            std::string content = "";
+            auto styleNode = std::make_unique<StyleNode>();
             while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-                content += currentToken.value;
-                advance();
+                if (currentToken.type == TokenType::IDENTIFIER) {
+                    std::string key = currentToken.value;
+                    advance(); // consume key
+                    if (currentToken.type == TokenType::COLON) {
+                        advance(); // consume ':'
+                        if (currentToken.type == TokenType::IDENTIFIER || currentToken.type == TokenType::STRING) {
+                            std::string value = currentToken.value;
+                            advance(); // consume value
+                            styleNode->addProperty(std::make_unique<StylePropertyNode>(key, value));
+                            if (currentToken.type == TokenType::SEMICOLON) {
+                                advance(); // consume ';'
+                            }
+                        }
+                    }
+                } else {
+                    advance(); // Skip unexpected tokens
+                }
             }
             if (currentToken.type == TokenType::RBRACE) {
                 advance(); // consume '}'
-                return std::make_unique<StyleNode>(content);
+                return styleNode;
             }
         }
     }

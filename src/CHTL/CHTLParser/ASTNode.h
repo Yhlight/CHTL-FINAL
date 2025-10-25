@@ -25,15 +25,36 @@ private:
     std::string text;
 };
 
-class StyleNode : public ASTNode {
+class StylePropertyNode : public ASTNode {
 public:
-    explicit StyleNode(std::string content) : content(std::move(content)) {}
+    StylePropertyNode(std::string key, std::string value) : key(std::move(key)), value(std::move(value)) {}
     std::string toString() const override {
-        return "StyleNode(\"" + content + "\")";
+        return "StylePropertyNode(" + key + ": " + value + ")";
     }
 
 private:
-    std::string content;
+    std::string key;
+    std::string value;
+};
+
+class StyleNode : public ASTNode {
+public:
+    StyleNode() = default;
+    std::string toString() const override {
+        std::stringstream ss;
+        ss << "StyleNode({";
+        for (const auto& prop : properties) {
+            ss << prop->toString() << ", ";
+        }
+        ss << "})";
+        return ss.str();
+    }
+    void addProperty(std::unique_ptr<StylePropertyNode> prop) {
+        properties.push_back(std::move(prop));
+    }
+
+private:
+    std::vector<std::unique_ptr<StylePropertyNode>> properties;
 };
 
 class ElementNode : public ASTNode {

@@ -1,2 +1,1 @@
-import "module1.chtl";
-import "module2.chtl" as myModule;
+[Import] @Chtl from "./other.chtl";

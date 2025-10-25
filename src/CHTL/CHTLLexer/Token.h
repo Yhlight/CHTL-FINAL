@@ -21,6 +21,7 @@ enum class TokenType {
     IMPORT,     // import
     AS,         // as
     VAR,        // Var
+    FROM,       // from
     END_OF_FILE,
     UNKNOWN
 };
@@ -49,6 +50,7 @@ struct Token {
             case TokenType::IMPORT: return "IMPORT";
             case TokenType::AS: return "AS";
             case TokenType::VAR: return "VAR";
+            case TokenType::FROM: return "FROM";
             case TokenType::END_OF_FILE: return "END_OF_FILE";
             case TokenType::UNKNOWN: return "UNKNOWN";
         }

@@ -362,15 +362,18 @@ private:
 
 class ImportNode : public ASTNode {
 public:
-    ImportNode(std::string path, std::string alias) : path(std::move(path)), alias(std::move(alias)) {}
+    ImportNode(std::string type, std::string path, std::string alias) : type(std::move(type)), path(std::move(path)), alias(std::move(alias)) {}
     std::string toString() const override {
-        if (alias.empty()) {
-            return "ImportNode(\"" + path + "\")";
+        std::string result = "ImportNode(" + type + ", \"" + path + "\"";
+        if (!alias.empty()) {
+            result += " as " + alias;
         }
-        return "ImportNode(\"" + path + "\" as " + alias + ")";
+        result += ")";
+        return result;
     }
 
 private:
+    std::string type;
     std::string path;
     std::string alias;
 };

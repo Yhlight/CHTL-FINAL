@@ -240,9 +240,11 @@ std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
 
 std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     if (currentToken.type == TokenType::LBRACKET) {
+        Token peeked = lexer.peekToken();
+        if (peeked.value == "Import") {
+            return parseImportStatement();
+        }
         return parseTopLevelStatement();
-    } else if (currentToken.type == TokenType::IMPORT) {
-        return parseImportStatement();
     } else if (currentToken.value == "text") {
         return parseTextNode();
     } else if (currentToken.value == "style") {
@@ -273,24 +275,49 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
 }
 
 std::unique_ptr<ASTNode> CHTLParser::parseImportStatement() {
-    advance(); // consume 'import'
-    if (currentToken.type == TokenType::STRING) {
-        std::string path = currentToken.value;
-        advance();
-        std::string alias;
-        if (currentToken.type == TokenType::AS) {
-            advance();
-            if (currentToken.type == TokenType::IDENTIFIER) {
-                alias = currentToken.value;
-                advance();
-            }
-        }
-        if (currentToken.type == TokenType::SEMICOLON) {
-            advance();
-        }
-        return std::make_unique<ImportNode>(path, alias);
+    advance(); // consume '['
+    if (currentToken.value != "Import") {
+        return nullptr;
     }
-    return nullptr;
+    advance(); // consume 'Import'
+    if (currentToken.type != TokenType::RBRACKET) {
+        return nullptr;
+    }
+    advance(); // consume ']'
+
+    if (currentToken.type != TokenType::AT) {
+        return nullptr;
+    }
+    advance(); // consume '@'
+
+    std::string type = currentToken.value;
+    advance();
+
+    if (currentToken.type != TokenType::FROM) {
+        return nullptr;
+    }
+    advance(); // consume 'from'
+
+    if (currentToken.type != TokenType::STRING) {
+        return nullptr;
+    }
+    std::string path = currentToken.value;
+    advance();
+
+    std::string alias;
+    if (currentToken.type == TokenType::AS) {
+        advance();
+        if (currentToken.type == TokenType::IDENTIFIER) {
+            alias = currentToken.value;
+            advance();
+        }
+    }
+
+    if (currentToken.type == TokenType::SEMICOLON) {
+        advance();
+    }
+
+    return std::make_unique<ImportNode>(type, path, alias);
 }
 
 std::unique_ptr<ValueNode> CHTLParser::parseValue() {

@@ -1,0 +1,10 @@
+[Template] @Element Box
+{
+    div {
+        text { "This is a box." }
+    }
+}
+
+body {
+    @Element Box;
+}

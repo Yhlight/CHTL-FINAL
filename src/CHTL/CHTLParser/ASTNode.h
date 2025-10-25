@@ -52,6 +52,17 @@ private:
     std::string name;
 };
 
+class ElementTemplateUsageNode : public ASTNode {
+public:
+    explicit ElementTemplateUsageNode(std::string name) : name(std::move(name)) {}
+    std::string toString() const override {
+        return "ElementTemplateUsageNode(" + name + ")";
+    }
+
+private:
+    std::string name;
+};
+
 class StyleNode : public ASTNode {
 public:
     StyleNode() = default;
@@ -111,6 +122,24 @@ private:
     std::string tag_name;
     std::map<std::string, std::string> attributes;
     std::vector<std::unique_ptr<ASTNode>> children;
+};
+
+class ElementTemplateNode : public ASTNode {
+public:
+    ElementTemplateNode(std::string name, std::vector<std::unique_ptr<ASTNode>> body) : name(std::move(name)), body(std::move(body)) {}
+    std::string toString() const override {
+        std::stringstream ss;
+        ss << "ElementTemplateNode(" << name << ", {";
+        for (const auto& child : body) {
+            ss << child->toString() << ", ";
+        }
+        ss << "})";
+        return ss.str();
+    }
+
+private:
+    std::string name;
+    std::vector<std::unique_ptr<ASTNode>> body;
 };
 
 class ProgramNode : public ASTNode {

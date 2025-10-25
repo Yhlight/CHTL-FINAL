@@ -20,6 +20,7 @@ private:
     std::unique_ptr<ASTNode> parseTextNode();
     std::unique_ptr<StyleNode> parseStyleNode();
     std::unique_ptr<StyleTemplateUsageNode> parseStyleTemplateUsage();
+    std::unique_ptr<ElementTemplateUsageNode> parseElementTemplateUsage();
     std::unique_ptr<ElementNode> parseElementNode();
     void parseAttributes(ElementNode& element);
 };

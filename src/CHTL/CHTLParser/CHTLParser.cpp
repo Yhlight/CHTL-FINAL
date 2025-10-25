@@ -61,6 +61,22 @@ std::unique_ptr<StyleTemplateUsageNode> CHTLParser::parseStyleTemplateUsage() {
     return nullptr;
 }
 
+std::unique_ptr<ElementTemplateUsageNode> CHTLParser::parseElementTemplateUsage() {
+    advance(); // consume '@'
+    if (currentToken.value == "Element") {
+        advance(); // consume 'Element'
+        if (currentToken.type == TokenType::IDENTIFIER) {
+            std::string name = currentToken.value;
+            advance();
+            if (currentToken.type == TokenType::SEMICOLON) {
+                advance();
+            }
+            return std::make_unique<ElementTemplateUsageNode>(name);
+        }
+    }
+    return nullptr;
+}
+
 std::unique_ptr<StyleNode> CHTLParser::parseStyleNode() {
     auto styleNode = std::make_unique<StyleNode>();
     while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
@@ -110,6 +126,23 @@ std::unique_ptr<ASTNode> CHTLParser::parseTemplate() {
                             }
                         }
                     }
+                } else if (currentToken.value == "Element") {
+                    advance(); // consume 'Element'
+                    if (currentToken.type == TokenType::IDENTIFIER) {
+                        std::string name = currentToken.value;
+                        advance();
+                        if (currentToken.type == TokenType::LBRACE) {
+                            advance();
+                            std::vector<std::unique_ptr<ASTNode>> body;
+                            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                                body.push_back(parseStatement());
+                            }
+                            if (currentToken.type == TokenType::RBRACE) {
+                                advance();
+                                return std::make_unique<ElementTemplateNode>(name, std::move(body));
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -154,6 +187,8 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
         }
     } else if (currentToken.type == TokenType::IDENTIFIER) {
         return parseElementNode();
+    } else if (currentToken.type == TokenType::AT) {
+        return parseElementTemplateUsage();
     }
 
     if (currentToken.type != TokenType::END_OF_FILE) {

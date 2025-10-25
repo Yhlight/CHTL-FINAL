@@ -13,6 +13,7 @@
 ## Phase 2: Advanced Features
 
 - [ ] Style blocks (inline and global)
+  - [x] Parse local style blocks
 - [ ] Templates (Style, Element, Var)
 - [ ] Custom components
 - [ ] Imports and namespaces

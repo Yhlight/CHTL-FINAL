@@ -25,6 +25,17 @@ private:
     std::string text;
 };
 
+class StyleNode : public ASTNode {
+public:
+    explicit StyleNode(std::string content) : content(std::move(content)) {}
+    std::string toString() const override {
+        return "StyleNode(\"" + content + "\")";
+    }
+
+private:
+    std::string content;
+};
+
 class ElementNode : public ASTNode {
 public:
     explicit ElementNode(std::string tag) : tag_name(std::move(tag)) {}

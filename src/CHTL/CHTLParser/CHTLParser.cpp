@@ -49,6 +49,25 @@ std::unique_ptr<ASTNode> CHTLParser::parseTextNode() {
     return nullptr;
 }
 
+std::unique_ptr<ASTNode> CHTLParser::parseStyleNode() {
+    if (currentToken.value == "style") {
+        advance(); // consume 'style'
+        if (currentToken.type == TokenType::LBRACE) {
+            advance(); // consume '{'
+            std::string content = "";
+            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+                content += currentToken.value;
+                advance();
+            }
+            if (currentToken.type == TokenType::RBRACE) {
+                advance(); // consume '}'
+                return std::make_unique<StyleNode>(content);
+            }
+        }
+    }
+    return nullptr;
+}
+
 std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
     if (currentToken.type == TokenType::IDENTIFIER) {
         std::string tag = currentToken.value;
@@ -72,10 +91,12 @@ std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
 std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     if (currentToken.value == "text") {
         return parseTextNode();
+    } else if (currentToken.value == "style") {
+        return parseStyleNode();
     } else if (currentToken.type == TokenType::IDENTIFIER) {
         return parseElementNode();
     }
-    // In the future, we will handle other statement types here.
+
     if (currentToken.type != TokenType::END_OF_FILE) {
         advance(); // Move past unexpected tokens for now
     }

@@ -8,13 +8,17 @@ std::unique_ptr<AstNode> CHTLParser::parse() {
     if (position_ >= tokens_.size()) {
         return nullptr;
     }
+
     if (tokens_[position_].type == TokenType::IDENTIFIER) {
         if (tokens_[position_].value == "text") {
-            return parseTextNode();
+            return std::make_unique<TextNode>(parseTextNode());
         } else {
             return parseElement();
         }
+    } else if (tokens_[position_].type == TokenType::STRING_LITERAL) {
+        return std::make_unique<TextNode>(tokens_[position_++].value);
     }
+
     return nullptr;
 }
 
@@ -49,26 +53,26 @@ std::unique_ptr<AstNode> CHTLParser::parseElement() {
     return element;
 }
 
-std::unique_ptr<AstNode> CHTLParser::parseTextNode() {
+std::string CHTLParser::parseTextNode() {
     position_++; // Consume 'text' identifier
 
     if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::LEFT_BRACE) {
-        return nullptr;
+        return "";
     }
     position_++;
 
-    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::STRING_LITERAL) {
-        return nullptr;
+    std::string text = "";
+    if (position_ < tokens_.size() && tokens_[position_].type == TokenType::STRING_LITERAL) {
+        text = tokens_[position_].value;
+        position_++;
     }
-    std::string text = tokens_[position_].value;
-    position_++;
 
     if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::RIGHT_BRACE) {
-        return nullptr;
+        return "";
     }
     position_++;
 
-    return std::make_unique<TextNode>(text);
+    return text;
 }
 
 void CHTLParser::parseAttributes(ElementNode* element) {

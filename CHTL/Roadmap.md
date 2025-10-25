@@ -3,8 +3,8 @@
 ## Phase 1: Core Compiler Implementation
 
 - [x] **Lexer:** Implement the lexical analyzer to tokenize the CHTL source code.
-- [ ] **Parser:** Implement the parser to build an Abstract Syntax Tree (AST) from the token stream. (In Progress)
-- [ ] **Generator:** Implement the code generator to produce HTML and CSS from the AST.
+- [x] **Parser:** Implement the parser to build an Abstract Syntax Tree (AST) from the token stream. (In Progress)
+- [ ] **Generator:** Implement the code generator to produce HTML and CSS from the AST. (In Progress)
 - [ ] **Testing:** Set up a comprehensive test suite to ensure the correctness of the compiler.
 
 ## Phase 2: CHTL JS Integration

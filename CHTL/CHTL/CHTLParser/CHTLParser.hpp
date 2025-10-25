@@ -14,7 +14,7 @@ public:
 
 private:
     std::unique_ptr<AstNode> parseElement();
-    std::unique_ptr<AstNode> parseTextNode();
+    std::string parseTextNode();
     void parseAttributes(ElementNode* element);
 
     std::vector<Token> tokens_;

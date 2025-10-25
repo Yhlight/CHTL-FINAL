@@ -30,7 +30,7 @@ def run(filepath):
         print("Failed to build CHTL compiler.")
         return 1
 
-def build_and_run(filepath):
+def build_and_run(filepath, dump_ast=False):
     """Builds and runs the CHTL compiler on a file, capturing the output."""
     build()
     # Check if the compiler exists after building
@@ -38,10 +38,14 @@ def build_and_run(filepath):
         print("Failed to build CHTL compiler.")
         return "Build failed"
 
+    command = ["build/chtl", filepath]
+    if dump_ast:
+        command.append("--dump-ast")
+
     # Run the compiler and capture the output
     try:
         result = subprocess.run(
-            ["build/chtl", filepath],
+            command,
             capture_output=True,
             text=True,
             check=True

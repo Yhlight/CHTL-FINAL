@@ -6,17 +6,17 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from build import build_and_run
 
-class TestTemplateStyleParser(unittest.TestCase):
-    def test_template_style_parser(self):
-        output = build_and_run("tests/template_style.chtl")
+class TestGenerator(unittest.TestCase):
+    def test_generator(self):
+        output = build_and_run("tests/generator.chtl")
         expected_output = """
 <style>
 div {
-  color: "black";
-  line-height: 1.6;
+  color: red;
+  font-size: 16px;
 }
 </style>
-<div></div>
+<div class="container" id="main"><h1>Hello, World!</h1></div>
 """
         self.assertEqual(output.strip(), expected_output.strip())
 

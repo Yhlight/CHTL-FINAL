@@ -25,6 +25,12 @@ public:
         }
         return "LiteralValueNode(" + value + ")";
     }
+    const std::string& getValue() const {
+        return value;
+    }
+    bool getIsString() const {
+        return isString;
+    }
 
 private:
     std::string value;
@@ -49,6 +55,9 @@ public:
     std::string toString() const override {
         return "TextNode(\"" + text + "\")";
     }
+    const std::string& getText() const {
+        return text;
+    }
 
 private:
     std::string text;
@@ -63,6 +72,12 @@ public:
         }
         return "StylePropertyNode(" + key + ")";
     }
+    const std::string& getKey() const {
+        return key;
+    }
+    const ValueNode* getValue() const {
+        return value.get();
+    }
 
 private:
     std::string key;
@@ -74,6 +89,9 @@ public:
     explicit StyleTemplateUsageNode(std::string name) : name(std::move(name)) {}
     std::string toString() const override {
         return "StyleTemplateUsageNode(" + name + ")";
+    }
+    const std::string& getName() const {
+        return name;
     }
 
 private:
@@ -118,6 +136,9 @@ public:
     void addItem(std::unique_ptr<ASTNode> item) {
         items.push_back(std::move(item));
     }
+    const std::vector<std::unique_ptr<ASTNode>>& getItems() const {
+        return items;
+    }
 
 private:
     std::vector<std::unique_ptr<ASTNode>> items;
@@ -128,6 +149,12 @@ public:
     StyleTemplateNode(std::string name, std::unique_ptr<StyleNode> body) : name(std::move(name)), body(std::move(body)) {}
     std::string toString() const override {
         return "StyleTemplateNode(" + name + ", " + body->toString() + ")";
+    }
+    const std::string& getName() const {
+        return name;
+    }
+    const StyleNode* getBody() const {
+        return body.get();
     }
 
 private:
@@ -193,6 +220,15 @@ public:
     }
     void addAttribute(const std::string& key, std::unique_ptr<ValueNode> value) {
         attributes[key] = std::move(value);
+    }
+    const std::string& getTagName() const {
+        return tag_name;
+    }
+    const std::map<std::string, std::unique_ptr<ValueNode>>& getAttributes() const {
+        return attributes;
+    }
+    const std::vector<std::unique_ptr<ASTNode>>& getChildren() const {
+        return children;
     }
 
 private:
@@ -270,6 +306,9 @@ public:
     }
     void addStatement(std::unique_ptr<ASTNode> stmt) {
         statements.push_back(std::move(stmt));
+    }
+    const std::vector<std::unique_ptr<ASTNode>>& getStatements() const {
+        return statements;
     }
 
 private:

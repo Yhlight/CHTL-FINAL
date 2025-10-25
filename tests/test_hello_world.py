@@ -8,7 +8,7 @@ from build import build_and_run
 
 class TestHelloWorld(unittest.TestCase):
     def test_hello_world(self):
-        output = build_and_run("tests/hello.chtl")
+        output = build_and_run("tests/hello.chtl", dump_ast=True)
         expected_output = """ProgramNode({TextNode("Hello, World!"), })"""
         self.assertEqual(output.strip(), expected_output.strip())
 

@@ -9,20 +9,21 @@
   - [x] Implement Parser for text nodes
   - [x] Implement Parser for element nodes
   - [x] Implement Parser for attributes
+- [x] Implement HTML and CSS Generator
 
 ## Phase 2: Advanced Features
 
-- [ ] Style blocks (inline and global)
+- [x] Style blocks (inline and global)
   - [x] Parse local style blocks
   - [x] Parse CSS properties
-- [x] Templates (Style, Element, Var)
+- [ ] Templates (Style, Element, Var)
   - [x] Parse Style Group Templates
-  - [x] Parse Element Templates
-  - [x] Parse Variable Group Templates
-- [x] Custom components
+  - [ ] Parse Element Templates
+  - [ ] Parse Variable Group Templates
+- [ ] Custom components
   - [x] Parse Custom Style Group Templates
-  - [x] Parse Custom Element Templates
-- [x] Imports and namespaces
+  - [ ] Parse Custom Element Templates
+- [ ] Imports and namespaces
 
 ## Phase 3: CHTL JS Integration
 

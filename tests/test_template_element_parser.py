@@ -8,7 +8,7 @@ from build import build_and_run
 
 class TestTemplateElementParser(unittest.TestCase):
     def test_template_element_parser(self):
-        output = build_and_run("tests/template_element.chtl")
+        output = build_and_run("tests/template_element.chtl", dump_ast=True)
         expected_output = """ProgramNode({ElementTemplateNode(Box, {ElementNode(div, attributes={}, children={TextNode("This is a box."), }), }), ElementNode(body, attributes={}, children={ElementTemplateUsageNode(Box), }), })"""
         self.assertEqual(output.strip(), expected_output.strip())
 

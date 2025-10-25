@@ -2,6 +2,8 @@
 #include "CHTLParser/CHTLParser.hpp"
 #include "CHTLNode/ElementNode.hpp"
 #include "CHTLNode/TextNode.hpp"
+#include "CHTLNode/StyleNode.hpp"
+#include "CHTLNode/PropertyNode.hpp"
 
 TEST_CASE(ParserCanParseSimpleElement, "Parser can parse a simple element") {
     std::string input = "div {}";
@@ -79,4 +81,22 @@ TEST_CASE(ParserCanParseUnadornedAttributes, "Parser can parse unadorned attribu
     REQUIRE(div->attributes.size() == 1);
     REQUIRE(div->attributes["class"] == "box");
     REQUIRE(div->children.empty());
+}
+
+TEST_CASE(ParserCanParseStyleBlocks, "Parser can parse style blocks") {
+    std::string input = "div { style { width: 100px; } }";
+    CHTLLexer lexer(input);
+    CHTLParser parser(lexer.tokenize());
+    std::unique_ptr<AstNode> root = parser.parse();
+
+    REQUIRE(root != nullptr);
+    ElementNode* div = dynamic_cast<ElementNode*>(root.get());
+    REQUIRE(div != nullptr);
+    REQUIRE(div->children.size() == 1);
+
+    StyleNode* style = dynamic_cast<StyleNode*>(div->children[0].get());
+    REQUIRE(style != nullptr);
+    REQUIRE(style->properties.size() == 1);
+    REQUIRE(style->properties[0]->key == "width");
+    REQUIRE(style->properties[0]->value == "100px");
 }

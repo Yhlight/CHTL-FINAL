@@ -4,7 +4,17 @@
 
 - [x] **Lexer:** Implement the lexical analyzer to tokenize the CHTL source code.
 - [x] **Parser:** Implement the parser to build an Abstract Syntax Tree (AST) from the token stream. (In Progress)
+  - [x] Basic element parsing
+  - [x] Nested elements
+  - [x] Text nodes
+  - [x] Attributes
+  - [x] Inline style blocks
 - [ ] **Generator:** Implement the code generator to produce HTML and CSS from the AST. (In Progress)
+  - [x] Basic element generation
+  - [x] Nested elements
+  - [x] Text nodes
+  - [x] Attributes
+  - [x] Inline styles
 - [ ] **Testing:** Set up a comprehensive test suite to ensure the correctness of the compiler.
 
 ## Phase 2: CHTL JS Integration

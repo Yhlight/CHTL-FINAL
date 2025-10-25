@@ -20,6 +20,8 @@ std::vector<Token> CHTLLexer::tokenize() {
             tokens.push_back(tokenizeIdentifier());
         } else if (input_[position_] == '"' || input_[position_] == '\'') {
             tokens.push_back(tokenizeStringLiteral());
+        } else if (std::isdigit(input_[position_])) {
+            tokens.push_back(tokenizeNumber());
         } else {
             tokens.push_back(tokenizePunctuation());
         }
@@ -98,4 +100,12 @@ Token CHTLLexer::tokenizePunctuation() {
         case '=': return {TokenType::EQUALS, "="};
         default: return {TokenType::UNKNOWN, std::string(1, p)};
     }
+}
+
+Token CHTLLexer::tokenizeNumber() {
+    size_t start = position_;
+    while (position_ < input_.size() && std::isdigit(input_[position_])) {
+        position_++;
+    }
+    return {TokenType::NUMBER, input_.substr(start, position_ - start)};
 }

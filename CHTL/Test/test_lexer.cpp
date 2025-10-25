@@ -67,6 +67,17 @@ TEST_CASE(LexerHandlesUnknownCharacters, "Lexer handles unknown characters") {
     REQUIRE(tokens[0].value == "@");
 }
 
+TEST_CASE(LexerCanTokenizeCssValues, "Lexer can tokenize CSS values") {
+    std::string input = "100px";
+    CHTLLexer lexer(input);
+    std::vector<Token> tokens = lexer.tokenize();
+    REQUIRE(tokens.size() == 2);
+    REQUIRE(tokens[0].type == TokenType::NUMBER);
+    REQUIRE(tokens[0].value == "100");
+    REQUIRE(tokens[1].type == TokenType::IDENTIFIER);
+    REQUIRE(tokens[1].value == "px");
+}
+
 TEST_CASE(LexerCanTokenizeUnadornedLiteral, "Lexer can tokenize an unadorned literal") {
     std::string input = "color: red;";
     CHTLLexer lexer(input);

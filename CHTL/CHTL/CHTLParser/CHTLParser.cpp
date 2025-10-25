@@ -1,6 +1,8 @@
 #include "CHTLParser.hpp"
 #include "CHTLNode/ElementNode.hpp"
 #include "CHTLNode/TextNode.hpp"
+#include "CHTLNode/StyleNode.hpp"
+#include "CHTLNode/PropertyNode.hpp"
 
 CHTLParser::CHTLParser(const std::vector<Token>& tokens) : tokens_(tokens) {}
 
@@ -12,6 +14,8 @@ std::unique_ptr<AstNode> CHTLParser::parse() {
     if (tokens_[position_].type == TokenType::IDENTIFIER) {
         if (tokens_[position_].value == "text") {
             return std::make_unique<TextNode>(parseTextNode());
+        } else if (tokens_[position_].value == "style") {
+            return parseStyleNode();
         } else {
             return parseElement();
         }
@@ -89,4 +93,37 @@ void CHTLParser::parseAttributes(ElementNode* element) {
             element->attributes[key] = value;
         }
     }
+}
+
+std::unique_ptr<AstNode> CHTLParser::parseStyleNode() {
+    position_++; // Consume 'style' identifier
+
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::LEFT_BRACE) {
+        return nullptr;
+    }
+    position_++;
+
+    auto styleNode = std::make_unique<StyleNode>();
+
+    while (position_ < tokens_.size() && tokens_[position_].type != TokenType::RIGHT_BRACE) {
+        std::string key = tokens_[position_].value;
+        position_++; // consume identifier
+        position_++; // consume colon
+
+        std::string value = "";
+        while (position_ < tokens_.size() && tokens_[position_].type != TokenType::SEMICOLON) {
+            value += tokens_[position_].value;
+            position_++;
+        }
+        position_++; // consume semicolon
+
+        styleNode->properties.push_back(std::make_unique<PropertyNode>(key, value));
+    }
+
+    if (position_ >= tokens_.size() || tokens_[position_].type != TokenType::RIGHT_BRACE) {
+        return nullptr;
+    }
+    position_++;
+
+    return styleNode;
 }

@@ -15,6 +15,7 @@ enum class TokenType {
     COLON,
     SEMICOLON,
     EQUALS,
+    NUMBER,
     UNKNOWN,
     // Add other token types here
 };
@@ -37,6 +38,7 @@ private:
     Token tokenizeIdentifier();
     Token tokenizeStringLiteral();
     Token tokenizePunctuation();
+    Token tokenizeNumber();
 
     std::string input_;
     size_t position_ = 0;

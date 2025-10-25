@@ -45,3 +45,14 @@ TEST_CASE(GeneratorCanGenerateAttributes, "Generator can generate attributes") {
 
     REQUIRE(html == "<div id=\"box\"></div>");
 }
+
+TEST_CASE(GeneratorCanGenerateInlineStyles, "Generator can generate inline styles") {
+    std::string input = "div { style { width: 100px; } }";
+    CHTLLexer lexer(input);
+    CHTLParser parser(lexer.tokenize());
+    std::unique_ptr<AstNode> root = parser.parse();
+    CHTLGenerator generator;
+    std::string html = generator.generate(*root);
+
+    REQUIRE(html == "<div style=\"width:100px;\"></div>");
+}

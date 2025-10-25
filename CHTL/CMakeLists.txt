@@ -23,6 +23,7 @@ add_executable(test_runner
     CHTL/CHTLParser/CHTLParser.cpp
     CHTL/CHTLNode/ElementNode.cpp
     CHTL/CHTLNode/TextNode.cpp
+    CHTL/CHTLNode/PropertyNode.cpp
     CHTL/CHTLGenerator/CHTLGenerator.cpp
 )
 

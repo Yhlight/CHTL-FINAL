@@ -42,17 +42,26 @@ std::unique_ptr<ASTNode> CHTLParser::parseTextNode() {
     return nullptr;
 }
 
-std::unique_ptr<StyleTemplateUsageNode> CHTLParser::parseStyleTemplateUsage() {
+std::unique_ptr<ASTNode> CHTLParser::parseStyleTemplateUsage() {
     advance(); // consume '@'
     if (currentToken.value == "Style") {
         advance(); // consume 'Style'
         if (currentToken.type == TokenType::IDENTIFIER) {
             std::string name = currentToken.value;
             advance();
-            if (currentToken.type == TokenType::SEMICOLON) {
+            if (currentToken.type == TokenType::LBRACE) {
                 advance();
+                auto styleNode = parseStyleNode();
+                if (currentToken.type == TokenType::RBRACE) {
+                    advance();
+                }
+                return std::make_unique<CustomStyleUsageNode>(name, std::move(styleNode));
+            } else {
+                if (currentToken.type == TokenType::SEMICOLON) {
+                    advance();
+                }
+                return std::make_unique<StyleTemplateUsageNode>(name);
             }
-            return std::make_unique<StyleTemplateUsageNode>(name);
         }
     }
     return nullptr;
@@ -86,6 +95,11 @@ std::unique_ptr<StyleNode> CHTLParser::parseStyleNode() {
                 if (currentToken.type == TokenType::SEMICOLON) {
                     advance();
                 }
+            } else {
+                styleNode->addItem(std::make_unique<StylePropertyNode>(key, nullptr));
+                 if (currentToken.type == TokenType::SEMICOLON) {
+                    advance();
+                }
             }
         } else if (currentToken.type == TokenType::AT) {
             styleNode->addItem(parseStyleTemplateUsage());
@@ -96,15 +110,16 @@ std::unique_ptr<StyleNode> CHTLParser::parseStyleNode() {
     return styleNode;
 }
 
-std::unique_ptr<ASTNode> CHTLParser::parseTemplate() {
+std::unique_ptr<ASTNode> CHTLParser::parseTopLevelStatement() {
     advance(); // consume '['
-    if (currentToken.value == "Template") {
-        advance(); // consume 'Template'
-        if (currentToken.type == TokenType::RBRACKET) {
-            advance(); // consume ']'
-            if (currentToken.type == TokenType::AT) {
-                advance(); // consume '@'
-                if (currentToken.value == "Style") {
+    std::string blockType = currentToken.value;
+    advance();
+    if (currentToken.type == TokenType::RBRACKET) {
+        advance();
+        if (currentToken.type == TokenType::AT) {
+            advance();
+            if (blockType == "Template") {
+                 if (currentToken.value == "Style") {
                     advance();
                     if (currentToken.type == TokenType::IDENTIFIER) {
                         std::string name = currentToken.value;
@@ -164,6 +179,22 @@ std::unique_ptr<ASTNode> CHTLParser::parseTemplate() {
                         }
                     }
                 }
+            } else if (blockType == "Custom") {
+                if (currentToken.value == "Style") {
+                    advance();
+                    if (currentToken.type == TokenType::IDENTIFIER) {
+                        std::string name = currentToken.value;
+                        advance();
+                        if (currentToken.type == TokenType::LBRACE) {
+                            advance();
+                            auto styleNode = parseStyleNode();
+                            if (currentToken.type == TokenType::RBRACE) {
+                                advance();
+                                return std::make_unique<CustomStyleTemplateNode>(name, std::move(styleNode));
+                            }
+                        }
+                    }
+                }
             }
         }
     }
@@ -192,7 +223,7 @@ std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
 
 std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     if (currentToken.type == TokenType::LBRACKET) {
-        return parseTemplate();
+        return parseTopLevelStatement();
     } else if (currentToken.value == "text") {
         return parseTextNode();
     } else if (currentToken.value == "style") {
@@ -208,7 +239,12 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
     } else if (currentToken.type == TokenType::IDENTIFIER) {
         return parseElementNode();
     } else if (currentToken.type == TokenType::AT) {
-        return parseElementTemplateUsage();
+        Token peeked = lexer.peekToken();
+        if (peeked.value == "Element") {
+            return parseElementTemplateUsage();
+        } else if (peeked.value == "Style") {
+            return parseStyleTemplateUsage();
+        }
     }
 
     if (currentToken.type != TokenType::END_OF_FILE) {

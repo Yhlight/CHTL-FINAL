@@ -58,7 +58,10 @@ class StylePropertyNode : public ASTNode {
 public:
     StylePropertyNode(std::string key, std::unique_ptr<ValueNode> value) : key(std::move(key)), value(std::move(value)) {}
     std::string toString() const override {
-        return "StylePropertyNode(" + key + ": " + value->toString() + ")";
+        if (value) {
+            return "StylePropertyNode(" + key + ": " + value->toString() + ")";
+        }
+        return "StylePropertyNode(" + key + ")";
     }
 
 private:
@@ -75,6 +78,18 @@ public:
 
 private:
     std::string name;
+};
+
+class CustomStyleUsageNode : public ASTNode {
+public:
+    CustomStyleUsageNode(std::string name, std::unique_ptr<ASTNode> body) : name(std::move(name)), body(std::move(body)) {}
+    std::string toString() const override {
+        return "CustomStyleUsageNode(" + name + ", " + body->toString() + ")";
+    }
+
+private:
+    std::string name;
+    std::unique_ptr<ASTNode> body;
 };
 
 class ElementTemplateUsageNode : public ASTNode {
@@ -113,6 +128,18 @@ public:
     StyleTemplateNode(std::string name, std::unique_ptr<StyleNode> body) : name(std::move(name)), body(std::move(body)) {}
     std::string toString() const override {
         return "StyleTemplateNode(" + name + ", " + body->toString() + ")";
+    }
+
+private:
+    std::string name;
+    std::unique_ptr<StyleNode> body;
+};
+
+class CustomStyleTemplateNode : public ASTNode {
+public:
+    CustomStyleTemplateNode(std::string name, std::unique_ptr<StyleNode> body) : name(std::move(name)), body(std::move(body)) {}
+    std::string toString() const override {
+        return "CustomStyleTemplateNode(" + name + ", " + body->toString() + ")";
     }
 
 private:

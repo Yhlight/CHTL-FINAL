@@ -1,0 +1,17 @@
+[Custom] @Style TextSet
+{
+    color;
+    font-size;
+}
+
+div
+{
+    style
+    {
+        @Style TextSet
+        {
+            color: red;
+            font-size: 16px;
+        }
+    }
+}

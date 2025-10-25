@@ -16,10 +16,10 @@ private:
 
     void advance();
     std::unique_ptr<ASTNode> parseStatement();
-    std::unique_ptr<ASTNode> parseTemplate();
+    std::unique_ptr<ASTNode> parseTopLevelStatement();
     std::unique_ptr<ASTNode> parseTextNode();
     std::unique_ptr<StyleNode> parseStyleNode();
-    std::unique_ptr<StyleTemplateUsageNode> parseStyleTemplateUsage();
+    std::unique_ptr<ASTNode> parseStyleTemplateUsage();
     std::unique_ptr<ElementTemplateUsageNode> parseElementTemplateUsage();
     std::unique_ptr<ElementNode> parseElementNode();
     void parseAttributes(ElementNode& element);

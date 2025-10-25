@@ -25,8 +25,8 @@
   - [x] Parse Custom Element Templates
 - [x] Imports and namespaces
   - [x] Parse Import Statements
-  - [ ] Parse Namespace Definitions
-  - [ ] Parse Namespace Usage
+  - [x] Parse Namespace Definitions
+  - [x] Parse Namespace Usage
 
 ## Phase 3: CHTL JS Integration
 

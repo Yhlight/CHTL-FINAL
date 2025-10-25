@@ -6,16 +6,23 @@
 #include <string>
 #include <memory>
 
+enum class LexerMode {
+    NORMAL,
+    SCRIPT_CONTENT
+};
+
 class CHTLLexer {
 public:
     explicit CHTLLexer(const std::string& filepath);
     Token getNextToken();
     Token peekToken();
+    void setMode(LexerMode newMode);
 
 private:
     std::ifstream file;
     char currentChar;
     std::unique_ptr<Token> lookahead;
+    LexerMode mode = LexerMode::NORMAL;
 
     void advance();
     void skipWhitespace();

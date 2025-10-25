@@ -42,6 +42,21 @@ std::unique_ptr<ASTNode> CHTLParser::parseTextNode() {
     return nullptr;
 }
 
+std::unique_ptr<ASTNode> CHTLParser::parseScriptNode() {
+    advance(); // consume 'script'
+    if (currentToken.type == TokenType::LBRACE) {
+        lexer.setMode(LexerMode::SCRIPT_CONTENT);
+        advance(); // consume '{' to get the script content
+        std::string content = currentToken.value;
+        advance(); // this should now be '}'
+        if (currentToken.type == TokenType::RBRACE) {
+            advance(); // consume '}'
+        }
+        return std::make_unique<ScriptNode>(content);
+    }
+    return nullptr;
+}
+
 std::unique_ptr<ASTNode> CHTLParser::parseNamespaceStatement() {
     advance(); // consume '['
     advance(); // consume 'Namespace'
@@ -290,6 +305,8 @@ std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
         return parseTopLevelStatement();
     } else if (currentToken.value == "text") {
         return parseTextNode();
+    } else if (currentToken.type == TokenType::SCRIPT) {
+        return parseScriptNode();
     } else if (currentToken.value == "style") {
         advance();
         if (currentToken.type == TokenType::LBRACE) {

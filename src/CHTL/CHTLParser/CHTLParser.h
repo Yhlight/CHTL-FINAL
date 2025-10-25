@@ -28,6 +28,7 @@ private:
     std::unique_ptr<ValueNode> parseValue();
     std::unique_ptr<VarTemplateNode> parseVarTemplate();
     std::unique_ptr<ASTNode> parseNamespaceStatement();
+    std::unique_ptr<ASTNode> parseScriptNode();
 };
 
 #endif //CHTL_PARSER_H

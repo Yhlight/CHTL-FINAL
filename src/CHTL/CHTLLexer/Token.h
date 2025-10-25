@@ -23,6 +23,7 @@ enum class TokenType {
     VAR,        // Var
     FROM,       // from
     NAMESPACE,  // Namespace
+    SCRIPT,     // script
     END_OF_FILE,
     UNKNOWN
 };
@@ -53,6 +54,7 @@ struct Token {
             case TokenType::VAR: return "VAR";
             case TokenType::FROM: return "FROM";
             case TokenType::NAMESPACE: return "NAMESPACE";
+            case TokenType::SCRIPT: return "SCRIPT";
             case TokenType::END_OF_FILE: return "END_OF_FILE";
             case TokenType::UNKNOWN: return "UNKNOWN";
         }

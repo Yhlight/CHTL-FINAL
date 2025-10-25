@@ -433,4 +433,18 @@ private:
     std::vector<std::unique_ptr<ASTNode>> body;
 };
 
-#endif //CHTL_ASTNODE_H
+class ScriptNode : public ASTNode {
+public:
+    explicit ScriptNode(std::string content) : content(std::move(content)) {}
+    std::string toString() const override {
+        return "ScriptNode(\"" + content + "\")";
+    }
+    const std::string& getContent() const {
+        return content;
+    }
+
+private:
+    std::string content;
+};
+
+#endif //CHTL_ASTNode_H

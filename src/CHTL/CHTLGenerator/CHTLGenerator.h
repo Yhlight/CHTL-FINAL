@@ -24,6 +24,7 @@ private:
     void generateStyleNode(StyleNode* node, const std::string& parentSelector);
     void generateStyleTemplateNode(StyleTemplateNode* node);
     std::string valueNodeToString(const ValueNode* valueNode);
+    std::string generateScriptNode(ScriptNode* node);
 };
 
 #endif //CHTL_GENERATOR_H

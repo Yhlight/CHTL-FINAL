@@ -30,6 +30,7 @@ Token CHTLLexer::parseIdentifier() {
     if (value == "Var") return Token(TokenType::VAR, "Var");
     if (value == "from") return Token(TokenType::FROM, "from");
     if (value == "Namespace") return Token(TokenType::NAMESPACE, "Namespace");
+    if (value == "script") return Token(TokenType::SCRIPT, "script");
     return Token(TokenType::IDENTIFIER, value);
 }
 
@@ -69,7 +70,21 @@ Token CHTLLexer::peekToken() {
     return *lookahead;
 }
 
+void CHTLLexer::setMode(LexerMode newMode) {
+    mode = newMode;
+}
+
 Token CHTLLexer::getNextTokenInternal() {
+    if (mode == LexerMode::SCRIPT_CONTENT) {
+        std::string content;
+        while (!file.eof() && currentChar != '}') {
+            content += currentChar;
+            advance();
+        }
+        mode = LexerMode::NORMAL;
+        return Token(TokenType::STRING, content);
+    }
+
     while (!file.eof()) {
         skipWhitespace();
 

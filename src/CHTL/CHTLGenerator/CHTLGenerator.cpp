@@ -67,6 +67,8 @@ std::string CHTLGenerator::generateNode(ASTNode* node) {
             }
             return result;
         }
+    } else if (auto* sn = dynamic_cast<ScriptNode*>(node)) {
+        return generateScriptNode(sn);
     }
     // Other node types will be handled in later steps
     return "";
@@ -149,4 +151,8 @@ void CHTLGenerator::generateStyleNode(StyleNode* node, const std::string& parent
 
 void CHTLGenerator::generateStyleTemplateNode(StyleTemplateNode* node) {
     // This function is not used directly, as style templates are processed on demand.
+}
+
+std::string CHTLGenerator::generateScriptNode(ScriptNode* node) {
+    return "<script>" + node->getContent() + "</script>";
 }

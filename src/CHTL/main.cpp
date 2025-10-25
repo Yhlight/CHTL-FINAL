@@ -1,5 +1,6 @@
 #include <iostream>
 #include "CHTLLexer/CHTLLexer.h"
+#include "CHTLParser/CHTLParser.h"
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -8,10 +9,14 @@ int main(int argc, char* argv[]) {
     }
 
     CHTLLexer lexer(argv[1]);
-    Token token = lexer.getNextToken();
-    while (token.type != TokenType::END_OF_FILE) {
-        std::cout << "Token(" << Token::typeToString(token.type) << ", \"" << token.value << "\")" << std::endl;
-        token = lexer.getNextToken();
+    CHTLParser parser(lexer);
+    std::unique_ptr<ASTNode> ast = parser.parse();
+
+    if (ast) {
+        std::cout << ast->toString() << std::endl;
+    } else {
+        std::cerr << "Failed to parse CHTL file." << std::endl;
+        return 1;
     }
 
     return 0;

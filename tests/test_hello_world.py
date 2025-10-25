@@ -20,11 +20,8 @@ def run_test():
         )
 
         # Check if the output is correct
-        expected_output = """Token(IDENTIFIER, "text")
-Token(LBRACE, "{")
-Token(STRING, "Hello, World!")
-Token(RBRACE, "}")
-"""
+        expected_output = "TextNode(\"Hello, World!\")\n"
+
         if result.stdout == expected_output:
             print("Test passed!")
         else:

@@ -6,6 +6,4 @@
     }
 }
 
-MyComponent {
-
-}
+@Element MyComponent;

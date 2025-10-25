@@ -1,4 +1,3 @@
-import subprocess
 import unittest
 import sys
 import os
@@ -9,8 +8,12 @@ from build import build_and_run
 
 class TestCustomElementParser(unittest.TestCase):
     def test_custom_element_parser(self):
-        output = build_and_run("tests/custom_element.chtl", dump_ast=True)
-        expected_output = """ProgramNode({CustomElementNode(MyComponent, {ElementNode(div, attributes={}, children={ElementNode(p, attributes={}, children={TextNode("Hello"), }), }), }), ElementNode(MyComponent, attributes={}, children={}), })"""
+        output = build_and_run("tests/custom_element.chtl")
+        expected_output = """
+<style>
+</style>
+<div><p>Hello</p></div>
+"""
         self.assertEqual(output.strip(), expected_output.strip())
 
 if __name__ == '__main__':

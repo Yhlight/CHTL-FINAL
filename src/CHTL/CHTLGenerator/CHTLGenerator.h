@@ -16,6 +16,7 @@ private:
     std::map<std::string, ElementTemplateNode*> elementTemplates;
     std::map<std::string, VarTemplateNode*> varTemplates;
     std::map<std::string, CustomStyleTemplateNode*> customStyleTemplates;
+    std::map<std::string, CustomElementNode*> customElementTemplates;
 
     std::string generateNode(ASTNode* node);
     std::string generateElementNode(ElementNode* node);

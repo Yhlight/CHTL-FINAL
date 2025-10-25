@@ -15,6 +15,8 @@ std::string CHTLGenerator::generate() {
             varTemplates[vt->getName()] = vt;
         } else if (auto* cst = dynamic_cast<CustomStyleTemplateNode*>(stmt.get())) {
             customStyleTemplates[cst->getName()] = cst;
+        } else if (auto* cet = dynamic_cast<CustomElementNode*>(stmt.get())) {
+            customElementTemplates[cet->getName()] = cet;
         }
     }
 
@@ -43,11 +45,22 @@ std::string CHTLGenerator::generateNode(ASTNode* node) {
         // Already processed, do nothing
     } else if (auto* vt = dynamic_cast<VarTemplateNode*>(node)) {
         // Already processed, do nothing
+    } else if (auto* cet = dynamic_cast<CustomElementNode*>(node)) {
+        // Already processed, do nothing
     } else if (auto* et = dynamic_cast<ElementTemplateNode*>(node)) {
         // Already processed, do nothing
     } else if (auto* etu = dynamic_cast<ElementTemplateUsageNode*>(node)) {
         auto it = elementTemplates.find(etu->getName());
         if (it != elementTemplates.end()) {
+            std::string result;
+            for (const auto& child : it->second->getBody()) {
+                result += generateNode(child.get());
+            }
+            return result;
+        }
+    } else if (auto* ceu = dynamic_cast<CustomElementUsageNode*>(node)) {
+        auto it = customElementTemplates.find(ceu->getName());
+        if (it != customElementTemplates.end()) {
             std::string result;
             for (const auto& child : it->second->getBody()) {
                 result += generateNode(child.get());

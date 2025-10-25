@@ -16,6 +16,7 @@
   - [x] Parse local style blocks
   - [x] Parse CSS properties
 - [ ] Templates (Style, Element, Var)
+  - [x] Parse Style Group Templates
 - [ ] Custom components
 - [ ] Imports and namespaces
 

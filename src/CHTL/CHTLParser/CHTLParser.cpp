@@ -9,7 +9,6 @@ void CHTLParser::advance() {
 
 void CHTLParser::parseAttributes(ElementNode& element) {
     while (currentToken.type == TokenType::IDENTIFIER) {
-        // Lookahead to see if this is an attribute or a child element.
         Token peeked = lexer.peekToken();
         if (peeked.type == TokenType::COLON || peeked.type == TokenType::EQUALS) {
             std::string key = currentToken.value;
@@ -20,12 +19,9 @@ void CHTLParser::parseAttributes(ElementNode& element) {
                 advance(); // consume value
                 if (currentToken.type == TokenType::SEMICOLON) {
                     advance(); // consume ';'
-                } else {
-                    // This is an error, but for now we'll just continue.
                 }
             }
         } else {
-            // Not an attribute, so break out of the loop.
             break;
         }
     }
@@ -33,14 +29,14 @@ void CHTLParser::parseAttributes(ElementNode& element) {
 
 std::unique_ptr<ASTNode> CHTLParser::parseTextNode() {
     if (currentToken.value == "text") {
-        advance(); // consume 'text'
+        advance();
         if (currentToken.type == TokenType::LBRACE) {
-            advance(); // consume '{'
+            advance();
             if (currentToken.type == TokenType::STRING) {
                 std::string text = currentToken.value;
-                advance(); // consume string
+                advance();
                 if (currentToken.type == TokenType::RBRACE) {
-                    advance(); // consume '}'
+                    advance();
                     return std::make_unique<TextNode>(text);
                 }
             }
@@ -49,34 +45,72 @@ std::unique_ptr<ASTNode> CHTLParser::parseTextNode() {
     return nullptr;
 }
 
-std::unique_ptr<ASTNode> CHTLParser::parseStyleNode() {
-    if (currentToken.value == "style") {
-        advance(); // consume 'style'
-        if (currentToken.type == TokenType::LBRACE) {
-            advance(); // consume '{'
-            auto styleNode = std::make_unique<StyleNode>();
-            while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
-                if (currentToken.type == TokenType::IDENTIFIER) {
-                    std::string key = currentToken.value;
-                    advance(); // consume key
-                    if (currentToken.type == TokenType::COLON) {
-                        advance(); // consume ':'
-                        if (currentToken.type == TokenType::IDENTIFIER || currentToken.type == TokenType::STRING) {
-                            std::string value = currentToken.value;
-                            advance(); // consume value
-                            styleNode->addProperty(std::make_unique<StylePropertyNode>(key, value));
-                            if (currentToken.type == TokenType::SEMICOLON) {
-                                advance(); // consume ';'
+std::unique_ptr<StyleTemplateUsageNode> CHTLParser::parseStyleTemplateUsage() {
+    advance(); // consume '@'
+    if (currentToken.value == "Style") {
+        advance(); // consume 'Style'
+        if (currentToken.type == TokenType::IDENTIFIER) {
+            std::string name = currentToken.value;
+            advance();
+            if (currentToken.type == TokenType::SEMICOLON) {
+                advance();
+            }
+            return std::make_unique<StyleTemplateUsageNode>(name);
+        }
+    }
+    return nullptr;
+}
+
+std::unique_ptr<StyleNode> CHTLParser::parseStyleNode() {
+    auto styleNode = std::make_unique<StyleNode>();
+    while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
+        if (currentToken.type == TokenType::IDENTIFIER) {
+            std::string key = currentToken.value;
+            advance();
+            if (currentToken.type == TokenType::COLON) {
+                advance();
+                bool isString = currentToken.type == TokenType::STRING;
+                if (currentToken.type == TokenType::IDENTIFIER || currentToken.type == TokenType::STRING) {
+                    std::string value = currentToken.value;
+                    advance();
+                    styleNode->addItem(std::make_unique<StylePropertyNode>(key, value, isString));
+                    if (currentToken.type == TokenType::SEMICOLON) {
+                        advance();
+                    }
+                }
+            }
+        } else if (currentToken.type == TokenType::AT) {
+            styleNode->addItem(parseStyleTemplateUsage());
+        } else {
+            advance();
+        }
+    }
+    return styleNode;
+}
+
+std::unique_ptr<ASTNode> CHTLParser::parseTemplate() {
+    advance(); // consume '['
+    if (currentToken.value == "Template") {
+        advance(); // consume 'Template'
+        if (currentToken.type == TokenType::RBRACKET) {
+            advance(); // consume ']'
+            if (currentToken.type == TokenType::AT) {
+                advance(); // consume '@'
+                if (currentToken.value == "Style") {
+                    advance(); // consume 'Style'
+                    if (currentToken.type == TokenType::IDENTIFIER) {
+                        std::string name = currentToken.value;
+                        advance();
+                        if (currentToken.type == TokenType::LBRACE) {
+                            advance();
+                            auto styleNode = parseStyleNode();
+                            if (currentToken.type == TokenType::RBRACE) {
+                                advance();
+                                return std::make_unique<StyleTemplateNode>(name, std::move(styleNode));
                             }
                         }
                     }
-                } else {
-                    advance(); // Skip unexpected tokens
                 }
-            }
-            if (currentToken.type == TokenType::RBRACE) {
-                advance(); // consume '}'
-                return styleNode;
             }
         }
     }
@@ -86,16 +120,16 @@ std::unique_ptr<ASTNode> CHTLParser::parseStyleNode() {
 std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
     if (currentToken.type == TokenType::IDENTIFIER) {
         std::string tag = currentToken.value;
-        advance(); // consume tag
+        advance();
         auto elementNode = std::make_unique<ElementNode>(tag);
         if (currentToken.type == TokenType::LBRACE) {
-            advance(); // consume '{'
+            advance();
             parseAttributes(*elementNode);
             while (currentToken.type != TokenType::RBRACE && currentToken.type != TokenType::END_OF_FILE) {
                 elementNode->addChild(parseStatement());
             }
             if (currentToken.type == TokenType::RBRACE) {
-                advance(); // consume '}'
+                advance();
                 return elementNode;
             }
         }
@@ -104,16 +138,26 @@ std::unique_ptr<ElementNode> CHTLParser::parseElementNode() {
 }
 
 std::unique_ptr<ASTNode> CHTLParser::parseStatement() {
-    if (currentToken.value == "text") {
+    if (currentToken.type == TokenType::LBRACKET) {
+        return parseTemplate();
+    } else if (currentToken.value == "text") {
         return parseTextNode();
     } else if (currentToken.value == "style") {
-        return parseStyleNode();
+        advance(); // consume 'style'
+        if (currentToken.type == TokenType::LBRACE) {
+            advance(); // consume '{'
+            auto styleNode = parseStyleNode();
+            if (currentToken.type == TokenType::RBRACE) {
+                advance(); // consume '}'
+            }
+            return styleNode;
+        }
     } else if (currentToken.type == TokenType::IDENTIFIER) {
         return parseElementNode();
     }
 
     if (currentToken.type != TokenType::END_OF_FILE) {
-        advance(); // Move past unexpected tokens for now
+        advance();
     }
     return nullptr;
 }

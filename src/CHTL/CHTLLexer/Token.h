@@ -9,6 +9,9 @@ enum class TokenType {
     STRING,
     LBRACE,     // {
     RBRACE,     // }
+    LBRACKET,   // [
+    RBRACKET,   // ]
+    AT,         // @
     SEMICOLON,  // ;
     COLON,      // :
     EQUALS,     // =
@@ -28,6 +31,9 @@ struct Token {
             case TokenType::STRING: return "STRING";
             case TokenType::LBRACE: return "LBRACE";
             case TokenType::RBRACE: return "RBRACE";
+            case TokenType::LBRACKET: return "LBRACKET";
+            case TokenType::RBRACKET: return "RBRACKET";
+            case TokenType::AT: return "AT";
             case TokenType::SEMICOLON: return "SEMICOLON";
             case TokenType::COLON: return "COLON";
             case TokenType::EQUALS: return "EQUALS";

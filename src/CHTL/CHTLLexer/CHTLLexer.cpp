@@ -21,7 +21,7 @@ void CHTLLexer::skipWhitespace() {
 
 Token CHTLLexer::parseIdentifier() {
     std::string value;
-    while (!file.eof() && (isalnum(currentChar) || currentChar == '_' || currentChar == '-')) {
+    while (!file.eof() && (isalnum(currentChar) || currentChar == '_' || currentChar == '-' || currentChar == '.')) {
         value += currentChar;
         advance();
     }
@@ -70,6 +70,9 @@ Token CHTLLexer::getNextTokenInternal() {
         switch (currentChar) {
             case '{': advance(); return Token(TokenType::LBRACE, "{");
             case '}': advance(); return Token(TokenType::RBRACE, "}");
+            case '[': advance(); return Token(TokenType::LBRACKET, "[");
+            case ']': advance(); return Token(TokenType::RBRACKET, "]");
+            case '@': advance(); return Token(TokenType::AT, "@");
             case ';': advance(); return Token(TokenType::SEMICOLON, ";");
             case ':': advance(); return Token(TokenType::COLON, ":");
             case '=': advance(); return Token(TokenType::EQUALS, "=");

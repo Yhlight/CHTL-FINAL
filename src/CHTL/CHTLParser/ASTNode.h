@@ -27,14 +27,29 @@ private:
 
 class StylePropertyNode : public ASTNode {
 public:
-    StylePropertyNode(std::string key, std::string value) : key(std::move(key)), value(std::move(value)) {}
+    StylePropertyNode(std::string key, std::string value, bool isString) : key(std::move(key)), value(std::move(value)), isString(isString) {}
     std::string toString() const override {
+        if (isString) {
+            return "StylePropertyNode(" + key + ": \"" + value + "\")";
+        }
         return "StylePropertyNode(" + key + ": " + value + ")";
     }
 
 private:
     std::string key;
     std::string value;
+    bool isString;
+};
+
+class StyleTemplateUsageNode : public ASTNode {
+public:
+    explicit StyleTemplateUsageNode(std::string name) : name(std::move(name)) {}
+    std::string toString() const override {
+        return "StyleTemplateUsageNode(" + name + ")";
+    }
+
+private:
+    std::string name;
 };
 
 class StyleNode : public ASTNode {
@@ -43,18 +58,30 @@ public:
     std::string toString() const override {
         std::stringstream ss;
         ss << "StyleNode({";
-        for (const auto& prop : properties) {
-            ss << prop->toString() << ", ";
+        for (const auto& item : items) {
+            ss << item->toString() << ", ";
         }
         ss << "})";
         return ss.str();
     }
-    void addProperty(std::unique_ptr<StylePropertyNode> prop) {
-        properties.push_back(std::move(prop));
+    void addItem(std::unique_ptr<ASTNode> item) {
+        items.push_back(std::move(item));
     }
 
 private:
-    std::vector<std::unique_ptr<StylePropertyNode>> properties;
+    std::vector<std::unique_ptr<ASTNode>> items;
+};
+
+class StyleTemplateNode : public ASTNode {
+public:
+    StyleTemplateNode(std::string name, std::unique_ptr<StyleNode> body) : name(std::move(name)), body(std::move(body)) {}
+    std::string toString() const override {
+        return "StyleTemplateNode(" + name + ", " + body->toString() + ")";
+    }
+
+private:
+    std::string name;
+    std::unique_ptr<StyleNode> body;
 };
 
 class ElementNode : public ASTNode {

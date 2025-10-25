@@ -3,6 +3,14 @@ import subprocess
 def run_test():
     """Runs the test for the 'Hello, World!' CHTL file."""
     try:
+        # Build the project first to ensure the executable is up-to-date
+        build_result = subprocess.run(['python3', 'build.py', 'build'], capture_output=True, text=True)
+        if build_result.returncode != 0:
+            print("Build failed!")
+            print(build_result.stdout)
+            print(build_result.stderr)
+            return
+
         # Run the CHTL compiler on the hello.chtl file
         result = subprocess.run(
             ['./build/chtl', 'tests/hello.chtl'],
@@ -12,7 +20,11 @@ def run_test():
         )
 
         # Check if the output is correct
-        expected_output = "Hello, World!\n"
+        expected_output = """Token(IDENTIFIER, "text")
+Token(LBRACE, "{")
+Token(STRING, "Hello, World!")
+Token(RBRACE, "}")
+"""
         if result.stdout == expected_output:
             print("Test passed!")
         else:
